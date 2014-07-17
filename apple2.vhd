@@ -70,7 +70,7 @@ architecture rtl of apple2 is
   -- CPU signals
   signal D_IN : unsigned(7 downto 0);
   signal A : unsigned(15 downto 0);
-  signal R_W_N : std_logic;
+  signal we : std_logic;
 
   -- Main ROM signals
   signal rom_out : unsigned(7 downto 0);
@@ -96,7 +96,7 @@ begin
   PRE_PHASE_ZERO <= PRE_PHASE_ZERO_sig;
 
   ram_addr <= A when PHASE_ZERO = '1' else VIDEO_ADDRESS;
-  ram_we <= (not R_W_N) and not RAS_N when PHASE_ZERO = '1' else '0';
+  ram_we <= we and not RAS_N when PHASE_ZERO = '1' else '0';
 
   -- Latch RAM data on the rising edge of RAS
   RAM_data_latch : process (CLK_14M)
@@ -214,8 +214,8 @@ begin
     RAS_N          => RAS_N,
     Q3	           => Q3,
     AX             => AX,
-    PHASE_ZERO     => PHASE_ZERO,
-    PRE_PHASE_ZERO => PRE_PHASE_ZERO_sig,
+    PHI0           => PHASE_ZERO,
+    PRE_PHI0       => PRE_PHASE_ZERO_sig,
     COLOR_REF      => COLOR_REF,
     TEXT_MODE      => TEXT_MODE,
     PAGE2          => PAGE2,
@@ -257,18 +257,23 @@ begin
     VIDEO      => VIDEO,
     COLOR_LINE => COLOR_LINE);
 
-  cpu : entity work.cpu6502 port map (
-    clk            => Q3,
-    pre_phase_zero => PRE_PHASE_ZERO_sig,
-    reset          => reset,
-    nmi_n          => '1',
-    irq_n          => '1',
-    D_IN           => D_IN,
-    D_OUT          => D,
-    A              => A,
-    R_W_N          => R_W_N,
-    pcDebugOut     => pcDebugOut,
-    opcodeDebugOut => opcodeDebugOut
+  cpu : entity work.cpu65xx
+    generic map (
+      pipelineOpcode => false,
+      pipelineAluMux => false,
+      pipelineAluOut => false)
+    port map (
+      clk            => Q3,
+      enable         => not PRE_PHASE_ZERO_sig,
+      reset          => reset,
+      nmi_n          => '1',
+      irq_n          => '1',
+      di             => D_IN,
+      do             => D,
+      addr           => A,
+      we             => we,
+      debugPc     => pcDebugOut,
+      debugOpcode => opcodeDebugOut
     );
 
   -- Original Apple had asynchronous ROMs.  We use a synchronous ROM

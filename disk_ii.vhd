@@ -9,6 +9,9 @@
 --
 -------------------------------------------------------------------------------
 --
+-- Each track is represented as 0x1A00 bytes
+-- Each disk image consists of 35 * 0x1A00 bytes = 0x38A00 (227.5 K)
+--
 -- X = $60 for slot 6
 --
 --  Off          On
@@ -50,6 +53,12 @@
 --
 -- There are 70 phases for the head stepper and and 35 tracks,
 -- i.e., two phase changes per track.
+--
+-- The disk spins at 300 rpm; one new bit arrives every 4 us
+-- The processor's clock is 1 MHz = 1 us, so it takes 8 * 4 = 32 cycles
+-- for a new byte to arrive
+--
+-- This corresponds to dividing the 2 MHz signal by 64 to get the byte clock
 --
 -------------------------------------------------------------------------------
 
@@ -98,10 +107,13 @@ architecture rtl of disk_ii is
   signal track_memory : track_ram;
   signal ram_do : unsigned(7 downto 0);
 
-  signal track_byte_addr : unsigned(13 downto 0);
+  -- Lower bit indicates whether disk data is "valid" or not
+  -- RAM address is track_byte_addr(14 downto 1)
+  -- This makes it look to the software like new data is constantly
+  -- being read into the shift register, which indicates the data is
+  -- not yet ready.
+  signal track_byte_addr : unsigned(14 downto 0);
   signal read_disk : std_logic;         -- When C08C accessed
-
-  signal byte_delay : unsigned(5 downto 0);  -- For spinning the disk
 
 begin
 
@@ -233,22 +245,23 @@ begin
       if ram_we = '1' then
         track_memory(to_integer(ram_write_addr)) <= ram_di;
       end if;
-      ram_do <= track_memory(to_integer(track_byte_addr));
+      ram_do <= track_memory(to_integer(track_byte_addr(14 downto 1)));
     end if;
   end process;
 
   -- Go to the next byte when the disk is accessed or if the counter times out
   read_head : process (CLK_2M)
+  variable byte_delay : unsigned(5 downto 0);  -- Accounts for disk spin rate
   begin
     if rising_edge(CLK_2M) then
       if reset = '1' then
         track_byte_addr <= (others => '0');
-        byte_delay <= "111111";
+        byte_delay := (others => '0');
       else
-        byte_delay <= byte_delay - 1;
+        byte_delay := byte_delay - 1;
         if (read_disk = '1' and PRE_PHASE_ZERO = '1') or byte_delay = 0 then
-          byte_delay <= "111111";
-          if track_byte_addr = X"19FF" then
+          byte_delay := (others => '0');
+          if track_byte_addr = X"33FE" then
             track_byte_addr <= (others => '0');
           else
             track_byte_addr <= track_byte_addr + 1;
@@ -267,9 +280,9 @@ begin
                '0';  -- C08C
 
   D_OUT <= rom_dout when IO_SELECT = '1' else
-           ram_do when read_disk = '1' else
+           ram_do when read_disk = '1' and track_byte_addr(0) = '0' else
            (others => '0');
 
-  track_addr <= track_byte_addr;
+  track_addr <= track_byte_addr(14 downto 1);
   
 end rtl;

@@ -1,51 +1,114 @@
-VERSION = 0.1
+# Makefile for the Apple ][-on-an-FPGA project
+#
+# Mostly creates an archive, prepares the ROM images, and run test benches
+#
+# DOES NOT compile the VHDL for the FPGA.  This is done within Quartus.
+#
+# Stephen A. Edwards, Columbia University, sedwards@cs.columbia.edu
+
+VERSION = 1.1
 NAME = apple2fpga-$(VERSION)
 
+ZIPFILES = \
+README \
+Makefile \
+DE2_TOP.qsf \
+apple2fpga.qpf \
+apple2.vhd \
+character_rom.vhd \
+CLK28MPLL.vhd \
+CLK28MPLL.qip \
+cpu6502.vhd \
+DE2_TOP.vhd \
+disk_ii.vhd \
+i2c_controller.vhd \
+keyboard.vhd \
+PS2_Ctrl.vhd \
+spi_controller.vhd \
+timing_generator.vhd \
+vga_controller.vhd \
+video_generator.vhd \
+wm8731_audio.vhd \
+disk_ii_rom.vhd \
+main_roms.vhd \
+i2c_testbench.vhd \
+timing_testbench.vhd \
+dos33master.nib \
+dsk2nib.c \
+rom2vhdl \
+makenibs \
+bios.a65 \
+bios.rom \
+DE2_TOP.sof \
+apple_II.rom \
+slot6.rom
+
+##############################
+# Create the .zip file archive
+
+$(NAME).zip : $(ZIPFILES)
+	zip $(NAME).zip $(ZIPFILES)
+
+##############################
+# Create the two VHDL files for the actual ROMS
+
+# apple_II.rom should be a 12287-byte file that represents the contents
+# of the Apple II's ROMS, i.e., memory from 0xd000 to 0xffff
+
+main_roms.vhd : apple_II.rom
+	./rom2vhdl main_roms 13 12287 < apple_II.rom > main_roms.vhd
+
+# slot6.rom should be a 256-byte file that represents the contents of the
+# Disk II controller card.  When in slot 6, it appears in memory from
+# 0xc600 to 0xc6FF
+
+disk_ii_rom.vhd : slot6.rom
+	./rom2vhdl disk_ii_rom 7 255 < slot6.rom > disk_ii_rom.vhd
+
+##############################
+# Assemble the "fake BIOS" using the xa65 cross-assembler
+
+bios.rom : bios.a65
+	xa -bt 53248 -A 53248 -o bios.rom -l bios.labels bios.a65
+
+# Disassemble the "fake BIOS" to
+
+bios.dis : bios.rom
+	dxa -g d000 -a dump -r d000 bios.rom > bios.dis
+
+##############################
+# Rules for running the various testbenches using ghdl, the GNU VHDL simulator
+
 VHDL_SRC = timing_generator.vhd \
-	character_rom.vhd \
-	video_generator.vhd \
-	main_roms.vhd \
-	cpu6502.vhd \
-	apple2.vhd \
-	vga_controller.vhd \
-	PS2_Ctrl.vhd \
-	kbd_transl.vhd \
-	kbd_intf.vhd \
-	disk_ii_rom.vhd \
-	disk_ii.vhd \
-	spi_controller.vhd \
-	DE2_TOP.vhd \
-	testbench.vhd
+	timing_testbench.vhd \
+	i2c_controller.vhd \
+	i2c_testbench.vhd
 
-TARFILES = README Makefile dsk2nib.c $(VHDL_SRC) CLK14MPLL.ppf CLK14MPLL.vhd \
-	apple2fpga.qpf DE2_TOP.qsf dos33master.dsk rom2vhdl \
-	apple_II.rom slot6.rom
+TIMING = 10000000ns
 
-testbench : $(VHDL_SRC:%.vhd=%.o)
-	ghdl -e testbench
+timing_testbench : $(VHDL_SRC:%.vhd=%.o)
+	ghdl -e timing_testbench
 
-dsk2nib : dsk2nib.c
-	cc -O -o dsk2nib dsk2nib.c
+timing_testbench.o : timing_generator.o
 
-apple2fpga-$(VERSION).tar.gz : $(TARFILES)
-	mkdir $(NAME)
-	ln $(TARFILES) $(NAME)
-	tar zcf $@ $(NAME)
-	rm -rf $(NAME)
+# Run the timing testbench to generate a .vcd file, which can be viewed with
+#
+# gtkwave timing_testbench.vcd timing_testbench.sav
+#
+timing_testbench.vcd : timing_testbench Makefile
+	-./timing_testbench --vcd=timing_testbench.vcd --stop-time=$(TIMING) 2> timing_testbench.log
 
-main_roms.vhd : rom2vhdl apple_II.rom
-	./rom2vhdl main_roms 13 12287 < apple_II.rom > $@
+i2c_testbench : $(VHDL_SRC:%.vhd=%.o)
+	ghdl -e i2c_testbench
 
-disk_ii_rom.vhd : rom2vhdl slot6.rom
-	./rom2vhdl disk_ii_rom 7 255 < slot6.rom > $@
+i2c_testbench.o : i2c_controller.o
 
-%.nib : %.dsk dsk2nib
-	./dsk2nib $< $@
+# Run the i2c testbench to generate a .vcd file, which can be viewed with
+#
+# gtkwave i2c_testbench.vcd i2c_testbench.sav
+#
+i2c_testbench.vcd : i2c_testbench Makefile
+	./i2c_testbench --vcd=i2c_testbench.vcd --stop-time=$(TIMING) 2> i2c_testbench.log
 
 %.o : %.vhd
 	ghdl -a $<
-
-.PHONY : clean
-
-clean :
-	rm -f *.o *.log *.vcd

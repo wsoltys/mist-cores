@@ -120,6 +120,7 @@ set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_RO
 set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
 set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
 set_global_assignment -name DEVICE_FILTER_PIN_COUNT 144
+set_global_assignment -name VHDL_FILE keyboard.vhd
 set_global_assignment -name VERILOG_FILE user_io.v
 set_global_assignment -name VHDL_FILE mist_top.vhd
 set_global_assignment -name VERILOG_FILE data_io_ram.v
@@ -134,9 +135,8 @@ set_global_assignment -name VHDL_FILE disk_ii.vhd
 set_global_assignment -name VHDL_FILE disk_ii_rom.vhd
 set_global_assignment -name VHDL_FILE vga_controller.vhd
 set_global_assignment -name VHDL_FILE PS2_Ctrl.vhd
-set_global_assignment -name VHDL_FILE kbd_intf.vhd
-set_global_assignment -name VHDL_FILE kbd_transl.vhd
 set_global_assignment -name VHDL_FILE spi_controller.vhd
-set_global_assignment -name VHDL_TEST_BENCH_FILE testbench.vhd
 set_global_assignment -name QIP_FILE mist_clk.qip
+set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
+set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

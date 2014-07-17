@@ -1,5 +1,13 @@
 #!/bin/sh
 
+# A shell script for generating main_roms.vhd and disk_ii_rom.vhd
+#
+# Usage:
+#
+# ./rom2vhdl main_roms 13 12287 < apple_II.rom > main_roms.vhd
+#
+# ./rom2vhdl disk_ii_rom 7 255 < slot6.rom > disk_ii_rom.vhd
+
 echo "library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;

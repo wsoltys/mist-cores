@@ -108,7 +108,7 @@ end component user_io;
            dout: out std_logic_vector(7 downto 0));
   end component;
 
-  signal CLK_14M, CLK_2M, PRE_PHASE_ZERO, CLK_12k : std_logic;
+  signal CLK_28M, CLK_14M, CLK_2M, PRE_PHASE_ZERO, CLK_12k : std_logic;
   signal IO_SELECT, DEVICE_SELECT : std_logic_vector(7 downto 0);
   signal ADDR : unsigned(15 downto 0);
   signal D, PD : unsigned(7 downto 0);
@@ -123,10 +123,12 @@ end component user_io;
   signal K : unsigned(7 downto 0);
   signal read_key : std_logic;
 
-  signal flash_clk : unsigned(22 downto 0);
+  signal flash_clk : unsigned(22 downto 0) := (others => '0');
+  signal power_on_reset : std_logic := '1';
   signal reset : std_logic;
 
   signal track : unsigned(5 downto 0);
+  signal image : unsigned(9 downto 0);
   signal trackmsb : unsigned(3 downto 0);
   signal D1_ACTIVE, D2_ACTIVE : std_logic;
   signal track_addr : unsigned(13 downto 0);
@@ -156,7 +158,16 @@ end component user_io;
 
 begin
 
-  reset <= status(0) or buttons(0);
+  reset <= status(0) or buttons(0) or power_on_reset;
+
+  power_on : process(CLK_14M)
+  begin
+    if rising_edge(CLK_14M) then
+      if flash_clk(22) = '1' then
+        power_on_reset <= '0';
+      end if;
+    end if;
+  end process;
   
   SDRAM_nCS <= '1'; -- disable ram
 
@@ -171,8 +182,9 @@ begin
   pll : entity work.mist_clk 
   port map (
     inclk0 => CLOCK_27(0),
-    c0     => CLK_14M,
-    c1     => CLK_12k
+    c0     => CLK_28M,
+    c1     => CLK_14M,
+    c2     => CLK_12k
     );
 
   -- Paddle buttons
@@ -213,7 +225,7 @@ begin
     );
 
   vga : entity work.vga_controller port map (
-    CLK_14M    => CLK_14M,
+    CLK_28M    => CLK_28M,
     VIDEO      => VIDEO,
     COLOR_LINE => COLOR_LINE_CONTROL,
     HBL        => HBL,
@@ -232,13 +244,13 @@ begin
   VGA_G <= g(5 downto 0);
   VGA_B <= b(5 downto 0);
 
-  keyboard : entity work.kbd_intf port map (
+  keyboard : entity work.keyboard port map (
     PS2_Clk  => ps2Clk,
     PS2_Data => ps2Data,
     CLK_14M  => CLK_14M,
     reset    => reset,
-    read_kb  => read_key,
-    K => K
+    reads     => read_key,
+    K        => K
     );
 
   disk : entity work.disk_ii port map (
@@ -270,6 +282,7 @@ begin
     SCLK           => SCLK,
     
     track          => TRACK,
+    image          => image,
     
     ram_write_addr => TRACK_RAM_ADDR,
     ram_di         => TRACK_RAM_DI,

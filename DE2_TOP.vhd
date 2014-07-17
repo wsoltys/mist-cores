@@ -61,7 +61,7 @@ entity DE2_TOP is
     -- Buttons and switches
     
     KEY : in std_logic_vector(3 downto 0);         -- Push buttons
-    SW : in std_logic_vector(17 downto 0);         -- DPDT switches
+    SW  : in unsigned(17 downto 0);                -- DPDT switches
 
     -- LED displays
 
@@ -212,13 +212,14 @@ end DE2_TOP;
 
 architecture datapath of DE2_TOP is
 
-  component CLK14MPLL is
+  component CLK28MPLL is
     port (
       inclk0    : in std_logic;
-      c0        : out std_logic);
+      c0        : out std_logic;
+      c1        : out std_logic);
   end component;
-
-  signal CLK_14M, CLK_2M, PRE_PHASE_ZERO : std_logic;
+  
+  signal CLK_28M, CLK_14M, CLK_2M, PRE_PHASE_ZERO : std_logic;
   signal IO_SELECT, DEVICE_SELECT : std_logic_vector(7 downto 0);
   signal ADDR : unsigned(15 downto 0);
   signal D, PD : unsigned(7 downto 0);
@@ -233,10 +234,14 @@ architecture datapath of DE2_TOP is
   signal K : unsigned(7 downto 0);
   signal read_key : std_logic;
 
-  signal flash_clk : unsigned(22 downto 0);
+  signal flash_clk : unsigned(22 downto 0) := (others => '0');
+  signal power_on_reset : std_logic := '1';
   signal reset : std_logic;
 
+  signal speaker : std_logic;
+
   signal track : unsigned(5 downto 0);
+  signal image : unsigned(9 downto 0);
   signal trackmsb : unsigned(3 downto 0);
   signal D1_ACTIVE, D2_ACTIVE : std_logic;
   signal track_addr : unsigned(13 downto 0);
@@ -249,7 +254,16 @@ architecture datapath of DE2_TOP is
 
 begin
 
-  reset <= SW(0);
+  reset <= (not KEY(3)) or power_on_reset;
+
+  power_on : process(CLK_14M)
+  begin
+    if rising_edge(CLK_14M) then
+      if flash_clk(22) = '1' then
+        power_on_reset <= '0';
+      end if;
+    end if;
+  end process;
 
   -- In the Apple ][, this was a 555 timer
   flash_clkgen : process (CLK_14M)
@@ -259,9 +273,11 @@ begin
     end if;     
   end process;
 
-  pll : CLK14MPLL port map (
+  -- Use a PLL to divide the 50 MHz down to 28 MHz and 14 MHz
+  pll : CLK28MPLL port map (
     inclk0 => CLOCK_50,
-    c0     => CLK_14M
+    c0     => CLK_28M,
+    c1     => CLK_14M
     );
 
   -- Paddle buttons
@@ -288,16 +304,16 @@ begin
     LD194          => LD194,
     K              => K,
     read_key       => read_key,
-    AN             => LEDR(3 downto 0),
+    AN             => LEDG(7 downto 4),
     GAMEPORT       => GAMEPORT,
     IO_SELECT      => IO_SELECT,
     DEVICE_SELECT  => DEVICE_SELECT,
     pcDebugOut     => cpu_pc,
-    speaker        => LEDG(0)
+    speaker        => speaker
     );
 
   vga : entity work.vga_controller port map (
-    CLK_14M    => CLK_14M,
+    CLK_28M    => CLK_28M,
     VIDEO      => VIDEO,
     COLOR_LINE => COLOR_LINE_CONTROL,
     HBL        => HBL,
@@ -314,13 +330,13 @@ begin
 
   VGA_SYNC <= '0';
 
-  keyboard : entity work.kbd_intf port map (
+  keyboard : entity work.keyboard port map (
     PS2_Clk  => PS2_CLK,
     PS2_Data => PS2_DAT,
     CLK_14M  => CLK_14M,
     reset    => reset,
-    read_kb  => read_key,
-    K => K
+    read     => read_key,
+    K        => K
     );
 
   disk : entity work.disk_ii port map (
@@ -352,28 +368,57 @@ begin
     SCLK           => SCLK,
     
     track          => TRACK,
+    image          => image,
     
     ram_write_addr => TRACK_RAM_ADDR,
     ram_di         => TRACK_RAM_DI,
     ram_we         => TRACK_RAM_WE
     );
 
+  image <= SW(9 downto 0);
+
   SD_DAT3 <= CS_N;
   SD_CMD  <= MOSI;
   MISO    <= SD_DAT;
   SD_CLK  <= SCLK;
 
+  i2c : entity work.i2c_controller port map (
+    CLK   => CLOCK_50,
+    SCLK  => I2C_SCLK,
+    SDAT  => I2C_SDAT,
+    reset => reset
+  );
+
+  audio_output : entity work.wm8731_audio port map (
+    clk          => CLK_14M,
+    reset        => reset,
+    data         => speaker & "000000000000000",
+  
+    -- Audio interface signals
+    AUD_ADCLRCK  => AUD_ADCLRCK,
+    AUD_ADCDAT   => AUD_ADCDAT,
+    AUD_DACLRCK  => AUD_DACLRCK,
+    AUD_DACDAT   => AUD_DACDAT,
+    AUD_BCLK     => AUD_BCLK
+  );
+
+  AUD_XCK <= CLK_14M;
+
+  -- Processor PC on the right four digits
   digit0 : entity work.hex7seg port map (cpu_pc( 3 downto  0), HEX0);
   digit1 : entity work.hex7seg port map (cpu_pc( 7 downto  4), HEX1);
   digit2 : entity work.hex7seg port map (cpu_pc(11 downto  8), HEX2);
   digit3 : entity work.hex7seg port map (cpu_pc(15 downto 12), HEX3);
-  
-  digit4 : entity work.hex7seg port map (track_addr(3 downto 0), HEX4);
-  digit5 : entity work.hex7seg port map (track_addr(7 downto 4), HEX5);
 
+  -- Current disk track on middle two digits 
   trackmsb <= "00" & track(5 downto 4);
-  digit6 : entity work.hex7seg port map (track(3 downto 0), HEX6);
-  digit7 : entity work.hex7seg port map (trackmsb, HEX7);
+  digit4 : entity work.hex7seg port map (track(3 downto 0), HEX4);
+  digit5 : entity work.hex7seg port map (trackmsb, HEX5);
+
+  -- Current disk image on left two digits
+  digit6 : entity work.hex7seg port map (image(3 downto 0), HEX6);
+  digit7 : entity work.hex7seg port map (image(7 downto 4), HEX7);
+
 
   SRAM_DQ(7 downto 0) <= D when ram_we = '1' else (others => 'Z');
   SRAM_ADDR(17) <= '0';
@@ -384,13 +429,33 @@ begin
   SRAM_WE_N <= not ram_we;
   SRAM_OE_N <= ram_we;
 
-  LEDR(17) <= D1_ACTIVE;
-  LEDR(16) <= D2_ACTIVE;
-  LEDR(15) <= TRACK_RAM_WE;
+  -- Decode the top four bits of the PC on the red LEDs
+  with  cpu_pc(15 downto 12) select LEDR(15 downto 0) <=
+    "0000000000000001" when x"0",
+    "0000000000000010" when x"1",
+    "0000000000000100" when x"2",
+    "0000000000001000" when x"3",
+    "0000000000010000" when x"4",
+    "0000000000100000" when x"5",
+    "0000000001000000" when x"6",
+    "0000000010000000" when x"7",
+    "0000000100000000" when x"8",
+    "0000001000000000" when x"9",
+    "0000010000000000" when x"A",
+    "0000100000000000" when x"B",
+    "0001000000000000" when x"C",
+    "0010000000000000" when x"D",
+    "0100000000000000" when x"E",
+    "1000000000000000" when x"F",
+    "XXXXXXXXXXXXXXXX" when others;
 
-  LEDG(8 downto 1) <= (others => '0');
-  LEDR(14 downto 4) <= (others => '0');
+  
+  LEDR(17 downto 16) <= (others => '0');
 
+  LEDG(8) <= D1_ACTIVE;
+  LEDG(3 downto 1) <= (others => '0');
+  LEDG(0) <= speaker;
+  
   UART_TXD <= '0';
   DRAM_ADDR <= (others => '0');
   DRAM_LDQM <= '0';
@@ -427,17 +492,12 @@ begin
 
   TDO <= '0';
 
-  I2C_SCLK <= '0';
-
   ENET_CMD <= '0';
   ENET_CS_N <= '1';
   ENET_WR_N <= '1';
   ENET_RD_N <= '1';
   ENET_RST_N <= '1';
   ENET_CLK <= '0';
-
-  AUD_DACDAT <= '0';
-  AUD_XCK <= '0';
 
   TD_RESET <= '0';
 
@@ -447,11 +507,7 @@ begin
   SRAM_DQ(15 downto 8) <= (others => 'Z');
   OTG_DATA    <= (others => 'Z');
   LCD_DATA    <= (others => 'Z');
-  I2C_SDAT    <= 'Z';
   ENET_DATA   <= (others => 'Z');
-  AUD_ADCLRCK <= 'Z';
-  AUD_DACLRCK <= 'Z';
-  AUD_BCLK    <= 'Z';
   GPIO_0      <= (others => 'Z');
   GPIO_1      <= (others => 'Z');
 

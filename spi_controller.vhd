@@ -5,6 +5,16 @@
 -- Stephen A. Edwards (sedwards@cs.columbia.edu)
 --
 -------------------------------------------------------------------------------
+--
+-- One of 1024 disk images may be selected, which reqires a total of
+-- 1024 * 227.5 K = 227.5 MB
+--
+-- Each image is 0x38E00 bytes long
+--
+-- 0011 1000 1110 0000 0000
+--
+-- 0x40000 - 0x8000 + 0x1000 - 0x200
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -22,7 +32,8 @@ entity spi_controller is
     ram_we         : out std_logic;
     
     track          : in  unsigned(5 downto 0);  -- 0 - 34
-    
+    image          : in  unsigned(9 downto 0);  -- Which disk image to read
+   
     CLK_14M        : in  std_logic;    -- System clock
     reset          : in  std_logic);
 
@@ -54,6 +65,7 @@ architecture rtl of spi_controller is
   signal byte_counter : unsigned(7 downto 0);
   
   signal current_track : unsigned(5 downto 0);
+  signal current_image : unsigned(9 downto 0);
 
   signal write_addr : unsigned(13 downto 0);
 
@@ -75,6 +87,7 @@ begin
       if reset = '1' then
         state <= RESET_STATE;
         current_track <= (others => '1');  -- deliberately out of range
+        current_image <= (others => '1');
         sclk_sig <= '0';
         CS_N <= '1';
         command <= (others => '1');
@@ -110,14 +123,14 @@ begin
             -- Send CMD0 : GO_IDLE_STATE
           when RESET_SEND_CMD0 =>
             command <= x"400000000095";
-            counter <= TO_UNSIGNED(47, 8);
+            counter <= TO_UNSIGNED(55, 8);
             return_state <= RESET_SEND_CMD1;
             state <= SEND_CMD;
 
             -- Send CMD1 : SEND_OP_CMD
           when RESET_SEND_CMD1 =>
             command <= x"410000000001";
-            counter <= TO_UNSIGNED(47, 8);
+            counter <= TO_UNSIGNED(55, 8);
             return_state <= RESET_CHECK_CMD1;
             state <= SEND_CMD;
 
@@ -135,24 +148,20 @@ begin
             state <= SEND_CMD;
               
           when IDLE =>
-            if track /= current_track then
-              -- Multiply by $1A00
-              address <= ("00000000000000000" & track &    "000000000") +
-                         (                      track &  "00000000000") +
-                         (                      track & "000000000000");
-              -- address <= track * "0000000000" & x"1A00"; -- FIXME
-              -- address <= (others => '0');
---              if track = 0 then
---                address <= x"00000000";
---              elsif track = 1 then
---                address <= x"00001A00";
---              elsif track = 2 then
---                address <= x"00003400";
---              end if;
+            if track /= current_track or image /= current_image then
+              -- Multiply image by $38E00 and track by $1A00
+              address <= ("0000" & image & "000000000000000000") -
+                         (           image &  "000000000000000") +
+                         (               image & "000000000000") -
+                         (                 image  & "000000000") +
+                         (                 track  & "000000000") +
+                         (               track &  "00000000000") +
+                         (              track  & "000000000000");
               write_addr <= (others => '0');
               state <= READ_TRACK;
             end if;
             current_track <= track;
+            current_image <= image;
 
           when READ_TRACK =>
             if write_addr = x"1A00" then
