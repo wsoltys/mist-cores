@@ -50,7 +50,11 @@ entity mist_top is
     VGA_VS : out std_logic;                             -- V_SYNC
     VGA_R,                                              -- Red[5:0]
     VGA_G,                                              -- Green[5:0]
-    VGA_B : out unsigned(5 downto 0)                    -- Blue[5:0]
+    VGA_B : out unsigned(5 downto 0);                   -- Blue[5:0]
+    
+    -- Audio
+    AUDIO_L,
+    AUDIO_R : out std_logic
 
     );
   
@@ -155,6 +159,7 @@ end component user_io;
   signal status     : std_logic_vector(7 downto 0);
   signal ps2Clk     : std_logic;
   signal ps2Data    : std_logic;
+  signal audio      : std_logic;
 
 begin
 
@@ -221,8 +226,11 @@ begin
     IO_SELECT      => IO_SELECT,
     DEVICE_SELECT  => DEVICE_SELECT,
     pcDebugOut     => cpu_pc,
-    speaker        => open
+    speaker        => audio
     );
+    
+  AUDIO_L <= audio;
+  AUDIO_R <= audio;
 
   vga : entity work.vga_controller port map (
     CLK_28M    => CLK_28M,
