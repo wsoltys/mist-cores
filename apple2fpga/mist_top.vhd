@@ -31,9 +31,19 @@ entity mist_top is
     
     CLOCK_27    : in std_logic_vector(1 downto 0); -- 27 MHz
 
+
     -- SDRAM
-    
-    SDRAM_nCS : out std_logic;                     -- Chip Select
+    SDRAM_nCS : out std_logic; -- Chip Select
+    SDRAM_DQ : inout std_logic_vector(15 downto 0); -- SDRAM Data bus 16 Bits
+    SDRAM_A : out std_logic_vector(12 downto 0); -- SDRAM Address bus 13 Bits
+    SDRAM_DQMH : out std_logic; -- SDRAM High Data Mask
+    SDRAM_DQML : out std_logic; -- SDRAM Low-byte Data Mask
+    SDRAM_nWE : out std_logic; -- SDRAM Write Enable
+    SDRAM_nCAS : out std_logic; -- SDRAM Column Address Strobe
+    SDRAM_nRAS : out std_logic; -- SDRAM Row Address Strobe
+    SDRAM_BA : out std_logic_vector(1 downto 0); -- SDRAM Bank Address
+    SDRAM_CLK : out std_logic; -- SDRAM Clock
+    SDRAM_CKE: out std_logic; -- SDRAM Clock Enable
     
     -- SPI
     SPI_SCK : in std_logic;
@@ -50,7 +60,7 @@ entity mist_top is
     VGA_VS : out std_logic;                             -- V_SYNC
     VGA_R,                                              -- Red[5:0]
     VGA_G,                                              -- Green[5:0]
-    VGA_B : out unsigned(5 downto 0);                   -- Blue[5:0]
+    VGA_B : out std_logic_vector(5 downto 0);           -- Blue[5:0]
     
     -- Audio
     AUDIO_L,
@@ -62,7 +72,7 @@ end mist_top;
 
 architecture datapath of mist_top is
 
-  constant CONF_STR : string := "apple2;apl;";
+  constant CONF_STR : string := "AppleII+;NIB;";
 
   function to_slv(s: string) return std_logic_vector is 
     constant ss: string(1 to s'length) := s; 
@@ -98,24 +108,54 @@ architecture datapath of mist_top is
            ps2_data : out std_logic
          );
 
-end component user_io;
+  end component user_io;
+  
   component data_io is
-      port(sck: in std_logic;
+    port ( sck: in std_logic;
            ss: in std_logic;
            sdi: in std_logic;
            downloading: out std_logic;
-           size: out std_logic_vector(15 downto 0);
+           size: out std_logic_vector(24 downto 0);
            clk: in std_logic;
-           we: in std_logic;
-           a: in std_logic_vector(15 downto 0);
-           din: in std_logic_vector(7 downto 0);
-           dout: out std_logic_vector(7 downto 0));
+           wr: out std_logic;
+           a: out std_logic_vector(24 downto 0);
+           d: out std_logic_vector(7 downto 0));
   end component;
+  
+  component sdram is
+    port( sd_data : inout std_logic_vector(15 downto 0);
+          sd_addr : out std_logic_vector(12 downto 0);
+          sd_dqm : out std_logic_vector(1 downto 0);
+          sd_ba : out std_logic_vector(1 downto 0);
+          sd_cs : out std_logic;
+          sd_we : out std_logic;
+          sd_ras : out std_logic;
+          sd_cas : out std_logic;
+          init : in std_logic;
+          clk : in std_logic;
+          clkref : in std_logic;
+          din : in std_logic_vector(7 downto 0);
+          dout : out std_logic_vector(7 downto 0);
+          addr : in std_logic_vector(24 downto 0);
+          oe : in std_logic;
+          we : in std_logic
+    );
+  end component;
+  
+  component osd
+    port ( pclk, sck, ss, sdi, hs_in, vs_in : in std_logic;
+           red_in, blue_in, green_in : in std_logic_vector(5 downto 0);
+           red_out, blue_out, green_out : out std_logic_vector(5 downto 0);
+           hs_out, vs_out : out std_logic
+         );
+  end component osd;
 
-  signal CLK_28M, CLK_14M, CLK_2M, PRE_PHASE_ZERO, CLK_12k : std_logic;
+  signal CLK_114M, CLK_28M, CLK_14M, CLK_2M, PRE_PHASE_ZERO, CLK_12k : std_logic;
+  signal clk_div : unsigned(1 downto 0);
   signal IO_SELECT, DEVICE_SELECT : std_logic_vector(7 downto 0);
   signal ADDR : unsigned(15 downto 0);
-  signal D, PD : unsigned(7 downto 0);
+  signal D, PD, ram_do, ram_di : unsigned(7 downto 0);
+  signal DO : std_logic_vector(7 downto 0);
 
   signal ram_we : std_logic;
   signal VIDEO, HBL, VBL, LD194 : std_logic;
@@ -129,6 +169,7 @@ end component user_io;
 
   signal flash_clk : unsigned(22 downto 0) := (others => '0');
   signal power_on_reset : std_logic := '1';
+  signal force_reset : std_logic := '0';
   signal reset : std_logic;
 
   signal track : unsigned(5 downto 0);
@@ -136,21 +177,32 @@ end component user_io;
   signal trackmsb : unsigned(3 downto 0);
   signal D1_ACTIVE, D2_ACTIVE : std_logic;
   signal track_addr : unsigned(13 downto 0);
-  signal TRACK_RAM_ADDR : unsigned(13 downto 0);
+  signal TRACK_RAM_ADDR : unsigned(17 downto 0);
   signal tra : unsigned(15 downto 0);
   signal TRACK_RAM_DI : unsigned(7 downto 0);
-  signal TRACK_RAM_WE : std_logic;
+  signal TRACK_RAM_OE : std_logic;
 
   signal CS_N, MOSI, MISO, SCLK : std_logic;
   
   signal downl : std_logic := '0';
-  signal size : std_logic_vector(15 downto 0) := (others=>'0');
-  signal d_ram: std_logic_vector(7 downto 0);
-  signal di_ram: std_logic_vector(7 downto 0);
+  signal size : std_logic_vector(24 downto 0) := (others=>'0');
   signal a_ram: unsigned(15 downto 0);
   signal r : unsigned(9 downto 0);
   signal g : unsigned(9 downto 0);
   signal b : unsigned(9 downto 0);
+  signal hsync : std_logic;
+  signal vsync : std_logic;
+  signal sd_we : std_logic;
+  signal sd_oe : std_logic;
+  signal sd_addr : std_logic_vector(17 downto 0);
+  signal sd_di : std_logic_vector(7 downto 0);
+  signal sd_do : std_logic_vector(7 downto 0);
+  signal io_we : std_logic;
+  signal io_addr : std_logic_vector(24 downto 0);
+  signal io_do : std_logic_vector(7 downto 0);
+  signal io_ram_we : std_logic;
+  signal io_ram_d : std_logic_vector(7 downto 0);
+  signal io_ram_addr : std_logic_vector(17 downto 0);
   
   signal switches   : std_logic_vector(1 downto 0);
   signal buttons    : std_logic_vector(1 downto 0);
@@ -160,10 +212,13 @@ end component user_io;
   signal ps2Clk     : std_logic;
   signal ps2Data    : std_logic;
   signal audio      : std_logic;
+  
+  signal pll_locked : std_logic;
+  signal sdram_dqm: std_logic_vector(1 downto 0);
 
 begin
 
-  reset <= status(0) or buttons(0) or power_on_reset;
+  reset <= status(0) or buttons(1) or power_on_reset or force_reset;
 
   power_on : process(CLK_14M)
   begin
@@ -174,7 +229,6 @@ begin
     end if;
   end process;
   
-  SDRAM_nCS <= '1'; -- disable ram
 
   -- In the Apple ][, this was a 555 timer
   flash_clkgen : process (CLK_14M)
@@ -186,21 +240,95 @@ begin
 
   pll : entity work.mist_clk 
   port map (
+    areset => '0',
     inclk0 => CLOCK_27(0),
-    c0     => CLK_28M,
-    c1     => CLK_14M,
-    c2     => CLK_12k
+    c0     => CLK_114M,
+    c1     => SDRAM_CLK,
+    c2     => CLK_12k,
+    locked => pll_locked
     );
+    
+  -- generate 28.6MHz video clock from 114.4MHz main clock by dividing it by 4
+  process(CLK_114M)
+  begin
+    if rising_edge(CLK_114M) then
+      clk_div <= clk_div + 1;
+    end if;
+     
+    CLK_28M <= clk_div(1);
+  end process;
+  
+  -- generate 14.3MHz system clock from 28.6MHz video clock
+  process(CLK_28M)
+  begin
+    if rising_edge(CLK_28M) then
+      CLK_14M <= not CLK_14M;
+    end if;
+  end process;
 
   -- Paddle buttons
   --GAMEPORT <=  "0000" & (not KEY(2 downto 0)) & "0";
 
   COLOR_LINE_CONTROL <= COLOR_LINE;-- and SW(17);  -- Color or B&W mode
   
+  -- sdram interface
+  SDRAM_CKE <= '1';
+  SDRAM_DQMH <= sdram_dqm(1);
+  SDRAM_DQML <= sdram_dqm(0);
+
+  sdram_inst : sdram
+    port map( sd_data => SDRAM_DQ,
+              sd_addr => SDRAM_A,
+              sd_dqm => sdram_dqm,
+              sd_cs => SDRAM_nCS,
+              sd_ba => SDRAM_BA,
+              sd_we => SDRAM_nWE,
+              sd_ras => SDRAM_nRAS,
+              sd_cas => SDRAM_nCAS,
+              clk => CLK_114M,
+              clkref => CLK_14M,
+              init => not pll_locked,
+              din => sd_di,
+              addr => "0000000" & sd_addr,
+              we => sd_we,
+              oe => sd_oe,
+              dout => sd_do
+    );
+  
   data_io_inst: data_io
-    port map(SPI_SCK, SPI_SS2, SPI_DI, downl, size, CLK_14M, ram_we, std_logic_vector(a_ram), di_ram, d_ram);
+    port map(SPI_SCK, SPI_SS2, SPI_DI, downl, size, CLK_14M, io_we, io_addr, io_do);
     
-  di_ram <= std_logic_vector(D) when ram_we = '1' else (others => 'Z');
+  sd_addr <= io_ram_addr when downl = '1' else std_logic_vector(TRACK_RAM_ADDR);
+  sd_di <= io_ram_d;
+  sd_oe <= '0' when downl = '1' else TRACK_RAM_OE;
+  sd_we <= '1' when io_ram_we = '1' else '0';
+    
+  process (CLK_14M)
+  begin
+    if falling_edge(CLK_14M) then
+      if io_we = '1' then
+        io_ram_we <= '1';
+        io_ram_addr <= io_addr(17 downto 0);
+        io_ram_d <= io_do;
+      else
+        io_ram_we <= '0';
+      end if;
+    end if;
+  end process;
+  
+  ram_inst : entity work.spram
+    generic map
+    (
+      widthad_a	=> 16
+    )
+    port map
+    (
+      clock	=> CLK_14M,
+      address	=> std_logic_vector(a_ram),
+      wren	=> ram_we,
+      data	=> std_logic_vector(D),
+      q	=> DO
+    );
   
   core : entity work.apple2 port map (
     CLK_14M        => CLK_14M,
@@ -211,7 +339,7 @@ begin
     ADDR           => ADDR,
     ram_addr       => a_ram,
     D              => D,
-    ram_do         => unsigned(d_ram),
+    ram_do         => unsigned(DO),
     PD             => PD,
     ram_we         => ram_we,
     VIDEO          => VIDEO,
@@ -240,17 +368,13 @@ begin
     VBL        => VBL,
     LD194      => LD194,
     VGA_CLK    => open,
-    VGA_HS     => VGA_HS,
-    VGA_VS     => VGA_VS,
+    VGA_HS     => hsync,
+    VGA_VS     => vsync,
     VGA_BLANK  => open,
     VGA_R      => r,
     VGA_G      => g,
     VGA_B      => b
     );
-    
-  VGA_R <= r(5 downto 0);
-  VGA_G <= g(5 downto 0);
-  VGA_B <= b(5 downto 0);
 
   keyboard : entity work.keyboard port map (
     PS2_Clk  => ps2Clk,
@@ -276,26 +400,26 @@ begin
     D1_ACTIVE      => D1_ACTIVE,
     D2_ACTIVE      => D2_ACTIVE,
     ram_write_addr => TRACK_RAM_ADDR,
-    ram_di         => TRACK_RAM_DI,
-    ram_we         => TRACK_RAM_WE
+    ram_di         => unsigned(sd_do),
+    ram_oe         => TRACK_RAM_OE
     );
 
-  sdcard_interface : entity work.spi_controller port map (
-    CLK_14M        => CLK_14M,
-    RESET          => RESET,
-
-    CS_N           => CS_N,
-    MOSI           => MOSI,
-    MISO           => MISO,
-    SCLK           => SCLK,
-    
-    track          => TRACK,
-    image          => image,
-    
-    ram_write_addr => TRACK_RAM_ADDR,
-    ram_di         => TRACK_RAM_DI,
-    ram_we         => TRACK_RAM_WE
-    );
+--  sdcard_interface : entity work.spi_controller port map (
+--    CLK_14M        => CLK_14M,
+--    RESET          => RESET,
+--
+--    CS_N           => CS_N,
+--    MOSI           => MOSI,
+--    MISO           => MISO,
+--    SCLK           => SCLK,
+--    
+--    track          => TRACK,
+--    image          => image,
+--    
+--    ram_write_addr => TRACK_RAM_ADDR,
+--    ram_di         => TRACK_RAM_DI,
+--    ram_we         => TRACK_RAM_WE
+--    );
 
 
   trackmsb <= "00" & track(5 downto 4);
@@ -317,6 +441,24 @@ begin
       clk => CLK_12k,
       ps2_clk => ps2Clk,
       ps2_data => ps2Data
+    );
+    
+  osd_inst : osd
+    port map (
+      pclk => CLK_14M,
+      sdi => SPI_DI,
+      sck => SPI_SCK,
+      ss => SPI_SS3,
+      red_in => std_logic_vector(r(5 downto 0)),
+      green_in => std_logic_vector(g(5 downto 0)),
+      blue_in => std_logic_vector(b(5 downto 0)),
+      hs_in => not hsync,
+      vs_in => not vsync,
+      red_out => VGA_R,
+      green_out => VGA_G,
+      blue_out => VGA_B,
+      hs_out => VGA_HS,
+      vs_out => VGA_VS
     );
 
 --  SRAM_DQ(7 downto 0) <= D when ram_we = '1' else (others => 'Z');

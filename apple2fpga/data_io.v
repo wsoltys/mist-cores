@@ -27,17 +27,18 @@ module data_io (
 	input         sdi,
 
 	output        downloading,   // signal indicating an active download
-	output [15:0] size,          // number of bytes in input buffer
+	output [24:0] size,          // number of bytes in input buffer
 	 
-	// cpu ram interface
+	// external ram interface
 	input 			clk,
-	input          we,
-	input [15:0]   a,
-	input [7:0]    din,
-	output [7:0]   dout
+	output reg     wr,
+	output reg [24:0] a,
+	output [7:0]   d
 );
 
-parameter START_ADDR = 16'h0000;
+assign d = data;
+
+parameter START_ADDR = 25'h0;
 
 assign size = addr;
 
@@ -52,7 +53,7 @@ reg [7:0]      cmd /* synthesis noprune */;
 reg [7:0]      data /* synthesis noprune */;
 reg [4:0]      cnt /* synthesis noprune */;
 
-reg [15:0]     addr /* synthesis noprune */;
+reg [24:0]     addr /* synthesis noprune */;
 reg rclk /* synthesis noprune */;
 
 localparam UIO_FILE_TX      = 8'h53;
@@ -75,7 +76,7 @@ always@(posedge sck, posedge ss) begin
 
 		// increase target address after write
 		if(rclk)
-			addr <= addr + 16'd1;
+			addr <= addr + 25'd1;
 	 
 		// count 0-7 8-15 8-15 ... 
 		if(cnt < 15) 	cnt <= cnt + 4'd1;
@@ -99,24 +100,20 @@ always@(posedge sck, posedge ss) begin
 		if((cmd == UIO_FILE_TX_DAT) && (cnt == 15)) begin
 			data <= {sbuf, sdi};
 			rclk <= 1'b1;
+			a <= addr;
 		end
 	end
 end
 
-// include the embedded dual port ram
-data_io_ram data_io_ram (
-	// wire up cpu port
-	.address_a   	( a					),
-	.clock_a			( clk					),
-	.data_a			( din					),
-	.wren_a			( we					),
-	.q_a				( dout				),
+reg rclkD, rclkD2;
+always@(posedge clk) begin
+	// bring rclk from spi clock domain into core clock domain
+	rclkD <= rclk;
+	rclkD2 <= rclkD;
+	wr <= 1'b0;
 	
-	// io controller port
-	.address_b		( addr	),
-	.clock_b			( rclk				),
-	.data_b			( {sbuf, sdi}		),
-	.wren_b			( (cmd == UIO_FILE_TX_DAT) && !ss	)
-);
+	if(rclkD && !rclkD2) 
+		wr <= 1'b1;
+end
 
 endmodule
