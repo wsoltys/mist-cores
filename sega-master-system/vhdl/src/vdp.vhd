@@ -48,18 +48,6 @@ architecture Behavioral of vdp is
 		spr_shift:			in  std_logic;	
 		spr_tall:			in  std_logic);	
 	end component;
-
-	component vdp_vram is
-	port (
-		cpu_clk:			in  STD_LOGIC;
-		cpu_WE:			in  STD_LOGIC;
-		cpu_A:			in  STD_LOGIC_VECTOR (13 downto 0);
-		cpu_D_in:		in  STD_LOGIC_VECTOR (7 downto 0);
-		cpu_D_out:		out STD_LOGIC_VECTOR (7 downto 0);
-		vdp_clk:			in  STD_LOGIC;
-		vdp_A:			in  STD_LOGIC_VECTOR (13 downto 0);
-		vdp_D_out:		out STD_LOGIC_VECTOR (7 downto 0));
-	end component;
 	
 	component vdp_cram is
 	port (
@@ -143,16 +131,27 @@ begin
 		spr_shift		=> spr_shift,
 		spr_tall			=> spr_tall);
 
-	vdp_vram_inst: vdp_vram
-	port map (
-		cpu_clk			=> cpu_clk,
-		cpu_WE			=> vram_cpu_WE,
-		cpu_A				=> xram_cpu_A(13 downto 0),
-		cpu_D_in			=> D_in,
-		cpu_D_out		=> vram_cpu_D_out,
-		vdp_clk			=> vdp_clk,
-		vdp_A				=> vram_vdp_A,
-		vdp_D_out		=> vram_vdp_D);
+    
+  vdp_vram_inst : entity work.dpram
+    generic map
+    (
+      init_file		=> "vram.mif",
+      widthad_a		=> 14
+    )
+    port map
+    (
+      clock_a			=> cpu_clk,
+      address_a		=> xram_cpu_A(13 downto 0),
+      wren_a			=> vram_cpu_WE,
+      data_a			=> D_in,
+      q_a					=> vram_cpu_D_out,
+
+      clock_b			=> not vdp_clk,
+      address_b		=> vram_vdp_A,
+      wren_b			=> '0',
+      data_b			=> (others => '0'),
+      q_b					=> vram_vdp_D
+    );
 
 	vdp_cram_inst: vdp_cram
 	port map (

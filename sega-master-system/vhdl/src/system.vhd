@@ -15,7 +15,8 @@ entity system is
 		ram_ble_n:	out	STD_LOGIC;
 		ram_bhe_n:	out	STD_LOGIC;
 		ram_a:		out	STD_LOGIC_VECTOR(18 downto 0);
-		ram_d:		inout	STD_LOGIC_VECTOR(15 downto 0);
+		ram_di:		out	STD_LOGIC_VECTOR(7 downto 0);
+    ram_do:		in	STD_LOGIC_VECTOR(7 downto 0);
 
 		j1_up:		in		STD_LOGIC;
 		j1_down:		in		STD_LOGIC;
@@ -125,25 +126,6 @@ architecture Behavioral of system is
 		J2_tr:			inout STD_LOGIC;
 		RESET:			in 	STD_LOGIC);
 	end component;
-
-	component ram is
-	port (
-		clk:				in  STD_LOGIC;
-		RD_n:				in  STD_LOGIC;
-		WR_n:				in  STD_LOGIC;
-		A:					in  STD_LOGIC_VECTOR(12 downto 0);
-		D_in:				in  STD_LOGIC_VECTOR(7 downto 0);
-		D_out:			out STD_LOGIC_VECTOR(7 downto 0));
-	end component;
-
-	component boot_rom is
-	port (
-		clk:				in  STD_LOGIC;
-		RD_n:				in  STD_LOGIC;
-		A:					in  STD_LOGIC_VECTOR(13 downto 0);
-		D_out:			out STD_LOGIC_VECTOR(7 downto 0));
-	end component;
-
 	
 	component spi is
 	port (
@@ -197,6 +179,7 @@ architecture Behavioral of system is
 --	signal rom_RD_n:			std_logic;
 	signal rom_WR_n:			std_logic;
 	signal rom_D_out:			std_logic_vector(7 downto 0);
+  signal ram_test:			std_logic_vector(7 downto 0);
 	
 	signal spi_RD_n:			std_logic;
 	signal spi_WR_n:			std_logic;
@@ -221,7 +204,7 @@ begin
 --	z80_inst: dummy_z80
 	z80_inst: T80se
 	port map(
-		RESET_n		=> RESET_n,
+		RESET_n		=> RESET_n,-- and reset,
 		CLK_n			=> clk_cpu,
 		CLKEN			=> '1',
 		WAIT_n		=> '1',
@@ -285,22 +268,33 @@ begin
 		J2_tl			=> j2_tl,
 		J2_tr			=> j2_tr,
 		RESET			=> reset);
-		
-	ram_inst: ram
-	port map(
-		clk			=> clk_cpu,
-		RD_n			=> '0',--ram_RD_n,
-		WR_n			=> ram_WR_n,
-		A				=> A(12 downto 0),
-		D_in			=> D_in,
-		D_out			=> ram_D_out);
-
-	boot_rom_inst: boot_rom
-	port map(
-		clk			=> clk_cpu,
-		RD_n			=> '0',--boot_rom_RD_n,
-		A				=> A(13 downto 0),
-		D_out			=> boot_rom_D_out);
+    
+	ram_inst : entity work.spram
+		generic map
+		(
+			widthad_a		=> 13
+		)
+		port map
+		(
+			clock				=> clk_cpu,
+			address			=> A(12 downto 0),
+			wren				=> not ram_WR_n,
+			data				=> D_in,
+			q						=> ram_D_out
+		);
+    
+  boot_rom_inst : entity work.sprom
+    generic map
+    (
+      init_file		=> "smsbios.mif",
+      widthad_a		=> 14
+    )
+    port map
+    (
+      clock			=> clk_cpu,
+      address		=> A(13 downto 0),
+      q					=> boot_rom_D_out
+    );
 	
 --	spi_inst: dummy_spi
 	spi_inst: spi
@@ -356,24 +350,24 @@ begin
 	rom_WR_n <= bootloader or WR_n when io_n='1' and A(15 downto 14)="10" else '1';
 	
 	process (clk_cpu)
-	begin
-		if rising_edge(clk_cpu) then
-			-- memory control
-			if reset_counter>0 then
-				reset_counter <= reset_counter - 1;
-			elsif ctl_WR_n='0' then
-				if bootloader='0' then
-					bootloader <= '1';
-					reset_counter <= (others=>'1');
-				end if;
-			end if;
-		end if;
-	end process;
-	reset_n <= '0' when reset_counter>0 else '1';
+  begin
+    if rising_edge(clk_cpu) then
+      -- memory control
+      if reset_counter>0 then
+        reset_counter <= reset_counter - 1;
+      elsif ctl_WR_n='0' then
+        if bootloader='0' then
+          bootloader <= '1';
+          reset_counter <= (others=>'1');
+        end if;
+      end if;
+    end if;
+  end process;
+  reset_n <= '0' when reset_counter>0 else '1';
 	
 	irom_D_out <=	boot_rom_D_out when bootloader='0' and A(15 downto 14)="00" else rom_D_out;
 	
-	process (io_n,A,spi_D_out,uart_D_out,vdp_D_out,vdp_D_out,io_D_out,irom_D_out,irom_D_out,irom_D_out,ram_D_out)
+	process (io_n,A,spi_D_out,uart_D_out,vdp_D_out,io_D_out,irom_D_out,ram_D_out)
 	begin
 		if io_n='0' then
 			case A(7 downto 5) is
@@ -419,7 +413,7 @@ begin
 	ram_ble_n <= not A(0);
 	ram_bhe_n <= A(0);
 	
-	ram_a(12 downto 0) <= A(13 downto 1);
+	ram_a(12 downto 0) <= A(12 downto 0); --A(13 downto 1); ??
 	process (A,bank0,bank1,bank2)
 	begin
 		case A(15 downto 14) is
@@ -438,12 +432,27 @@ begin
 		end case;
 	end process;
 	
-	ram_d(7 downto 0) <= (others=>'Z') when RD_n='0' else D_in;
-	ram_d(15 downto 8) <= (others=>'Z') when RD_n='0' else D_in;
+	ram_di(7 downto 0) <= (others=>'Z') when RD_n='0' else D_in;
 				
-	with A(0) select
-	rom_D_out<= ram_d(7 downto 0)		when '1',
-					ram_d(15 downto 8)	when others;
+	rom_D_out<= ram_do(7 downto 0);
+  
+  
+  -- rom test
+  -- scroll.hex works only with bios.hex
+  -- penguin.mif with smsbios and bios (broken graphics)
+  
+--  ram_inst2 : entity work.sprom
+--		generic map
+--		(
+--      init_file   => "penguin.mif",
+--			widthad_a		=> 14
+--		)
+--		port map
+--		(
+--			clock				=> clk_cpu,
+--			address			=> A(13 downto 0),
+--			q						=> rom_D_out
+--		);
 
 end Behavioral;
 
