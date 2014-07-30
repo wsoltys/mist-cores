@@ -1,0 +1,18 @@
+Papilio-Master-System is a recreation of the Sega Master System on a FPGA.
+
+Three compiled versions are provided :
+1) sms_vga_final.bit, for use with a 8 color VGA output wing
+2) sms_tv_final.bit, for use with a TV wing, producing NTSC signal
+3) sms_megawing_final.bit, for use with a megawing.
+
+The wings layout for sms_vga and sms_tv are as follow:
+AL: joystick wing (note: you'll need a two button joystick)
+AH: VGA wing (for the sms_vga version)
+BL: micro SD wing (optional, see note on the megawing version)
+BH: audio wing
+CL: free (reserved for the to-be-implemented second joystick port)
+CH: TV wing (for the sms_tv version)
+
+Note: The Megawing version will provide the best image, but you'll have to upload the rom to the SRAM chip through USB (see my modified version of papilio-prog). The two other versions can read the rom files from a FAT16 formatted SD card.
+
+

@@ -1,0 +1,9 @@
+run
+-ifn %.prj
+-top %
+-ofn %
+-ofmt NGC
+-p xc6slx9-3-tqg144
+-opt_mode Speed
+-opt_level 1
+
