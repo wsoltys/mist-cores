@@ -12,9 +12,7 @@ entity system is
 		ram_cs_n:	out	STD_LOGIC;
 		ram_we_n:	out	STD_LOGIC;
 		ram_oe_n:	out	STD_LOGIC;
-		ram_ble_n:	out	STD_LOGIC;
-		ram_bhe_n:	out	STD_LOGIC;
-		ram_a:		out	STD_LOGIC_VECTOR(18 downto 0);
+		ram_a:		out	STD_LOGIC_VECTOR(21 downto 0);
 		ram_di:		out	STD_LOGIC_VECTOR(7 downto 0);
     ram_do:		in	STD_LOGIC_VECTOR(7 downto 0);
 
@@ -179,7 +177,6 @@ architecture Behavioral of system is
 --	signal rom_RD_n:			std_logic;
 	signal rom_WR_n:			std_logic;
 	signal rom_D_out:			std_logic_vector(7 downto 0);
-  signal ram_test:			std_logic_vector(7 downto 0);
 	
 	signal spi_RD_n:			std_logic;
 	signal spi_WR_n:			std_logic;
@@ -196,9 +193,9 @@ architecture Behavioral of system is
 	signal irom_D_out:		std_logic_vector(7 downto 0);
 	signal irom_RD_n:			std_logic := '1';
 
-	signal bank0:				std_logic_vector(5 downto 0);
-	signal bank1:				std_logic_vector(5 downto 0);
-	signal bank2:				std_logic_vector(5 downto 0);
+	signal bank0:				std_logic_vector(7 downto 0) := "00000000";
+	signal bank1:				std_logic_vector(7 downto 0) := "00000001";
+	signal bank2:				std_logic_vector(7 downto 0) := "00000010";
 begin	
 	
 --	z80_inst: dummy_z80
@@ -402,9 +399,9 @@ begin
 		if rising_edge(clk_cpu) then
 			if WR_n='0' and A(15 downto 2)="11111111111111" then
 				case A(1 downto 0) is
-				when "01" => bank0 <= D_in(5 downto 0);
-				when "10" => bank1 <= D_in(5 downto 0);
-				when "11" => bank2 <= D_in(5 downto 0);
+				when "01" => bank0 <= D_in;
+				when "10" => bank1 <= D_in;
+				when "11" => bank2 <= D_in;
 				when others =>
 				end case;
 			end if;
@@ -415,30 +412,24 @@ begin
 	ram_oe_n <= RD_n;
 	ram_we_n <= rom_WR_n;
 	
-	ram_ble_n <= not A(0);
-	ram_bhe_n <= A(0);
-
-	-- no banking
-	ram_a <= "000" & A;
-
---	ram_a(12 downto 0) <= A(12 downto 0); --A(13 downto 1); ??
---	process (A,bank0,bank1,bank2)
---	begin
---		case A(15 downto 14) is
---		when "00" =>
---			-- first kilobyte is always from bank 0
---			if A(13 downto 10)="0000" then
---				ram_a(18 downto 13) <= (others=>'0');
---			else
---				ram_a(18 downto 13) <= bank0;
---			end if;
---		when "01" =>
---			ram_a(18 downto 13) <= bank1;
---			
---		when others =>
---			ram_a(18 downto 13) <= bank2;
---		end case;
---	end process;
+	ram_a(13 downto 0) <= A(13 downto 0);
+	process (A,bank0,bank1,bank2)
+	begin
+		case A(15 downto 14) is
+		when "00" =>
+			-- first kilobyte is always from bank 0
+			if A(13 downto 10)="0000" then
+				ram_a(21 downto 14) <= (others=>'0');
+			else
+				ram_a(21 downto 14) <= bank0;
+			end if;
+		when "01" =>
+			ram_a(21 downto 14) <= bank1;
+			
+		when others =>
+			ram_a(21 downto 14) <= bank2;
+		end case;
+	end process;
 	
 	ram_di(7 downto 0) <= (others=>'Z') when RD_n='0' else D_in;
 				

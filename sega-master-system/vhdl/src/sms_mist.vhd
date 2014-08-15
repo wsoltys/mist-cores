@@ -122,10 +122,10 @@ architecture Behavioral of sms_mist is
            ss: in std_logic;
            sdi: in std_logic;
            downloading: out std_logic;
-           size: out std_logic_vector(15 downto 0);
+           size: out std_logic_vector(24 downto 0);
            clk: in std_logic;
            wr: out std_logic;
-           a: out std_logic_vector(15 downto 0);
+           a: out std_logic_vector(24 downto 0);
            d: out std_logic_vector(7 downto 0)
            );
   end component data_io;
@@ -154,10 +154,8 @@ architecture Behavioral of sms_mist is
   signal ram_cs_n:	STD_LOGIC;
 	signal ram_we_n:	STD_LOGIC;
   signal ram_oe_n:	STD_LOGIC;
-  signal ram_ble_n:	STD_LOGIC;
-  signal ram_bhe_n:	STD_LOGIC;
-  signal ram_a:		STD_LOGIC_VECTOR(18 downto 0);
-  signal sys_a:		STD_LOGIC_VECTOR(18 downto 0);
+  signal ram_a:		STD_LOGIC_VECTOR(21 downto 0);
+  signal sys_a:		STD_LOGIC_VECTOR(21 downto 0);
   signal ram_din: STD_LOGIC_VECTOR(7 downto 0);
   signal ram_dout: STD_LOGIC_VECTOR(7 downto 0);
   signal sys_di: STD_LOGIC_VECTOR(7 downto 0);
@@ -181,23 +179,19 @@ architecture Behavioral of sms_mist is
   signal hs: std_logic;
   
   signal ioctl_wr : std_logic;
-  signal ioctl_addr : std_logic_vector(15 downto 0);
+  signal ioctl_addr : std_logic_vector(24 downto 0);
   signal ioctl_data : std_logic_vector(7 downto 0);
-  signal ioctl_ram_addr : std_logic_vector(15 downto 0);
+  signal ioctl_ram_addr : std_logic_vector(24 downto 0);
   signal ioctl_ram_data : std_logic_vector(7 downto 0);
   signal ioctl_ram_wr : std_logic := '0';
   signal downl : std_logic := '0';
-  signal size : std_logic_vector(15 downto 0) := (others=>'0');
+  signal size : std_logic_vector(24 downto 0) := (others=>'0');
   signal force_reset : std_logic := '0';
   signal reset_n : std_logic := '1';
   
   signal addr1 : std_logic := '0';
   signal addr2 : std_logic := '0';
   
-  attribute keep: boolean;
-  attribute keep of ioctl_addr: signal is true;
-  attribute keep of ioctl_data: signal is true;
-	
 begin
 
 	clock_inst: work.pll
@@ -296,14 +290,13 @@ begin
               clkref => clk_cpu,
               init => not pll_locked,
               din => ram_din,
-              addr => "000000" & ram_a,
+              addr => "000" & ram_a,
               we => ram_we,
               oe => ram_oe,
               dout => ram_dout
     );
     
---  ram_a   <= "000" & ioctl_ram_addr when downl = '1' else "000000000000000" & sys_a(3 downto 0);
-  ram_a   <= "000" & ioctl_ram_addr when downl = '1' else sys_a;
+  ram_a   <= ioctl_ram_addr(21 downto 0) when downl = '1' else sys_a;
   ram_din <= ioctl_ram_data;
   ram_we  <= '1' when ioctl_ram_wr = '1' else '0';
   ram_oe  <= '0' when downl = '1' else not ram_oe_n;
@@ -354,11 +347,9 @@ begin
 		ram_cs_n	=> ram_cs_n,
 		ram_we_n	=> ram_we_n,
 		ram_oe_n	=> ram_oe_n,
-		ram_ble_n	=> ram_ble_n,
-		ram_bhe_n	=> ram_bhe_n,
 		ram_a			=> sys_a,
 		ram_di		=> sys_di,
-    ram_do    => ram_dout,
+		ram_do    => ram_dout,
 
 		j1_up			=> not joy0(3),
 		j1_down		=> not joy0(2),

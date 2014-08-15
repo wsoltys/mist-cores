@@ -27,18 +27,18 @@ module data_io (
 	input         sdi,
 
 	output        downloading,   // signal indicating an active download
-	output [15:0] size,          // number of bytes in input buffer
+	output [24:0] size,          // number of bytes in input buffer
 	 
 	// external ram interface
 	input 			clk,
 	output reg     wr,
-	output reg [15:0] a,
+	output reg [24:0] a,
 	output [7:0]   d
 );
 
 assign d = data;
 
-parameter START_ADDR = 16'h0000;
+parameter START_ADDR = 25'h0;
 
 assign size = addr;
 
@@ -53,7 +53,7 @@ reg [7:0]      cmd /* synthesis noprune */;
 reg [7:0]      data /* synthesis noprune */;
 reg [4:0]      cnt /* synthesis noprune */;
 
-reg [15:0]     addr /* synthesis noprune */;
+reg [24:0]     addr /* synthesis noprune */;
 reg rclk /* synthesis noprune */;
 
 localparam UIO_FILE_TX      = 8'h53;
@@ -76,7 +76,7 @@ always@(posedge sck, posedge ss) begin
 
 		// increase target address after write
 		if(rclk)
-			addr <= addr + 16'd1;
+			addr <= addr + 25'd1;
 	 
 		// count 0-7 8-15 8-15 ... 
 		if(cnt < 15) 	cnt <= cnt + 4'd1;
@@ -107,7 +107,7 @@ end
 
 reg rclkD, rclkD2;
 always@(posedge clk) begin
-	// bring rclk from spi clock domain into c64 clock domain
+	// bring rclk from spi clock domain into core clock domain
 	rclkD <= rclk;
 	rclkD2 <= rclkD;
 	wr <= 1'b0;
