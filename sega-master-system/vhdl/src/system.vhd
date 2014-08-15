@@ -174,6 +174,7 @@ architecture Behavioral of system is
 --	signal ram_RD_n:			std_logic;
 	signal ram_WR_n:			std_logic;
 	signal ram_D_out:			std_logic_vector(7 downto 0);
+  signal cart_ram_D_out:std_logic_vector(7 downto 0);
 	
 --	signal rom_RD_n:			std_logic;
 	signal rom_WR_n:			std_logic;
@@ -197,6 +198,8 @@ architecture Behavioral of system is
 	signal bank0:				std_logic_vector(7 downto 0) := "00000000";
 	signal bank1:				std_logic_vector(7 downto 0) := "00000001";
 	signal bank2:				std_logic_vector(7 downto 0) := "00000010";
+  
+  signal ram_e:       std_logic := '0';
 begin	
 	
 --	z80_inst: dummy_z80
@@ -279,6 +282,20 @@ begin
 			wren				=> not ram_WR_n,
 			data				=> D_in,
 			q						=> ram_D_out
+		);
+    
+ 	ram_inst2 : entity work.spram
+		generic map
+		(
+			widthad_a		=> 13
+		)
+		port map
+		(
+			clock				=> clk_cpu,
+			address			=> A(12 downto 0),
+			wren				=> not ram_WR_n,
+			data				=> D_in,
+			q						=> cart_ram_D_out
 		);
     
   boot_rom_inst : entity work.sprom
@@ -384,6 +401,8 @@ begin
 		else
 			if A(15 downto 14)="11" then
 				D_out <= ram_D_out;
+      elsif (A(15 downto 14)="10" and ram_e='1') then
+        D_out <= cart_ram_D_out;
 			else
 				D_out <= irom_D_out;
 			end if;
@@ -398,6 +417,10 @@ begin
 		if rising_edge(clk_cpu) then
 			if WR_n='0' and A(15 downto 2)="11111111111111" then
 				case A(1 downto 0) is
+        when "00" => 
+          if (D_in(3) = '1') then
+            ram_e <= '1';
+          end if;
 				when "01" => bank0 <= D_in;
 				when "10" => bank1 <= D_in;
 				when "11" => bank2 <= D_in;
@@ -426,7 +449,9 @@ begin
 			ram_a(21 downto 14) <= bank1;
 			
 		when others =>
-			ram_a(21 downto 14) <= bank2;
+      if(ram_e) = '0' then
+        ram_a(21 downto 14) <= bank2;
+      end if;
 		end case;
 	end process;
 	
