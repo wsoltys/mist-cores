@@ -204,7 +204,7 @@ begin
 --	z80_inst: dummy_z80
 	z80_inst: T80se
 	port map(
-		RESET_n		=> RESET_n,-- and reset,
+		RESET_n		=> RESET_n and reset,
 		CLK_n			=> clk_cpu,
 		CLKEN			=> '1',
 		WAIT_n		=> '1',
@@ -286,6 +286,7 @@ begin
   boot_rom_inst : entity work.sprom
     generic map
     (
+--      init_file		=> "penguin.mif",
       init_file		=> "smsbios.mif",
       widthad_a		=> 14
     )
@@ -339,19 +340,23 @@ begin
 					
 	io_RD_n <=	RD_n when io_n='0' and A(7 downto 6)="11" else '1';
 					
-	spi_RD_n <= bootloader or RD_n when io_n='0' and A(7 downto 5)="000" else '1';
+	spi_RD_n <= '1'; -- bootloader or RD_n when io_n='0' and A(7 downto 5)="000" else '1';
 
-	spi_WR_n <= bootloader or WR_n when io_n='0' and A(7 downto 5)="110" else '1';
+	spi_WR_n <= '1'; -- bootloader or WR_n when io_n='0' and A(7 downto 5)="110" else '1';
 
-	uart_WR_n<= bootloader or WR_n when io_n='0' and A(7 downto 5)="111" else '1';
+	uart_WR_n<= '1'; -- bootloader or WR_n when io_n='0' and A(7 downto 5)="111" else '1';
 	
 	ram_WR_n <= WR_n when io_n='1' and A(15 downto 14)="11" else '1';
 	
-	rom_WR_n <= bootloader or WR_n when io_n='1' and A(15 downto 14)="10" else '1';
+	rom_WR_n <= '1'; -- bootloader or WR_n when io_n='1' and A(15 downto 14)="10" else '1';
 	
 	process (clk_cpu)
   begin
     if rising_edge(clk_cpu) then
+		if reset='0' then 
+			bootloader <= '0';
+		end if;
+	 
       -- memory control
       if reset_counter>0 then
         reset_counter <= reset_counter - 1;
@@ -412,25 +417,28 @@ begin
 	
 	ram_ble_n <= not A(0);
 	ram_bhe_n <= A(0);
-	
-	ram_a(12 downto 0) <= A(12 downto 0); --A(13 downto 1); ??
-	process (A,bank0,bank1,bank2)
-	begin
-		case A(15 downto 14) is
-		when "00" =>
-			-- first kilobyte is always from bank 0
-			if A(13 downto 10)="0000" then
-				ram_a(18 downto 13) <= (others=>'0');
-			else
-				ram_a(18 downto 13) <= bank0;
-			end if;
-		when "01" =>
-			ram_a(18 downto 13) <= bank1;
-			
-		when others =>
-			ram_a(18 downto 13) <= bank2;
-		end case;
-	end process;
+
+	-- no banking
+	ram_a <= "000" & A;
+
+--	ram_a(12 downto 0) <= A(12 downto 0); --A(13 downto 1); ??
+--	process (A,bank0,bank1,bank2)
+--	begin
+--		case A(15 downto 14) is
+--		when "00" =>
+--			-- first kilobyte is always from bank 0
+--			if A(13 downto 10)="0000" then
+--				ram_a(18 downto 13) <= (others=>'0');
+--			else
+--				ram_a(18 downto 13) <= bank0;
+--			end if;
+--		when "01" =>
+--			ram_a(18 downto 13) <= bank1;
+--			
+--		when others =>
+--			ram_a(18 downto 13) <= bank2;
+--		end case;
+--	end process;
 	
 	ram_di(7 downto 0) <= (others=>'Z') when RD_n='0' else D_in;
 				

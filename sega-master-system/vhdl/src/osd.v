@@ -121,7 +121,7 @@ wire vs_pol = vs_high < vs_low;
 wire [9:0] v_dsp_width = vs_pol?vs_low:vs_high;
 wire [9:0] v_dsp_ctr = { 1'b0, v_dsp_width[9:1] };
 
-always @(posedge hs_in) begin
+always @(posedge hsD) begin
 	// bring vsync into local clock domain
 	vsD <= vs_in;
 	vsD2 <= vsD;

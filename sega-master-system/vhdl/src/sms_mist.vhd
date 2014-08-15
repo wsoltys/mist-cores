@@ -185,7 +185,6 @@ architecture Behavioral of sms_mist is
   signal ioctl_data : std_logic_vector(7 downto 0);
   signal ioctl_ram_addr : std_logic_vector(15 downto 0);
   signal ioctl_ram_data : std_logic_vector(7 downto 0);
-  signal ioctl_load_addr : std_logic_vector(15 downto 0);
   signal ioctl_ram_wr : std_logic := '0';
   signal downl : std_logic := '0';
   signal size : std_logic_vector(15 downto 0) := (others=>'0');
@@ -263,7 +262,7 @@ begin
   
   osd_inst : osd
     port map (
-      pclk => not clk16,
+      pclk => clk16,
       sdi => SPI_DI,
       sck => SPI_SCK,
       ss => SPI_SS3,
@@ -303,8 +302,9 @@ begin
               dout => ram_dout
     );
     
+--  ram_a   <= "000" & ioctl_ram_addr when downl = '1' else "000000000000000" & sys_a(3 downto 0);
   ram_a   <= "000" & ioctl_ram_addr when downl = '1' else sys_a;
-  ram_din <= ioctl_ram_data when downl = '1' else (others=>'Z');
+  ram_din <= ioctl_ram_data;
   ram_we  <= '1' when ioctl_ram_wr = '1' else '0';
   ram_oe  <= '0' when downl = '1' else not ram_oe_n;
     
@@ -315,16 +315,10 @@ begin
   begin
     if falling_edge(clk_cpu) then
       if ioctl_wr ='1' then
-        if ioctl_addr = b"0000_0000_0000_0000" then
-          ioctl_load_addr(7 downto 0) <= ioctl_data;
-        elsif ioctl_addr = b"0000_0000_0000_0001" then
-          ioctl_load_addr(15 downto 8) <= ioctl_data;
-        else
-          -- io controller sent a new byte.
-          ioctl_ram_wr <= '1';
-          ioctl_ram_addr <= std_logic_vector( unsigned(ioctl_addr) - 2);
-          ioctl_ram_data <= ioctl_data;
-        end if;
+        -- io controller sent a new byte.
+        ioctl_ram_wr <= '1';
+        ioctl_ram_addr <= ioctl_addr;
+        ioctl_ram_data <= ioctl_data;
       else
         ioctl_ram_wr <= '0';
       end if;
@@ -379,7 +373,7 @@ begin
 		j2_tl			=> not joy0(4),
 		j2_tr			=> j2_tr,
 		reset			=> not buttons(1) and not status(0) and pll_locked and not force_reset and reset_n,
-		pause			=> not buttons(0),
+		pause			=> '0', -- not buttons(0),
 
 		x				=> x,
 		y				=> y,

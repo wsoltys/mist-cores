@@ -64,16 +64,19 @@ localparam MODE = { 3'b000, NO_WRITE_BURST, OP_MODE, CAS_LATENCY, ACCESS_TYPE, B
 localparam STATE_IDLE      = 3'd0;   // first state in cycle
 localparam STATE_CMD_START = 3'd0;   // state in which a new command can be started
 localparam STATE_CMD_CONT  = STATE_CMD_START  + RASCAS_DELAY; // 4 command can be continued
+localparam STATE_READ      = STATE_CMD_CONT + CAS_LATENCY + 4'd1;   // 
 localparam STATE_LAST      = 3'd7;   // last state in cycle
+
+assign dout = addr[0]?sd_data[7:0]:sd_data[15:8];
 
 reg [2:0] q /* synthesis noprune */;
 always @(posedge clk) begin
 	// 112Mhz counter synchronous to 14 Mhz clock
    // force counter to pass state 5->6 exactly after the rising edge of clkref
 	// since clkref is two clocks early
-   if(((q == 5) && ( clkref == 0)) ||
-		((q == 6) && ( clkref == 1)) ||
-      ((q != 5) && (q != 6)))
+   if(((q == 7) && ( clkref == 0)) ||
+		((q == 0) && ( clkref == 1)) ||
+      ((q != 7) && (q != 0)))
 			q <= q + 3'd1;
 end
 
@@ -119,7 +122,7 @@ assign sd_we  = sd_cmd[0];
 // at a time when writing
 assign sd_data = we?{din, din}:16'bZZZZZZZZZZZZZZZZ;
 
-assign dout = addr[0]?sd_data[7:0]:sd_data[15:8];
+// assign dout = addr[0]?sd_data[7:0]:sd_data[15:8];
 
 always @(posedge clk) begin
 	sd_cmd <= CMD_INHIBIT;  // default: idle
@@ -164,6 +167,12 @@ always @(posedge clk) begin
 				sd_addr <= { 4'b0010, addr[24], addr[8:1] };  // auto precharge
 			end
 		end
+
+      // read phase
+//		if(oe) begin
+//			if(q == STATE_READ)
+//				dout <= addr[0]?sd_data[7:0]:sd_data[15:8];
+//		end
 		
 		// ------------------------ no access --------------------------
 		else begin
