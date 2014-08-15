@@ -21,13 +21,13 @@ entity system is
 		j1_left:		in		STD_LOGIC;
 		j1_right:	in		STD_LOGIC;
 		j1_tl:		in		STD_LOGIC;
-		j1_tr:		inout	STD_LOGIC;
+		j1_tr:		in	STD_LOGIC;
 		j2_up:		in		STD_LOGIC;
 		j2_down:		in		STD_LOGIC;
 		j2_left:		in		STD_LOGIC;
 		j2_right:	in		STD_LOGIC;
 		j2_tl:		in		STD_LOGIC;
-		j2_tr:		inout	STD_LOGIC;
+		j2_tr:		in	STD_LOGIC;
 		reset:		in		STD_LOGIC;
 		pause:		in		STD_LOGIC;
 
@@ -43,7 +43,8 @@ entity system is
 		spi_di:		out	STD_LOGIC;
 		spi_cs_n:	out	STD_LOGIC;
 
-		tx:			out	STD_LOGIC);
+		tx:			out	STD_LOGIC;
+    dbr:    in STD_LOGIC);
 end system;
 
 architecture Behavioral of system is
@@ -115,13 +116,13 @@ architecture Behavioral of system is
 		J1_left:			in 	STD_LOGIC;
 		J1_right:		in 	STD_LOGIC;
 		J1_tl:			in 	STD_LOGIC;
-		J1_tr:			inout STD_LOGIC;
+		J1_tr:			in STD_LOGIC;
 		J2_up:			in 	STD_LOGIC;
 		J2_down:			in 	STD_LOGIC;
 		J2_left:			in 	STD_LOGIC;
 		J2_right:		in 	STD_LOGIC;
 		J2_tl:			in 	STD_LOGIC;
-		J2_tr:			inout STD_LOGIC;
+		J2_tr:			in STD_LOGIC;
 		RESET:			in 	STD_LOGIC);
 	end component;
 	
@@ -283,8 +284,7 @@ begin
   boot_rom_inst : entity work.sprom
     generic map
     (
---      init_file		=> "penguin.mif",
-      init_file		=> "smsbios.mif",
+      init_file		=> "mboot.mif",
       widthad_a		=> 14
     )
     port map
@@ -294,7 +294,6 @@ begin
       q					=> boot_rom_D_out
     );
 	
---	spi_inst: dummy_spi
 	spi_inst: spi
 	port map (
 		clk			=> clk_cpu,
@@ -367,7 +366,7 @@ begin
   end process;
   reset_n <= '0' when reset_counter>0 else '1';
 	
-	irom_D_out <=	boot_rom_D_out when bootloader='0' and A(15 downto 14)="00" else rom_D_out;
+	irom_D_out <=	boot_rom_D_out when bootloader='0' and A(15 downto 14)="00" and dbr='0' else rom_D_out;
 	
 	process (io_n,A,spi_D_out,uart_D_out,vdp_D_out,io_D_out,irom_D_out,ram_D_out)
 	begin

@@ -186,11 +186,8 @@ architecture Behavioral of sms_mist is
   signal ioctl_ram_wr : std_logic := '0';
   signal downl : std_logic := '0';
   signal size : std_logic_vector(24 downto 0) := (others=>'0');
-  signal force_reset : std_logic := '0';
   signal reset_n : std_logic := '1';
-  
-  signal addr1 : std_logic := '0';
-  signal addr2 : std_logic := '0';
+  signal dbr : std_logic := '0';
   
 begin
 
@@ -218,24 +215,6 @@ begin
       clk_cpu <= not clk_cpu;
     end if;
   end process;
-  
-  
---  process (clk_cpu)
---    variable reset_cnt : integer range 0 to 10000 := 10000;
---	begin
---		if rising_edge(clk_cpu) then
---			if downl='1' then
---				reset_cnt := 10000;
---      elsif reset_cnt>0 then
---				reset_cnt := reset_cnt - 1;
---			end if;
---		end if;
---    if reset_cnt > 0 then
---      reset_n <= '0';
---    else
---      reset_n <= '1';
---    end if;
---	end process;
 	
 	video_inst: vga_video
 	port map (
@@ -307,6 +286,12 @@ begin
   process(clk_cpu)
   begin
     if falling_edge(clk_cpu) then
+      if downl='1' then
+        reset_n <= '0';
+        dbr <= '1';
+      else
+        reset_n <= '1';
+      end if;
       if ioctl_wr ='1' then
         -- io controller sent a new byte.
         ioctl_ram_wr <= '1';
@@ -356,15 +341,15 @@ begin
 		j1_left		=> not joy0(1),
 		j1_right	=> not joy0(0),
 		j1_tl			=> not joy0(4),
-		j1_tr			=> j1_tr,
+		j1_tr			=> not joy0(5),
 		j2_up			=> not joy1(3),
-		j2_down		=> not joy0(2),
-		j2_left		=> not joy0(1),
-		j2_right	=> not joy0(0),
-		j2_tl			=> not joy0(4),
-		j2_tr			=> j2_tr,
-		reset			=> not buttons(1) and not status(0) and pll_locked and not force_reset and reset_n,
-		pause			=> '0', -- not buttons(0),
+		j2_down		=> not joy1(2),
+		j2_left		=> not joy1(1),
+		j2_right	=> not joy1(0),
+		j2_tl			=> not joy1(4),
+		j2_tr			=> not joy1(5),
+		reset			=> not buttons(1) and not status(0) and pll_locked and reset_n,
+		pause			=> '1', -- not buttons(0),
 
 		x				=> x,
 		y				=> y,
@@ -378,7 +363,8 @@ begin
 		spi_di		=> open,
 		spi_cs_n		=> open,
 
-		tx				=> open);
+		tx				=> open,
+    dbr       => dbr);
 	
 	AUDIO_L <= audio;
 	AUDIO_R <= audio;

@@ -14,13 +14,13 @@ entity io is
 		J1_left:	in 	STD_LOGIC;
 		J1_right:in 	STD_LOGIC;
 		J1_tl:	in 	STD_LOGIC;
-		J1_tr:	inout STD_LOGIC;
+		J1_tr:	in STD_LOGIC;
 		J2_up:	in 	STD_LOGIC;
 		J2_down:	in 	STD_LOGIC;
 		J2_left:	in 	STD_LOGIC;
 		J2_right:in 	STD_LOGIC;
 		J2_tl:	in 	STD_LOGIC;
-		J2_tr:	inout STD_LOGIC;
+		J2_tr:	in STD_LOGIC;
 		RESET:	in 	STD_LOGIC);
 end io;
 
@@ -39,8 +39,8 @@ begin
 		end if;
 	end process;
 	
-	J1_tr <= ctrl(4) when ctrl(0)='0' else 'Z';
-	J2_tr <= ctrl(6) when ctrl(2)='0' else 'Z';
+--	J1_tr <= ctrl(4) when ctrl(0)='0' else 'Z';
+--	J2_tr <= ctrl(6) when ctrl(2)='0' else 'Z';
 
 	process (clk)
 	begin
