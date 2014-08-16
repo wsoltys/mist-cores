@@ -115,7 +115,6 @@ architecture rtl of disk_ii is
   signal track_byte_addr : unsigned(14 downto 0);
   signal read_disk : std_logic;         -- When C08C accessed
   
-  signal current_track : unsigned(5 downto 0) := (others => '0');
   signal requested_track : unsigned(5 downto 0) := (others => '0');
 
 begin

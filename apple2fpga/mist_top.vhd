@@ -72,7 +72,7 @@ end mist_top;
 
 architecture datapath of mist_top is
 
-  constant CONF_STR : string := "AppleII+;NIB;";
+  constant CONF_STR : string := "AppleII+;NIB;O1,Video mode,Color,B&W;";
 
   function to_slv(s: string) return std_logic_vector is 
     constant ss: string(1 to s'length) := s; 
@@ -267,9 +267,12 @@ begin
   end process;
 
   -- Paddle buttons
-  --GAMEPORT <=  "0000" & (not KEY(2 downto 0)) & "0";
+  -- GAMEPORT input bits:
+  --  7    6    5    4    3   2   1    0
+  -- pdl3 pdl2 pdl1 pdl0 pb3 pb2 pb1 casette
+  GAMEPORT <=  "00" & joy0(3) & joy0(0) & '0' & joy0(5) & joy0(4) & "0";
 
-  COLOR_LINE_CONTROL <= COLOR_LINE;-- and SW(17);  -- Color or B&W mode
+  COLOR_LINE_CONTROL <= COLOR_LINE and not status(1);  -- Color or B&W mode
   
   -- sdram interface
   SDRAM_CKE <= '1';
@@ -403,24 +406,6 @@ begin
     ram_di         => unsigned(sd_do),
     ram_oe         => TRACK_RAM_OE
     );
-
---  sdcard_interface : entity work.spi_controller port map (
---    CLK_14M        => CLK_14M,
---    RESET          => RESET,
---
---    CS_N           => CS_N,
---    MOSI           => MOSI,
---    MISO           => MISO,
---    SCLK           => SCLK,
---    
---    track          => TRACK,
---    image          => image,
---    
---    ram_write_addr => TRACK_RAM_ADDR,
---    ram_di         => TRACK_RAM_DI,
---    ram_we         => TRACK_RAM_WE
---    );
-
 
   trackmsb <= "00" & track(5 downto 4);
   
