@@ -214,9 +214,9 @@ begin
 			elsif RD_n='0' then
 				case A(7 downto 6)&A(0) is
 				when "010" =>
-					D_out <= (others=>'0');
-				when "011" =>
 					D_out <= std_logic_vector(y);
+				when "011" =>
+					D_out <= std_logic_vector(x(7 downto 0));
 				when "100" =>
 					D_out <= vram_cpu_D_out;
 					xram_cpu_A_incr <= '1';
