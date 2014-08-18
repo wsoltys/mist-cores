@@ -64,7 +64,10 @@ entity mist_top is
     
     -- Audio
     AUDIO_L,
-    AUDIO_R : out std_logic
+    AUDIO_R : out std_logic;
+    
+    -- LEDG
+    LED : out std_logic
 
     );
   
@@ -172,9 +175,6 @@ architecture datapath of mist_top is
   signal force_reset : std_logic := '0';
   signal reset : std_logic;
 
-  signal track : unsigned(5 downto 0);
-  signal image : unsigned(9 downto 0);
-  signal trackmsb : unsigned(3 downto 0);
   signal D1_ACTIVE, D2_ACTIVE : std_logic;
   signal track_addr : unsigned(13 downto 0);
   signal TRACK_RAM_ADDR : unsigned(17 downto 0);
@@ -215,6 +215,9 @@ architecture datapath of mist_top is
   
   signal pll_locked : std_logic;
   signal sdram_dqm: std_logic_vector(1 downto 0);
+  signal joyx       : std_logic;
+  signal joyy       : std_logic;
+  signal pdl_strobe : std_logic;
 
 begin
 
@@ -270,7 +273,44 @@ begin
   -- GAMEPORT input bits:
   --  7    6    5    4    3   2   1    0
   -- pdl3 pdl2 pdl1 pdl0 pb3 pb2 pb1 casette
-  GAMEPORT <=  "00" & joy0(3) & joy0(0) & '0' & joy0(5) & joy0(4) & "0";
+  GAMEPORT <=  "00" & joyy & joyx & "0" & joy0(5) & joy0(4) & "0";
+  
+  process(CLK_2M, pdl_strobe, joy0)
+    variable cx, cy : integer := 0;
+  begin
+    if rising_edge(CLK_2M) then
+      if cx > 0 then
+        cx := cx -1;
+        joyx <= '1';
+      else
+        joyx <= '0';
+      end if;
+      if cy > 0 then
+        cy := cy -1;
+        joyy <= '1';
+      else
+        joyy <= '0';
+      end if;
+      if pdl_strobe = '1' then
+        if joy0(0) = '1' then     -- right
+          cx := 4500;
+        elsif joy0(1) = '1' then  -- left
+          cx := 1400;
+        else                      -- center
+          cx := 2900;
+        end if;
+      end if;
+      if pdl_strobe = '1' then
+        if joy0(2) = '1' then     -- down
+          cy := 4500;
+        elsif joy0(3) = '1' then  -- up
+          cy := 1400;
+        else                      -- center
+          cy := 2900;
+        end if;
+      end if;
+    end if;
+  end process;
 
   COLOR_LINE_CONTROL <= COLOR_LINE and not status(1);  -- Color or B&W mode
   
@@ -354,6 +394,7 @@ begin
     read_key       => read_key,
     AN             => open,
     GAMEPORT       => GAMEPORT,
+    PDL_strobe     => pdl_strobe,
     IO_SELECT      => IO_SELECT,
     DEVICE_SELECT  => DEVICE_SELECT,
     pcDebugOut     => cpu_pc,
@@ -398,7 +439,7 @@ begin
     A              => ADDR,
     D_IN           => D,
     D_OUT          => PD,
-    TRACK          => TRACK,
+    TRACK          => open,
     TRACK_ADDR     => TRACK_ADDR,
     D1_ACTIVE      => D1_ACTIVE,
     D2_ACTIVE      => D2_ACTIVE,
@@ -406,8 +447,8 @@ begin
     ram_di         => unsigned(sd_do),
     ram_oe         => TRACK_RAM_OE
     );
-
-  trackmsb <= "00" & track(5 downto 4);
+    
+  LED <= not D1_ACTIVE;
   
   user_io_d : user_io
     generic map (STRLEN => CONF_STR'length)
