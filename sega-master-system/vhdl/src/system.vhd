@@ -9,25 +9,22 @@ entity system is
 		clk_cpu:		in		STD_LOGIC;
 		clk_vdp:		in		STD_LOGIC;
 		
-		ram_cs_n:	out	STD_LOGIC;
-		ram_we_n:	out	STD_LOGIC;
 		ram_oe_n:	out	STD_LOGIC;
 		ram_a:		out	STD_LOGIC_VECTOR(21 downto 0);
-		ram_di:		out	STD_LOGIC_VECTOR(7 downto 0);
-    ram_do:		in	STD_LOGIC_VECTOR(7 downto 0);
+		ram_do:		in		STD_LOGIC_VECTOR(7 downto 0);
 
 		j1_up:		in		STD_LOGIC;
 		j1_down:		in		STD_LOGIC;
 		j1_left:		in		STD_LOGIC;
 		j1_right:	in		STD_LOGIC;
 		j1_tl:		in		STD_LOGIC;
-		j1_tr:		in	STD_LOGIC;
+		j1_tr:		in		STD_LOGIC;
 		j2_up:		in		STD_LOGIC;
 		j2_down:		in		STD_LOGIC;
 		j2_left:		in		STD_LOGIC;
 		j2_right:	in		STD_LOGIC;
 		j2_tl:		in		STD_LOGIC;
-		j2_tr:		in	STD_LOGIC;
+		j2_tr:		in		STD_LOGIC;
 		reset:		in		STD_LOGIC;
 		pause:		in		STD_LOGIC;
 
@@ -38,13 +35,7 @@ entity system is
 		color:		out	STD_LOGIC_VECTOR(5 downto 0);
 		audio:		out	STD_LOGIC;
 
-		spi_do:		in		STD_LOGIC;
-		spi_sclk:	out	STD_LOGIC;
-		spi_di:		out	STD_LOGIC;
-		spi_cs_n:	out	STD_LOGIC;
-
-		tx:			out	STD_LOGIC;
-    dbr:    in STD_LOGIC);
+		dbr:    in STD_LOGIC);
 end system;
 
 architecture Behavioral of system is
@@ -116,38 +107,14 @@ architecture Behavioral of system is
 		J1_left:			in 	STD_LOGIC;
 		J1_right:		in 	STD_LOGIC;
 		J1_tl:			in 	STD_LOGIC;
-		J1_tr:			in STD_LOGIC;
+		J1_tr:			in 	STD_LOGIC;
 		J2_up:			in 	STD_LOGIC;
 		J2_down:			in 	STD_LOGIC;
 		J2_left:			in 	STD_LOGIC;
 		J2_right:		in 	STD_LOGIC;
 		J2_tl:			in 	STD_LOGIC;
-		J2_tr:			in STD_LOGIC;
+		J2_tr:			in 	STD_LOGIC;
 		RESET:			in 	STD_LOGIC);
-	end component;
-	
-	component spi is
-	port (
-		clk:				in  STD_LOGIC;
-		RD_n:				in  STD_LOGIC;
-		WR_n:				in  STD_LOGIC;
-		A:					in  STD_LOGIC_VECTOR (7 downto 0);
-		D_in:				in  STD_LOGIC_VECTOR (7 downto 0);
-		D_out:			out STD_LOGIC_VECTOR (7 downto 0);
-			
-		cs_n:				out STD_LOGIC;
-		sclk:				out STD_LOGIC;
-		miso:				in  STD_LOGIC;
-		mosi:				out STD_LOGIC);
-	end component;
-
-	component uart_tx is
-	port (
-		clk:  			in  std_logic;
-		WR_n:				in  std_logic;
-		D_in: 			in  std_logic_vector(7 downto 0);
-		serial_out:		out std_logic;
-		ready:			out std_logic);
 	end component;
 	
 	signal RESET_n:			std_logic;
@@ -171,25 +138,14 @@ architecture Behavioral of system is
 	signal io_WR_n:			std_logic;
 	signal io_D_out:			std_logic_vector(7 downto 0);
 	
---	signal ram_RD_n:			std_logic;
 	signal ram_WR_n:			std_logic;
 	signal ram_D_out:			std_logic_vector(7 downto 0);
   signal cart_ram_D_out:std_logic_vector(7 downto 0);
 	
---	signal rom_RD_n:			std_logic;
 	signal rom_WR_n:			std_logic;
-	signal rom_D_out:			std_logic_vector(7 downto 0);
 	
-	signal spi_RD_n:			std_logic;
-	signal spi_WR_n:			std_logic;
-	signal spi_D_out:			std_logic_vector(7 downto 0);
-	
---	signal boot_rom_RD_n:	std_logic;
 	signal boot_rom_D_out:	std_logic_vector(7 downto 0);
 	
-	signal uart_WR_n:			std_logic;
-	signal uart_D_out:		std_logic_vector(7 downto 0);
-
 	signal reset_counter:	unsigned(3 downto 0) := "1111";
 	signal bootloader:		std_logic := '0';
 	signal irom_D_out:		std_logic_vector(7 downto 0);
@@ -311,34 +267,6 @@ begin
       q					=> boot_rom_D_out
     );
 	
-	spi_inst: spi
-	port map (
-		clk			=> clk_cpu,
-		RD_n			=> spi_RD_n,
-		WR_n			=> spi_WR_n,
-		A				=> A(7 downto 0),
-		D_in			=> D_in,
-		D_out			=> spi_D_out,
-			
-		cs_n			=> spi_cs_n,
-		sclk			=> spi_sclk,
-		miso			=> spi_do,
-		mosi			=> spi_di);
-
-	uart_tx_inst: uart_tx
-	port map (
-		clk			=> clk_cpu,
-		WR_n			=> uart_WR_n,
-		D_in			=> D_in,
-		serial_out	=> tx,
-		ready			=> uart_D_out(0));
-	
-	uart_D_out(7 downto 1) <= (others=>'0');
-	
-	
-	
-	
-	
 	-- glue logic
 
 	vdp_WR_n <= WR_n when io_n='0' and A(7 downto 6)="10" else '1';
@@ -353,15 +281,7 @@ begin
 					
 	io_RD_n <=	RD_n when io_n='0' and A(7 downto 6)="11" else '1';
 					
-	spi_RD_n <= '1'; -- bootloader or RD_n when io_n='0' and A(7 downto 5)="000" else '1';
-
-	spi_WR_n <= '1'; -- bootloader or WR_n when io_n='0' and A(7 downto 5)="110" else '1';
-
-	uart_WR_n<= '1'; -- bootloader or WR_n when io_n='0' and A(7 downto 5)="111" else '1';
-	
 	ram_WR_n <= WR_n when io_n='1' and A(15 downto 14)="11" else '1';
-	
-	rom_WR_n <= '1'; -- bootloader or WR_n when io_n='1' and A(15 downto 14)="10" else '1';
 	
 	process (clk_cpu)
   begin
@@ -383,17 +303,13 @@ begin
   end process;
   reset_n <= '0' when reset_counter>0 else '1';
 	
-	irom_D_out <=	boot_rom_D_out when bootloader='0' and A(15 downto 14)="00" and dbr='0' else rom_D_out;
+	irom_D_out <=	boot_rom_D_out when bootloader='0' and A(15 downto 14)="00" and dbr='0' else ram_do;
 	
-	process (io_n,A,spi_D_out,uart_D_out,vdp_D_out,io_D_out,irom_D_out,ram_D_out)
+	process (io_n,A,vdp_D_out,io_D_out,irom_D_out,ram_D_out)
 	begin
 		if io_n='0' then
-			case A(7 downto 5) is
-			when "000" =>
-				D_out <= spi_D_out; 
-			when "001" =>
-				D_out <= uart_D_out;
-			when "110"|"111" =>
+			case A(7 downto 6) is
+			when "11" =>
 				D_out <= io_D_out;
 			when others =>
 				D_out <= vdp_D_out;
@@ -414,28 +330,32 @@ begin
 	
 	process (clk_cpu)
 	begin
-		if rising_edge(clk_cpu) then
-			if WR_n='0' and A(15 downto 2)="11111111111111" then
-				case A(1 downto 0) is
-        when "00" => 
-          if (D_in(3) = '1') then
-            ram_e <= '1';
-          end if;
-				when "01" => bank0 <= D_in;
-				when "10" => bank1 <= D_in;
-				when "11" => bank2 <= D_in;
-				when others =>
-				end case;
+		if(RESET_n='0' or reset='0') then
+			bank0 <= "00000000";
+			bank1 <= "00000001";
+			bank2 <= "00000010";
+		else
+			if rising_edge(clk_cpu) then
+				if WR_n='0' and A(15 downto 2)="11111111111111" then
+					case A(1 downto 0) is
+						when "00" => 
+							if (D_in(3) = '1') then
+								ram_e <= '1';
+							end if;
+						when "01" => bank0 <= D_in;
+						when "10" => bank1 <= D_in;
+						when "11" => bank2 <= D_in;
+						when others =>
+					end case;
+				end if;
 			end if;
 		end if;
 	end process;
 	
-	ram_cs_n <= '0';
 	ram_oe_n <= RD_n;
-	ram_we_n <= rom_WR_n;
 	
 	ram_a(13 downto 0) <= A(13 downto 0);
-	process (A,bank0,bank1,bank2)
+	process (reset,A,bank0,bank1,bank2)
 	begin
 		case A(15 downto 14) is
 		when "00" =>
@@ -454,28 +374,6 @@ begin
       end if;
 		end case;
 	end process;
-	
-	ram_di(7 downto 0) <= (others=>'Z') when RD_n='0' else D_in;
-				
-	rom_D_out<= ram_do(7 downto 0);
-  
-  
-  -- rom test
-  -- scroll.hex works only with bios.hex
-  -- penguin.mif with smsbios and bios (broken graphics)
-  
---  ram_inst2 : entity work.sprom
---		generic map
---		(
---      init_file   => "penguin.mif",
---			widthad_a		=> 14
---		)
---		port map
---		(
---			clock				=> clk_cpu,
---			address			=> A(13 downto 0),
---			q						=> rom_D_out
---		);
 
 end Behavioral;
 

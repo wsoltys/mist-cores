@@ -50,7 +50,6 @@ architecture Behavioral of sms_mist is
 	component vga_video is
 	port (
 		clk16:			in  std_logic;
-		dither:			in  std_logic;
 		x: 				out unsigned(8 downto 0);
 		y:					out unsigned(7 downto 0);
 		vblank:			out std_logic;
@@ -83,7 +82,7 @@ architecture Behavioral of sms_mist is
       );
   end component;
   
-  constant CONF_STR : string := "SMS;SMS;";
+  constant CONF_STR : string := "SMS;SMS;T1:Pause;T2:Reset";
 
   function to_slv(s: string) return std_logic_vector is
     constant ss: string(1 to s'length) := s;
@@ -151,14 +150,11 @@ architecture Behavioral of sms_mist is
 	signal audio:				std_logic;
   
   signal pll_locked:  std_logic;
-  signal ram_cs_n:	STD_LOGIC;
-	signal ram_we_n:	STD_LOGIC;
   signal ram_oe_n:	STD_LOGIC;
   signal ram_a:		STD_LOGIC_VECTOR(21 downto 0);
   signal sys_a:		STD_LOGIC_VECTOR(21 downto 0);
   signal ram_din: STD_LOGIC_VECTOR(7 downto 0);
   signal ram_dout: STD_LOGIC_VECTOR(7 downto 0);
-  signal sys_di: STD_LOGIC_VECTOR(7 downto 0);
   signal ram_we: std_logic;
   signal ram_oe: std_logic;
   
@@ -219,7 +215,6 @@ begin
 	video_inst: vga_video
 	port map (
 		clk16			=> clk16,
-		dither		=> '0',
 		x	 			=> x,
 		y				=> y,
 		vblank		=> vblank,
@@ -329,27 +324,24 @@ begin
 		clk_cpu		=> clk_cpu,
 		clk_vdp		=> clk16,
 		
-		ram_cs_n	=> ram_cs_n,
-		ram_we_n	=> ram_we_n,
-		ram_oe_n	=> ram_oe_n,
+		ram_oe_n		=> ram_oe_n,
 		ram_a			=> sys_a,
-		ram_di		=> sys_di,
-		ram_do    => ram_dout,
+		ram_do    	=> ram_dout,
 
 		j1_up			=> not joy0(3),
 		j1_down		=> not joy0(2),
 		j1_left		=> not joy0(1),
-		j1_right	=> not joy0(0),
+		j1_right		=> not joy0(0),
 		j1_tl			=> not joy0(4),
 		j1_tr			=> not joy0(5),
 		j2_up			=> not joy1(3),
 		j2_down		=> not joy1(2),
 		j2_left		=> not joy1(1),
-		j2_right	=> not joy1(0),
+		j2_right		=> not joy1(0),
 		j2_tl			=> not joy1(4),
 		j2_tr			=> not joy1(5),
-		reset			=> not buttons(1) and not status(0) and pll_locked and reset_n,
-		pause			=> '1', -- not buttons(0),
+		reset			=> not buttons(1) and not status(2) and not status(0) and pll_locked and reset_n,
+		pause			=> not status(1),
 
 		x				=> x,
 		y				=> y,
@@ -358,13 +350,8 @@ begin
 		color			=> color,
 		audio			=> audio,
 
-		spi_do		=> '1',
-		spi_sclk		=> open,
-		spi_di		=> open,
-		spi_cs_n		=> open,
-
-		tx				=> open,
-    dbr       => dbr);
+		dbr       	=> dbr
+	);
 	
 	AUDIO_L <= audio;
 	AUDIO_R <= audio;

@@ -65,16 +65,16 @@ begin
 					if ctrl(3)='0' then
 						D_out(7) <= ctrl(7);
 					else
-						D_out(7) <= '0';
+						D_out(7) <= '1';
 					end if;
 					-- 6=j1_th
 					if ctrl(1)='0' then
 						D_out(6) <= ctrl(5);
 					else
-						D_out(6) <= '0'; 
+						D_out(6) <= '1'; 
 					end if;
 					D_out(5) <= '1';
-					D_out(4) <= RESET;
+					D_out(4) <= '1';
 					-- 4=j2_tr
 					if ctrl(2)='0' then
 						D_out(3) <= ctrl(6);

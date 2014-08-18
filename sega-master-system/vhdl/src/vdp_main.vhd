@@ -128,7 +128,7 @@ begin
 	end process;
 	
 	vram_A <= spr_vram_A when x>=256 and x<384 else bg_vram_A;
-	
+
 	color <= cram_D;
 
 end Behavioral;
