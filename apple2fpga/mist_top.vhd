@@ -293,20 +293,20 @@ begin
       end if;
       if pdl_strobe = '1' then
         if joy0(0) = '1' then     -- right
-          cx := 4500;
+          cx := 5650;
         elsif joy0(1) = '1' then  -- left
-          cx := 1400;
+          cx := 0;
         else                      -- center
-          cx := 2900;
+          cx := 2800;
         end if;
       end if;
       if pdl_strobe = '1' then
         if joy0(2) = '1' then     -- down
-          cy := 4500;
+          cy := 5650; --4500;
         elsif joy0(3) = '1' then  -- up
-          cy := 1400;
+          cy := 0;  --1400;
         else                      -- center
-          cy := 2900;
+          cy := 2800;
         end if;
       end if;
     end if;
