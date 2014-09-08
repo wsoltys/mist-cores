@@ -75,7 +75,7 @@ end mist_top;
 
 architecture datapath of mist_top is
 
-  constant CONF_STR : string := "AppleII+;NIB;O1,Video mode,Color,B&W;";
+  constant CONF_STR : string := "AppleII+;NIB;O1,Video mode,Color,B&W;O2,Joysticks,Normal,Swapped;";
 
   function to_slv(s: string) return std_logic_vector is 
     constant ss: string(1 to s'length) := s; 
@@ -101,14 +101,17 @@ architecture datapath of mist_top is
     port ( SPI_CLK, SPI_SS_IO, SPI_MOSI :in std_logic;
            SPI_MISO : out std_logic;
            conf_str : in std_logic_vector(8*STRLEN-1 downto 0);
-           JOY0 :     out std_logic_vector(5 downto 0);
-           JOY1 :     out std_logic_vector(5 downto 0);
+           joystick_0 : out std_logic_vector(5 downto 0);
+           joystick_1 : out std_logic_vector(5 downto 0);
+           joystick_analog_0 : out std_logic_vector(15 downto 0);
+           joystick_analog_1 : out std_logic_vector(15 downto 0);
            status:    out std_logic_vector(7 downto 0);
            SWITCHES : out std_logic_vector(1 downto 0);
            BUTTONS : out std_logic_vector(1 downto 0);
-           clk : in std_logic;
-           ps2_clk : out std_logic;
-           ps2_data : out std_logic
+           sd_sdhc : in std_logic;
+           ps2_clk : in std_logic;
+           ps2_kbd_clk : out std_logic;
+           ps2_kbd_data : out std_logic
          );
 
   end component user_io;
@@ -206,8 +209,12 @@ architecture datapath of mist_top is
   
   signal switches   : std_logic_vector(1 downto 0);
   signal buttons    : std_logic_vector(1 downto 0);
+  signal joy        : std_logic_vector(5 downto 0);
   signal joy0       : std_logic_vector(5 downto 0);
   signal joy1       : std_logic_vector(5 downto 0);
+  signal joy_an0    : std_logic_vector(15 downto 0);
+  signal joy_an1    : std_logic_vector(15 downto 0);
+  signal joy_an     : std_logic_vector(15 downto 0);
   signal status     : std_logic_vector(7 downto 0);
   signal ps2Clk     : std_logic;
   signal ps2Data    : std_logic;
@@ -273,10 +280,13 @@ begin
   -- GAMEPORT input bits:
   --  7    6    5    4    3   2   1    0
   -- pdl3 pdl2 pdl1 pdl0 pb3 pb2 pb1 casette
-  GAMEPORT <=  "00" & joyy & joyx & "0" & joy0(5) & joy0(4) & "0";
+  GAMEPORT <=  "00" & joyy & joyx & "0" & joy(5) & joy(4) & "0";
   
-  process(CLK_2M, pdl_strobe, joy0)
-    variable cx, cy : integer := 0;
+  joy_an <= joy_an0 when status(2)='0' else joy_an1;
+  joy <= joy0 when status(2)='0' else joy1;
+  
+  process(CLK_2M, pdl_strobe)
+    variable cx, cy : integer range -100 to 5800 := 0;
   begin
     if rising_edge(CLK_2M) then
       if cx > 0 then
@@ -292,21 +302,17 @@ begin
         joyy <= '0';
       end if;
       if pdl_strobe = '1' then
-        if joy0(0) = '1' then     -- right
-          cx := 5650;
-        elsif joy0(1) = '1' then  -- left
+        cx := 2800+(22*to_integer(signed(joy_an(15 downto 8))));
+        cy := 2800+(22*to_integer(signed(joy_an(7 downto 0)))); -- max 5650
+        if cx < 0 then
           cx := 0;
-        else                      -- center
-          cx := 2800;
+        elsif cx >= 5590 then
+          cx := 5650;
         end if;
-      end if;
-      if pdl_strobe = '1' then
-        if joy0(2) = '1' then     -- down
-          cy := 5650; --4500;
-        elsif joy0(3) = '1' then  -- up
-          cy := 0;  --1400;
-        else                      -- center
-          cy := 2800;
+        if cy < 0 then
+          cy := 0;
+        elsif cy >= 5590 then
+          cy := 5650;
         end if;
       end if;
     end if;
@@ -460,13 +466,16 @@ begin
       SPI_MOSI => SPI_DI,       
       conf_str => to_slv(CONF_STR),
       status => status,   
-      JOY0 => joy0,   
-      JOY1 => joy1,  
+      joystick_0 => joy0,   
+      joystick_1 => joy1,
+      joystick_analog_0 => joy_an0,
+      joystick_analog_1 => joy_an1,
       SWITCHES => switches,   
       BUTTONS => buttons,
-      clk => CLK_12k,
-      ps2_clk => ps2Clk,
-      ps2_data => ps2Data
+      sd_sdhc => '1',
+      ps2_clk => CLK_12k,
+      ps2_kbd_clk => ps2Clk,
+      ps2_kbd_data => ps2Data
     );
     
   osd_inst : osd
