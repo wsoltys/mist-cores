@@ -75,18 +75,18 @@ entity VIC20 is
     CLK_40            : in    std_logic;
 
     CART_SWITCH       : in    std_logic;
-    SWITCH            : in    std_logic_vector(1 downto 0);
-    O_FLASH_ADDR      : out   std_logic_vector(21 downto 0);
-    B_FLASH_DATA      : inout std_logic_vector(7 downto 0);
-    O_FLASH_CE_L      : out   std_logic;
-    O_FLASH_OE_L      : out   std_logic;
-    O_FLASH_WE_L      : out   std_logic;
-    O_FLASH_BYTE      : out   std_logic;
+    SWITCH            : in    std_logic_vector(1 downto 0)
+--    O_FLASH_ADDR      : out   std_logic_vector(21 downto 0);
+--    B_FLASH_DATA      : inout std_logic_vector(7 downto 0);
+--    O_FLASH_CE_L      : out   std_logic;
+--    O_FLASH_OE_L      : out   std_logic;
+--    O_FLASH_WE_L      : out   std_logic;
+--    O_FLASH_BYTE      : out   std_logic;
 
 
-    SRAM_ADDR_OUT     : out   std_logic_vector(17 downto 0);
-    SRAM_DATA         : inout    std_logic_vector(7 downto 0);
-    SRAM_WE_OUT       : out   std_logic
+--    SRAM_ADDR_OUT     : out   std_logic_vector(17 downto 0);
+--    SRAM_DATA         : inout    std_logic_vector(7 downto 0);
+--    SRAM_WE_OUT       : out   std_logic
 
     --scan_out          : out   std_logic_vector(7 downto 0)
 
@@ -746,96 +746,96 @@ clk_8 <= CLK_40;
 --    SRAM_WE_OUT       : out   std_logic
 
 
-   ram_pros: process(ena_4)
-   begin
-	 if ena_4'event AND ena_4 = '1' then
-        SRAM_ADDR_OUT(9 downto 0) <= v_addr(9 downto 0);
-        SRAM_ADDR_OUT(17 downto 13) <= (others => '0');
+--   ram_pros: process(ena_4)
+--   begin
+--	 if ena_4'event AND ena_4 = '1' then
+--        SRAM_ADDR_OUT(9 downto 0) <= v_addr(9 downto 0);
+--        SRAM_ADDR_OUT(17 downto 13) <= (others => '0');
+--
+--        if ram_sel_l(0) = '0' then
+--			SRAM_ADDR_OUT(12 downto 10) <= "000";
+--		elsif ram_sel_l(4) = '0' then
+--			SRAM_ADDR_OUT(12 downto 10) <= "001";
+--		elsif ram_sel_l(5) = '0' then
+--			SRAM_ADDR_OUT(12 downto 10) <= "010";
+--		elsif ram_sel_l(6) = '0' then
+--			SRAM_ADDR_OUT(12 downto 10) <= "011";
+--		elsif ram_sel_l(7) = '0' then
+--			SRAM_ADDR_OUT(12 downto 10) <= "100";
+--		elsif col_ram_sel_l = '0' then
+--			SRAM_ADDR_OUT(12 downto 10) <= "101";
+--	    end if;
+--	
+--        if v_rw_l = '0' then
+--			SRAM_WE_OUT <= '0';
+--			SRAM_DATA <= v_data;
+--		else 
+--			SRAM_DATA <= "ZZZZZZZZ";
+--			SRAM_WE_OUT <= '1';
+--			if (ram_sel_l(0) = '0') then
+--			  ram0_dout <= SRAM_DATA;		  
+--			elsif (ram_sel_l(4) = '0') then
+--			  ram45_dout <= SRAM_DATA;		  
+--			elsif (ram_sel_l(5) = '0') then
+--			  ram45_dout <= SRAM_DATA;		  
+--			elsif (ram_sel_l(6) = '0') then
+--			  ram67_dout <= SRAM_DATA;		  
+--			elsif (ram_sel_l(7) = '0') then
+--			  ram67_dout <= SRAM_DATA;		
+--			elsif col_ram_sel_l = '0' then
+--			  col_ram_dout <= SRAM_DATA;	  
+--			end if;
+--		end if;
+--	  end if;
+--   end process;
 
-        if ram_sel_l(0) = '0' then
-			SRAM_ADDR_OUT(12 downto 10) <= "000";
-		elsif ram_sel_l(4) = '0' then
-			SRAM_ADDR_OUT(12 downto 10) <= "001";
-		elsif ram_sel_l(5) = '0' then
-			SRAM_ADDR_OUT(12 downto 10) <= "010";
-		elsif ram_sel_l(6) = '0' then
-			SRAM_ADDR_OUT(12 downto 10) <= "011";
-		elsif ram_sel_l(7) = '0' then
-			SRAM_ADDR_OUT(12 downto 10) <= "100";
-		elsif col_ram_sel_l = '0' then
-			SRAM_ADDR_OUT(12 downto 10) <= "101";
-	    end if;
-	
-        if v_rw_l = '0' then
-			SRAM_WE_OUT <= '0';
-			SRAM_DATA <= v_data;
-		else 
-			SRAM_DATA <= "ZZZZZZZZ";
-			SRAM_WE_OUT <= '1';
-			if (ram_sel_l(0) = '0') then
-			  ram0_dout <= SRAM_DATA;		  
-			elsif (ram_sel_l(4) = '0') then
-			  ram45_dout <= SRAM_DATA;		  
-			elsif (ram_sel_l(5) = '0') then
-			  ram45_dout <= SRAM_DATA;		  
-			elsif (ram_sel_l(6) = '0') then
-			  ram67_dout <= SRAM_DATA;		  
-			elsif (ram_sel_l(7) = '0') then
-			  ram67_dout <= SRAM_DATA;		
-			elsif col_ram_sel_l = '0' then
-			  col_ram_dout <= SRAM_DATA;	  
-			end if;
-		end if;
-	  end if;
-   end process;
+  rams0 : entity work.VIC20_RAMS
+    port map (
+      V_ADDR => v_addr(9 downto 0),
+      DIN    => v_data,
+      DOUT   => ram0_dout,
+      V_RW_L => v_rw_l,
+      CS1_L  => ram_sel_l(0),
+      CS2_L  => '1',
+      --ENA    => ena_4,
+      CLK    => ena_4
+      );
 
---  rams0 : entity work.VIC20_RAMS
---    port map (
---      V_ADDR => v_addr(9 downto 0),
---      DIN    => v_data,
---      DOUT   => ram0_dout,
---      V_RW_L => v_rw_l,
---      CS1_L  => ram_sel_l(0),
---      CS2_L  => '1',
---      --ENA    => ena_4,
---      CLK    => ena_4
---      );
---
---  rams45 : entity work.VIC20_RAMS
---    port map (
---      V_ADDR => v_addr(9 downto 0),
---      DIN    => v_data,
---      DOUT   => ram45_dout,
---      V_RW_L => v_rw_l,
---      CS1_L  => ram_sel_l(4),
---      CS2_L  => ram_sel_l(5),
---      --ENA    => ena_4,
---      CLK    => ena_4
---      );
---
---  rams67 : entity work.VIC20_RAMS
---    port map (
---      V_ADDR => v_addr(9 downto 0),
---      DIN    => v_data,
---      DOUT   => ram67_dout,
---      V_RW_L => v_rw_l,
---      CS1_L  => ram_sel_l(6),
---      CS2_L  => ram_sel_l(7),
---      --ENA    => ena_4,
---      CLK    => ena_4
---      );
---
---
---  col_ram : entity work.VIC20_RAM
---    port map (
---      V_ADDR => v_addr(9 downto 0),
---      DIN    => v_data,
---      DOUT   => col_ram_dout,
---      V_RW_L => v_rw_l,
---      CS_L   => col_ram_sel_l,
---      ENA    => ena_4,
---      CLK    => ena_4
---      );
+  rams45 : entity work.VIC20_RAMS
+    port map (
+      V_ADDR => v_addr(9 downto 0),
+      DIN    => v_data,
+      DOUT   => ram45_dout,
+      V_RW_L => v_rw_l,
+      CS1_L  => ram_sel_l(4),
+      CS2_L  => ram_sel_l(5),
+      --ENA    => ena_4,
+      CLK    => ena_4
+      );
+
+  rams67 : entity work.VIC20_RAMS
+    port map (
+      V_ADDR => v_addr(9 downto 0),
+      DIN    => v_data,
+      DOUT   => ram67_dout,
+      V_RW_L => v_rw_l,
+      CS1_L  => ram_sel_l(6),
+      CS2_L  => ram_sel_l(7),
+      --ENA    => ena_4,
+      CLK    => ena_4
+      );
+
+
+  col_ram : entity work.VIC20_RAM
+    port map (
+      V_ADDR => v_addr(9 downto 0),
+      DIN    => v_data,
+      DOUT   => col_ram_dout,
+      V_RW_L => v_rw_l,
+      CS_L   => col_ram_sel_l,
+      ENA    => ena_4,
+      CLK    => ena_4
+      );
 
   --
   -- roms
