@@ -1,0 +1,54 @@
+<internal_error>
+	<executable>quartus.exe</executable>
+	<sub_system>ERR</sub_system>
+	<file>q:\quartus\ccl\msg\msg_internal_error.cpp</file>
+	<line>724</line>
+	<callstack>
+	0x7473d2f0: MSCTF + 0x1d2f0 (TF_CreateCicLoadMutex + 0x6305)
+	0x7e418733: USER32 + 0x8733 (GetDC + 0x6c)
+	0x7e418815: USER32 + 0x8815 (GetDC + 0x14e)
+	0x7e42a012: USER32 + 0x1a012 (IsWindowUnicode + 0xa0)
+	0x7e42a997: USER32 + 0x1a997 (CallWindowProcA + 0x1a)
+	0x7c173ada: MFC71 + 0x33ada (Ordinal472 + 0x156)
+	0x7e418733: USER32 + 0x8733 (GetDC + 0x6c)
+	0x7e418815: USER32 + 0x8815 (GetDC + 0x14e)
+	0x7e4189cc: USER32 + 0x89cc (GetWindowLongW + 0x126)
+	0x7e4196c6: USER32 + 0x96c6 (DispatchMessageA + 0xe)
+	0x7c169075: MFC71 + 0x29075 (Ordinal1106 + 0x3d)
+	</callstack>
+	<error>*** Fatal Error: Access Violation at 0X7473D2F0, Module: quartus.exe</error>
+	<date>Thu Oct 16 02:43:19 2008</date>
+	<version>Quartus II Version 7.1 Build 156 04/30/2007 SJ Web Edition</version>
+	<full_error>
+*** Fatal Error: Access Violation at 0X7473D2F0, Module: quartus.exe
+Quartus II Version 7.1 Build 156 04/30/2007 SJ Web Edition </full_error>
+</internal_error>
+<internal_error>
+	<executable>quartus.exe</executable>
+	<sub_system>AFC</sub_system>
+	<file>/quartus/gcl/afc/afc_editor_template.cpp</file>
+	<line>978</line>
+	<callstack>
+	0x10007c9e: GCL_AFC + 0x7c9e (?get_compile_short_menu@AFC_EDITOR_TEMPLATE@@UAEPAUHMENU__@@XZ + 0x3e)
+	</callstack>
+	<error>Not enough memory to complete operation</error>
+	<date>Thu Oct 16 20:35:07 2008</date>
+	<version>Quartus II Version 7.1 Build 156 04/30/2007 SJ Web Edition</version>
+	<full_error>Not enough memory to complete operation
+Quartus II Version 7.1 Build 156 04/30/2007 SJ Web Edition </full_error>
+</internal_error>
+<internal_error>
+	<executable>quartus.exe</executable>
+	<sub_system>ERR</sub_system>
+	<file>q:\quartus\ccl\msg\msg_internal_error.cpp</file>
+	<line>724</line>
+	<callstack>
+	0x10008543: GCL_AFC + 0x8543 (?update_shared_menu@AFC_CHILD_FRAME@@QAEXPAVAFC_DOC_TEMPLATE@@@Z + 0x3)
+	</callstack>
+	<error>*** Fatal Error: Access Violation at 0X10008543, Module: quartus.exe</error>
+	<date>Sun Oct 19 20:19:03 2008</date>
+	<version>Quartus II Version 7.1 Build 156 04/30/2007 SJ Web Edition</version>
+	<full_error>
+*** Fatal Error: Access Violation at 0X10008543, Module: quartus.exe
+Quartus II Version 7.1 Build 156 04/30/2007 SJ Web Edition </full_error>
+</internal_error>

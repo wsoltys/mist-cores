@@ -1,0 +1,7 @@
+run
+-ifn vic20.prj
+-ifmt VHDL
+-ofn vic20.ngc
+-ofmt NGC -p XCV300E-FG456-6
+-opt_mode Area
+-opt_level 2

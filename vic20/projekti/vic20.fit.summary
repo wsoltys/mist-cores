@@ -1,0 +1,16 @@
+Fitter Status : Successful - Sun Dec 21 18:20:32 2008
+Quartus II Version : 7.1 Build 156 04/30/2007 SJ Web Edition
+Revision Name : vic20
+Top-level Entity Name : toplevel
+Family : Cyclone II
+Device : EP2C35F672C6
+Timing Models : Final
+Total logic elements : 2,350 / 33,216 ( 7 % )
+    Total combinational functions : 2,196 / 33,216 ( 7 % )
+    Dedicated logic registers : 1,109 / 33,216 ( 3 % )
+Total registers : 1109
+Total pins : 79 / 475 ( 17 % )
+Total virtual pins : 0
+Total memory bits : 238,128 / 483,840 ( 49 % )
+Embedded Multiplier 9-bit elements : 0 / 70 ( 0 % )
+Total PLLs : 1 / 4 ( 25 % )

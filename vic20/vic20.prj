@@ -1,0 +1,14 @@
+pkg_vic20_xilinx_prims.vhd
+pkg_vic20.vhd
+t65_pack.vhd
+t65_mcode.vhd
+t65_alu.vhd
+t65.vhd
+vic20_chars.vhd
+vic20_rams.vhd
+m6522.vhd
+vic20_vic.vhd
+ps2kbd.vhd
+vic20_ps2_if.vhd
+vic20.vhd
+

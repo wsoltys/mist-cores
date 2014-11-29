@@ -1,0 +1,76 @@
+
+CONFIG PART = XCV300E-FG456-6 ;
+
+NET clk_4       TNM_NET = clk_4_grp;
+TIMESPEC TS02 = PERIOD : clk_4_grp : 100.00 : PRIORITY 1;   # 10.00 MHz
+
+TIMESPEC TS11=FROM:PADS:TO:FFS : 40 ns;
+TIMESPEC TS12=FROM:FFS:TO:PADS : 40 ns;
+
+# YOU WILL NEED TO CHOOSE YOUR OWN PINOUT !
+# this file is for reference only
+
+NET PS2_CLK                     LOC=P5;
+NET PS2_DATA                    LOC=R1;
+
+NET VIDEO_R_OUT(3)              LOC=D12;
+NET VIDEO_R_OUT(2)              LOC=B12;
+NET VIDEO_R_OUT(1)              LOC=A13;
+NET VIDEO_R_OUT(0)              LOC=E12;
+
+NET VIDEO_G_OUT(3)              LOC=C13;
+NET VIDEO_G_OUT(2)              LOC=D13;
+NET VIDEO_G_OUT(1)              LOC=A14;
+NET VIDEO_G_OUT(0)              LOC=B14;
+
+NET VIDEO_B_OUT(3)              LOC=C14;
+NET VIDEO_B_OUT(2)              LOC=F12;
+NET VIDEO_B_OUT(1)              LOC=A15;
+NET VIDEO_B_OUT(0)              LOC=E13;
+
+NET HSYNC_OUT                   LOC=B15;
+NET VSYNC_OUT                   LOC=C15;
+NET COMP_SYNC_L_OUT             LOC=A16;
+
+NET AUDIO_OUT(3)                LOC=M18;
+NET AUDIO_OUT(2)                LOC=M21;
+NET AUDIO_OUT(1)                LOC=M22;
+NET AUDIO_OUT(0)                LOC=L20;
+
+NET ROM_DATA(0)                 LOC=B1;
+NET ROM_DATA(1)                 LOC=C2;
+NET ROM_DATA(2)                 LOC=E4;
+NET ROM_DATA(3)                 LOC=C1;
+NET ROM_DATA(4)                 LOC=F5;
+NET ROM_DATA(5)                 LOC=D2;
+NET ROM_DATA(6)                 LOC=E3;
+NET ROM_DATA(7)                 LOC=D1;
+
+NET ROM_ADDR(0)                 LOC=F4;
+NET ROM_ADDR(1)                 LOC=G5;
+NET ROM_ADDR(2)                 LOC=F3;
+NET ROM_ADDR(3)                 LOC=E2;
+NET ROM_ADDR(4)                 LOC=E1;
+NET ROM_ADDR(5)                 LOC=G4;
+NET ROM_ADDR(6)                 LOC=G3;
+NET ROM_ADDR(7)                 LOC=H5;
+
+NET ROM_ADDR(8)                 LOC=F2;
+NET ROM_ADDR(9)                 LOC=F1;
+NET ROM_ADDR(10)                LOC=G2;
+NET ROM_ADDR(11)                LOC=H4;
+NET ROM_ADDR(12)                LOC=G1;
+NET ROM_ADDR(13)                LOC=H3;
+NET ROM_ADDR(14)                LOC=H2;
+NET ROM_ADDR(15)                LOC=J4;
+
+NET ROM_ADDR(16)                LOC=H1;
+NET ROM_ADDR(17)                LOC=J5;
+NET ROM_ADDR(18)                LOC=J2;
+NET ROM_WE_L                    LOC=J3;
+NET ROM_OE_L                    LOC=J1;
+NET ROM_CE_L                    LOC=K5;
+
+NET RESET_L                     LOC=AB12;
+NET CLK_40                      LOC=W12;
+
