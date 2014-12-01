@@ -109,7 +109,10 @@ architecture rtl of vic20_mist is
   signal a_ram: std_logic_vector(13 downto 0);
   signal cart_dout: std_logic_vector(7 downto 0);
   signal cart_addr: std_logic_vector(13 downto 0);
-  signal carT_CLK: std_logic;
+  signal cart_clk: std_logic;
+  
+  signal vic_audio : std_logic_vector( 3 downto 0);
+  signal audio_pwm : std_logic;
 
   -- config string used by the io controller to fill the OSD
   constant CONF_STR : string := "VIC20;PRG;";
@@ -184,7 +187,7 @@ begin
   vic20_inst : entity work.VIC20
     port map (I_PS2_CLK     => ps2Clk,
               I_PS2_DATA    => ps2Data,
-              --AUDIO_OUT   => audio,
+              AUDIO_OUT   => vic_audio,
               VIDEO_R_OUT => VGA_R_O,
               VIDEO_G_OUT => VGA_G_O,
               VIDEO_B_OUT => VGA_B_O,
@@ -222,10 +225,6 @@ begin
       hs_out => VGA_HS,
       vs_out => VGA_VS
     );
-
-  AUDIO_L <= audio;
-  AUDIO_R <= audio;
-
   
   data_io_inst: data_io
     port map(SPI_SCK, SPI_SS2, SPI_DI, downl, size, cart_clk, '0', a_ram, (others=>'0'), d_ram);
@@ -289,7 +288,19 @@ begin
       ps2_kbd_data => ps2Data
     );
 
-
+  --
+  -- Audio
+  --
+  u_dac : entity work.dac
+    port  map(
+      clk     => osd_clk,
+      reset   => not reset,
+      dac_in  => vic_audio,
+      dac_out => audio_pwm
+    );
+    
+  AUDIO_L <= audio_pwm;
+  AUDIO_R <= audio_pwm;
 
  -- LED <= not p_color; -- yellow led is bright when color mode is selected
 

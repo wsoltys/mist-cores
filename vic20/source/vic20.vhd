@@ -916,8 +916,12 @@ clk_8 <= CLK_40;
       ENA               => ena_4,
       CLK               => clk_8
     );
+  
+  
   --
-  CART_ADDR <= c_addr(13 downto 0);
+  -- cart slot 0xA000-0xBFFF (8K)
+  --
+  CART_ADDR <= '0' & c_addr(12 downto 0);
   CART_CLK  <= clk_4;
   
   p_video_ouput : process
@@ -948,55 +952,5 @@ clk_8 <= CLK_40;
 --      O_VSYNC   <= '1';
     end if;
   end process;
-
---  -- comment out the following if using internal roms
---  basic_rom_dout  <= ext_rom_din;
---  kernal_rom_dout <= ext_rom_din;
---  char_rom_dout   <= ext_rom_din;
---  -- end comment
---
---  p_ext_rom : process(ROM_DATA, c_addr)
---  begin
---    ROM_DATA(7 downto 0) <= (others => 'Z'); -- d
---    ext_rom_din <= ROM_DATA(7 downto 0);
---
---    ROM_ADDR(18 downto 0) <= "00000" & c_addr(13 downto 0); -- a18..0
---    ROM_WE_L <= '1'; -- we_l
---    ROM_OE_L <= '0'; -- oe_l
---    ROM_CE_L <= '0'; -- ce_l
---  end process;
-
-
-  --
-  -- cart slot 0xA000-0xBFFF (8K)
-  --
-
---  p_flash : process(clk_8)
---  begin
---
---    if RESET_L = '0' then
---       B_FLASH_DATA <= (others => 'Z');
---    elsif clk_8'event AND clk_8 = '1' then
---
---      O_FLASH_CE_L <= '1';
---      if (CART_SWITCH = '1') then -- enable cart
---        O_FLASH_CE_L <= blk_sel_l(5);
---      end if;
---      O_FLASH_OE_L <= '0';
---      O_FLASH_WE_L <= '1';
---      O_FLASH_BYTE <= '0';
---
---      O_FLASH_ADDR(21 downto 15) <= (others => '0');
---      O_FLASH_ADDR(14 downto 13) <= SWITCH(1 downto 0);
---      O_FLASH_ADDR(12 downto  0) <= c_addr(12 downto 0); -- 8K
---    
---      -- should really sample and latch this at the correct point, but it seems to work
---      if (CART_SWITCH = '1') then -- enable cart
---        cart_data <= B_FLASH_DATA;
---      else
---        cart_data <= (others => '1');
---      end if;
---    end if;
---  end process;
 
 end RTL;
