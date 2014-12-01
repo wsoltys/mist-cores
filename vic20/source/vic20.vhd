@@ -69,7 +69,11 @@ entity VIC20 is
 --    ROM_OE_L          : out   std_logic;
 --    ROM_CE_L          : out   std_logic;
 	
-	CLK_8_o           : out   std_logic;	
+    CLK_8_o           : out   std_logic;
+    
+    CART_ADDR         : out   std_logic_vector(13 downto 0);
+    CART_DOUT         : in    std_logic_vector(7 downto 0);
+    CART_CLK          : out   std_logic;
 
     RESET_L           : in    std_logic;
     CLK_40            : in    std_logic;
@@ -156,8 +160,10 @@ architecture RTL of VIC20 is
 
     -- ram
     signal ram0_dout          : std_logic_vector(7 downto 0);
-    signal ram45_dout         : std_logic_vector(7 downto 0);
-    signal ram67_dout         : std_logic_vector(7 downto 0);
+    signal ram4_dout          : std_logic_vector(7 downto 0);
+    signal ram5_dout          : std_logic_vector(7 downto 0);
+    signal ram6_dout          : std_logic_vector(7 downto 0);
+    signal ram7_dout          : std_logic_vector(7 downto 0);
     --
     signal col_ram_dout       : std_logic_vector(7 downto 0);
 
@@ -665,7 +671,7 @@ clk_8 <= CLK_40;
 
 
   p_v_read_mux : process(col_ram_sel_l, ram_sel_l, vic_oe_l, v_addr,
-                         col_ram_dout, ram0_dout, ram45_dout, ram67_dout,
+                         col_ram_dout, ram0_dout, ram4_dout, ram5_dout, ram6_dout, ram7_dout,
                          vic_dout, char_rom_dout,
                          v_data_read_muxr)
   begin
@@ -684,16 +690,16 @@ clk_8 <= CLK_40;
       v_data_read_mux <= ram0_dout;
       v_data_oe_l     <= '0';
     elsif (ram_sel_l(4) = '0') then
-      v_data_read_mux <= ram45_dout;
+      v_data_read_mux <= ram4_dout;
       v_data_oe_l     <= '0';
     elsif (ram_sel_l(5) = '0') then
-      v_data_read_mux <= ram45_dout;
+      v_data_read_mux <= ram5_dout;
       v_data_oe_l     <= '0';
     elsif (ram_sel_l(6) = '0') then
-      v_data_read_mux <= ram67_dout;
+      v_data_read_mux <= ram6_dout;
       v_data_oe_l     <= '0';
     elsif (ram_sel_l(7) = '0') then
-      v_data_read_mux <= ram67_dout;
+      v_data_read_mux <= ram7_dout;
       v_data_oe_l     <= '0';
     elsif (v_addr(13 downto 12) = "00") then
       v_data_read_mux <= char_rom_dout;
@@ -795,45 +801,58 @@ clk_8 <= CLK_40;
       DIN    => v_data,
       DOUT   => ram0_dout,
       V_RW_L => v_rw_l,
-      CS1_L  => ram_sel_l(0),
-      CS2_L  => '1',
-      --ENA    => ena_4,
+      CS_L  => ram_sel_l(0),
       CLK    => ena_4
       );
 
-  rams45 : entity work.VIC20_RAMS
+  rams4 : entity work.VIC20_RAMS
     port map (
       V_ADDR => v_addr(9 downto 0),
       DIN    => v_data,
-      DOUT   => ram45_dout,
+      DOUT   => ram4_dout,
       V_RW_L => v_rw_l,
-      CS1_L  => ram_sel_l(4),
-      CS2_L  => ram_sel_l(5),
-      --ENA    => ena_4,
+      CS_L  => ram_sel_l(4),
       CLK    => ena_4
       );
-
-  rams67 : entity work.VIC20_RAMS
+      
+  rams5 : entity work.VIC20_RAMS
     port map (
       V_ADDR => v_addr(9 downto 0),
       DIN    => v_data,
-      DOUT   => ram67_dout,
+      DOUT   => ram5_dout,
       V_RW_L => v_rw_l,
-      CS1_L  => ram_sel_l(6),
-      CS2_L  => ram_sel_l(7),
-      --ENA    => ena_4,
+      CS_L  => ram_sel_l(5),
+      CLK    => ena_4
+      );
+
+  rams6 : entity work.VIC20_RAMS
+    port map (
+      V_ADDR => v_addr(9 downto 0),
+      DIN    => v_data,
+      DOUT   => ram6_dout,
+      V_RW_L => v_rw_l,
+      CS_L  => ram_sel_l(6),
+      CLK    => ena_4
+      );
+ 
+  rams7 : entity work.VIC20_RAMS
+    port map (
+      V_ADDR => v_addr(9 downto 0),
+      DIN    => v_data,
+      DOUT   => ram7_dout,
+      V_RW_L => v_rw_l,
+      CS_L  => ram_sel_l(7),
       CLK    => ena_4
       );
 
 
-  col_ram : entity work.VIC20_RAM
+  col_ram : entity work.VIC20_RAMS
     port map (
       V_ADDR => v_addr(9 downto 0),
       DIN    => v_data,
       DOUT   => col_ram_dout,
       V_RW_L => v_rw_l,
       CS_L   => col_ram_sel_l,
-      ENA    => ena_4,
       CLK    => ena_4
       );
 
@@ -865,12 +884,12 @@ clk_8 <= CLK_40;
       );
 
 
-  game_rom : VIC20_GAME_ROM
-    port map (
-      CLK         => clk_4,
-      ADDR        => c_addr(12 downto 0),
-      DATA        => cart_data_temp
-      );
+--  game_rom : VIC20_GAME_ROM
+--    port map (
+--      CLK         => clk_4,
+--      ADDR        => c_addr(12 downto 0),
+--      DATA        => cart_data_temp
+--      );
 
 
   -- end comment;
@@ -898,12 +917,15 @@ clk_8 <= CLK_40;
       CLK               => clk_8
     );
   --
+  CART_ADDR <= c_addr(13 downto 0);
+  CART_CLK  <= clk_4;
+  
   p_video_ouput : process
   begin
     wait until rising_edge(clk_8);
 
 	if CART_SWITCH = '1' then
-      cart_data <= cart_data_temp;
+      cart_data <= CART_DOUT;
     end if;
     -- switch is on (up) use scan converter and light led
     --sw_reg <= I_SW;

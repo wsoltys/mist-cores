@@ -46,7 +46,6 @@ library ieee;
   use ieee.std_logic_arith.all;
   use ieee.std_logic_unsigned.all;
 
---use work.pkg_vic20_xilinx_prims.all;
 use work.pkg_vic20.all;
 
 entity VIC20_RAMS is
@@ -55,60 +54,34 @@ entity VIC20_RAMS is
   DIN    : in  std_logic_vector(7 downto 0);
   DOUT   : out std_logic_vector(7 downto 0);
   V_RW_L : in  std_logic;
-  CS1_L  : in  std_logic;
-  CS2_L  : in  std_logic;
-  --ENA    : in  std_logic;
-  CLK    : in  std_logic  
+  CS_L   : in  std_logic; -- used for write enable gate only
+  CLK    : in  std_logic
   );
 end;
 
 architecture RTL of VIC20_RAMS is
 
   signal we : std_logic;
-  signal RST_N : std_logic;
-
-  type arr is array(0 to 512) of std_logic_vector(7 downto 0);
-
-  signal datastore : arr;
 
 begin
---  r1 : component RAMB4_S4
---    port map (
---      do   => DOUT(7 downto 4),
---      di   => DIN(7 downto 4),
---      addr => V_ADDR(9 downto 0),
---      we   => we,
---      en   => '1',
---      rst  => '0',
---      clk  => CLK
---      );
---
---  r0 : component RAMB4_S4
---    port map (
---      do   => DOUT(3 downto 0),
---      di   => DIN(3 downto 0),
---      addr => V_ADDR(9 downto 0),
---      we   => we,
---      en   => '1',
---      rst  => '0',
---      clk  => CLK
---      );
---
 
-  main: process (CLK)
-  begin  -- process main
-    if CLK'event and CLK = '1' then  -- rising clock edge
-      if we = '1' then
-          datastore(conv_integer(CS1_L & V_ADDR)) <= DIN;
-        else
-          DOUT <= datastore(conv_integer(CS1_L & V_ADDR));
-        end if;
-      end if;
-  end process main;
-  
-  p_we : process(V_RW_L, CS1_L,CS2_L)
+  ram_inst : entity work.spram
+    generic map
+    (
+      widthad_a	=> V_ADDR'length
+    )
+    port map
+    (
+      clock	  => CLK,
+      address	=> V_ADDR,
+      wren	  => we,
+      data	  => DIN,
+      q	=> DOUT
+    );
+
+  p_we : process(V_RW_L, CS_L)
   begin
-    we <= ((not CS1_L) or (not CS2_L)) and (not V_RW_L);
+    we <= not CS_L and not V_RW_L;
   end process;
 
 end architecture RTL;

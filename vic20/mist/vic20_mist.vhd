@@ -53,9 +53,20 @@ entity vic20_mist is
 -- Audio
       AUDIO_L : out std_logic;
       AUDIO_R : out std_logic;
-
+      
 -- SDRAM
-      SDRAM_nCAS : out std_logic
+    SDRAM_nCS : out std_logic; -- Chip Select
+    SDRAM_DQ : inout std_logic_vector(15 downto 0); -- SDRAM Data bus 16 Bits
+    SDRAM_A : out std_logic_vector(12 downto 0); -- SDRAM Address bus 13 Bits
+    SDRAM_DQMH : out std_logic; -- SDRAM High Data Mask
+    SDRAM_DQML : out std_logic; -- SDRAM Low-byte Data Mask
+    SDRAM_nWE : out std_logic; -- SDRAM Write Enable
+    SDRAM_nCAS : out std_logic; -- SDRAM Column Address Strobe
+    SDRAM_nRAS : out std_logic; -- SDRAM Row Address Strobe
+    SDRAM_BA : out std_logic_vector(1 downto 0); -- SDRAM Bank Address
+    SDRAM_CLK : out std_logic; -- SDRAM Clock
+    SDRAM_CKE: out std_logic -- SDRAM Clock Enable
+    
     );
 end entity;
 
@@ -89,9 +100,19 @@ architecture rtl of vic20_mist is
   signal ps2Clk     : std_logic;
   signal ps2Data    : std_logic;
   signal ps2_scancode : std_logic_vector(7 downto 0);
+  
+-- DataIO handling
+  signal forceReset : std_logic := '0';
+  signal downl : std_logic := '0';
+  signal size : std_logic_vector(15 downto 0) := (others=>'0');
+  signal d_ram: std_logic_vector(7 downto 0);
+  signal a_ram: std_logic_vector(13 downto 0);
+  signal cart_dout: std_logic_vector(7 downto 0);
+  signal cart_addr: std_logic_vector(13 downto 0);
+  signal carT_CLK: std_logic;
 
   -- config string used by the io controller to fill the OSD
-  constant CONF_STR : string := "vic20;";
+  constant CONF_STR : string := "VIC20;PRG;";
 
   function to_slv(s: string) return std_logic_vector is
     constant ss: string(1 to s'length) := s;
@@ -127,6 +148,19 @@ architecture rtl of vic20_mist is
       ps2_kbd_data : out std_logic
     );
   end component user_io;
+  
+    component data_io is
+        port(sck: in std_logic;
+             ss: in std_logic;
+             sdi: in std_logic;
+             downloading: out std_logic;
+             size: out std_logic_vector(15 downto 0);
+             clk: in std_logic;
+             we: in std_logic;
+             a: in std_logic_vector(13 downto 0);
+             din: in std_logic_vector(7 downto 0);
+             dout: out std_logic_vector(7 downto 0));
+    end component;
 
   component osd
     port (
@@ -143,8 +177,8 @@ begin
 -- MiST
 -- -----------------------------------------------------------------------
 
-  SDRAM_nCAS <= '1'; -- disable ram
-  reset <= status(0) or buttons(1);
+  SDRAM_nCAS <= '1'; -- disable sdram
+  reset <= status(0) or buttons(1) or forceReset;
   
   
   vic20_inst : entity work.VIC20
@@ -157,11 +191,15 @@ begin
               HSYNC_OUT   => VGA_HS_O,
               VSYNC_OUT   => VGA_VS_O,
               
-              CART_SWITCH => '0',
+              CART_SWITCH => not downl,
               SWITCH      => "00",
               
-              RESET_L     => reset,
-              CLK_40   => clk40m
+              CART_ADDR   => cart_addr,
+              CART_DOUT   => cart_dout,
+              CART_CLK    => cart_clk,
+              
+              RESET_L     => not reset,
+              CLK_40   => osd_clk
     );
               
 
@@ -169,7 +207,7 @@ begin
   --  OSD
   osd_inst : osd
     port map (
-      pclk => osd_clk,
+      pclk => clk40m,
       sdi => SPI_DI,
       sck => SPI_SCK,
       ss => SPI_SS3,
@@ -188,6 +226,22 @@ begin
   AUDIO_L <= audio;
   AUDIO_R <= audio;
 
+  
+  data_io_inst: data_io
+    port map(SPI_SCK, SPI_SS2, SPI_DI, downl, size, cart_clk, '0', a_ram, (others=>'0'), d_ram);
+    
+  process(downl)
+  begin
+    if(downl = '0') then
+      a_ram <= cart_addr;
+      cart_dout <= d_ram;
+      forceReset <= '0';
+    else
+      a_ram <= cart_addr;
+      cart_dout <= x"FF";
+      forceReset <= '1';
+    end if;
+  end process;
  
 
 -- -----------------------------------------------------------------------
@@ -203,7 +257,7 @@ begin
 
   pllosd : entity work.clk_div
     generic map (
-      DIVISOR => 4
+      DIVISOR => 2
     )
     port map (
       clk    => clk40m,
