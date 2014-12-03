@@ -71,7 +71,7 @@ entity VIC20 is
 	
     CLK_8_o           : out   std_logic;
     
-    CART_ADDR         : out   std_logic_vector(13 downto 0);
+    CART_ADDR         : out   std_logic_vector(12 downto 0);
     CART_DOUT         : in    std_logic_vector(7 downto 0);
     CART_CLK          : out   std_logic;
 
@@ -79,7 +79,9 @@ entity VIC20 is
     CLK_40            : in    std_logic;
 
     CART_SWITCH       : in    std_logic;
-    SWITCH            : in    std_logic_vector(1 downto 0)
+    SWITCH            : in    std_logic_vector(1 downto 0);
+    
+    JOYSTICK          : in   std_logic_vector(4 downto 0)
 --    O_FLASH_ADDR      : out   std_logic_vector(21 downto 0);
 --    B_FLASH_DATA      : inout std_logic_vector(7 downto 0);
 --    O_FLASH_CE_L      : out   std_logic;
@@ -281,9 +283,11 @@ begin
   -- <= serial_clk_out_l;
   -- <= serial_data_out_l
 
-  -- joy
-  joy <= "0000";
-  light_pen <= '0';
+  -- Joystick
+  --  "1111"; -- 0 up, 1 down, 2 left,  3 right
+  -- lightpen for fire button
+  joy <= JOYSTICK(3 downto 0);
+  light_pen <= JOYSTICK(4);
   --
   --
   --
@@ -921,7 +925,7 @@ clk_8 <= CLK_40;
   --
   -- cart slot 0xA000-0xBFFF (8K)
   --
-  CART_ADDR <= '0' & c_addr(12 downto 0);
+  CART_ADDR <= (c_addr(12 downto 0) + 2); -- add two to have the magic bytes at the right spot
   CART_CLK  <= clk_4;
   
   p_video_ouput : process

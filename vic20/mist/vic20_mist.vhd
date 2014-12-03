@@ -106,10 +106,11 @@ architecture rtl of vic20_mist is
   signal downl : std_logic := '0';
   signal size : std_logic_vector(15 downto 0) := (others=>'0');
   signal d_ram: std_logic_vector(7 downto 0);
-  signal a_ram: std_logic_vector(13 downto 0);
+  signal a_ram: std_logic_vector(12 downto 0);
   signal cart_dout: std_logic_vector(7 downto 0);
-  signal cart_addr: std_logic_vector(13 downto 0);
+  signal cart_addr: std_logic_vector(12 downto 0);
   signal cart_clk: std_logic;
+  signal vic_joy: std_logic_vector(4 downto 0);
   
   signal vic_audio : std_logic_vector( 3 downto 0);
   signal audio_pwm : std_logic;
@@ -160,7 +161,7 @@ architecture rtl of vic20_mist is
              size: out std_logic_vector(15 downto 0);
              clk: in std_logic;
              we: in std_logic;
-             a: in std_logic_vector(13 downto 0);
+             a: in std_logic_vector(12 downto 0);
              din: in std_logic_vector(7 downto 0);
              dout: out std_logic_vector(7 downto 0));
     end component;
@@ -200,6 +201,8 @@ begin
               CART_ADDR   => cart_addr,
               CART_DOUT   => cart_dout,
               CART_CLK    => cart_clk,
+              
+              JOYSTICK    => vic_joy,
               
               RESET_L     => not reset,
               CLK_40   => osd_clk
@@ -278,8 +281,8 @@ begin
 		conf_str => to_slv(CONF_STR),
       switches => switches,
       buttons  => buttons,
-      joystick_1 => joy0,
-      joystick_0 => joy1,
+      joystick_1 => joy1,
+      joystick_0 => joy0,
       joystick_analog_1 => joy_a_0,
       joystick_analog_0 => joy_a_1,
       status => status,
@@ -287,6 +290,14 @@ begin
       ps2_kbd_clk => ps2Clk,
       ps2_kbd_data => ps2Data
     );
+    
+  -- Joystick
+  --  "11111"; -- 0 up, 1 down, 2 left,  3 right, 4 fire
+  vic_joy(0) <= not joy0(3);
+  vic_joy(1) <= not joy0(2);
+  vic_joy(2) <= not joy0(1);
+  vic_joy(3) <= not joy0(0);
+  vic_joy(4) <= not joy0(4);
 
   --
   -- Audio
