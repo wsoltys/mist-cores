@@ -61,13 +61,6 @@ entity VIC20 is
 
     HSYNC_OUT         : out   std_logic;
     VSYNC_OUT         : out   std_logic;
-   -- COMP_SYNC_L_OUT   : out   std_logic;
-
---    ROM_DATA          : inout std_logic_vector( 7 downto 0);
---    ROM_ADDR          : out   std_logic_vector(18 downto 0);
---    ROM_WE_L          : out   std_logic;
---    ROM_OE_L          : out   std_logic;
---    ROM_CE_L          : out   std_logic;
 	
     CLK_8_o           : out   std_logic;
     
@@ -82,22 +75,6 @@ entity VIC20 is
     SWITCH            : in    std_logic_vector(1 downto 0);
     
     JOYSTICK          : in   std_logic_vector(4 downto 0)
---    O_FLASH_ADDR      : out   std_logic_vector(21 downto 0);
---    B_FLASH_DATA      : inout std_logic_vector(7 downto 0);
---    O_FLASH_CE_L      : out   std_logic;
---    O_FLASH_OE_L      : out   std_logic;
---    O_FLASH_WE_L      : out   std_logic;
---    O_FLASH_BYTE      : out   std_logic;
-
-
---    SRAM_ADDR_OUT     : out   std_logic_vector(17 downto 0);
---    SRAM_DATA         : inout    std_logic_vector(7 downto 0);
---    SRAM_WE_OUT       : out   std_logic
-
-    --scan_out          : out   std_logic_vector(7 downto 0)
-
-    --C_ADDR_OUT        : out   std_logic_vector(12 downto 0)
-
 
     );
 end;
@@ -107,14 +84,6 @@ architecture RTL of VIC20 is
     signal reset_dll_h        : std_logic;
     --signal reset_l_sampled    : std_logic;
 
-
-    --signal clk_40_ibuf        : std_logic;
---    signal clk_dlla_op0       : std_logic;
---    signal clk_dlla_div       : std_logic;
---    signal clk_dllb_op0       : std_logic;
---    signal clk_dllb_div       : std_logic;
-
-    --signal clk_40_int         : std_logic;
     signal clk_4              : std_logic;
 
     signal clk_8              : std_logic;
@@ -234,8 +203,7 @@ architecture RTL of VIC20 is
 	signal cart_data          : std_logic_vector(7 downto 0);
 	signal cart_data_temp     : std_logic_vector(7 downto 0);
 
-    attribute CLKDV_DIVIDE : string;
-    --attribute CLKDV_DIVIDE of CLKDLLA : label is "9";
+
 begin
   --
   -- IO connect these to the outside world if you wish ...
@@ -293,21 +261,8 @@ begin
   --
  
 
-clk_8 <= CLK_40;
+ clk_8 <= CLK_40;
  
-
--- clkdiv: process(CLK_40)
--- begin	
---   if CLK_40'event AND CLK_40 = '1' then
---	 clk_diviner <= clk_diviner + 1;
---     if clk_diviner = 4 then
---	   clk_8 <= not clk_8;
---	   clk_diviner <= 0;
---	 end if;
---   end if;
--- end process;
-
- --clk_4 <= ena_4;
 
  CLK_8_o <= clk_8;
 
@@ -338,50 +293,6 @@ clk_8 <= CLK_40;
   --reset_l_sampled <= RESET_L; -- simulation
 
  -- c_ena <= ena_1mhz and ena_4; -- clk ena
-
---  R6502_TC_1: R6502_TC
---    port map (
---      clk_clk_i   => ena_1mhz,--clk_4,
---      d_i         => c_din,
---      irq_n_i     => c_irq_l,
---      nmi_n_i     => c_nmi_l,
---      rdy_i       => '1',--ena_1mhz,
---      rst_rst_n_i => RESET_L,
---      so_n_i      => '1',
---      a_o         => c_addr,
---      d_o         => c_dout,
---      rd_o        => open,
---      sync_o      => open,
---      wr_n_o      => c_rw_l,
---      wr_o        => open
---
---      );
-
-
-  
---  cpu : T65
---      port map (
---          Mode    => "00",
---          Res_n   => RESET_L, --reset_l_sampled,
---          Clk     => clk_4,
---          Rdy     => ena_1mhz, -- clk ena
---          Abort_n => '1',
---          IRQ_n   => c_irq_l,
---          NMI_n   => c_nmi_l,
---          SO_n    => '1',
---          R_W_n   => c_rw_l,
---          Sync    => open,
---          EF      => open,
---          MF      => open,
---          XF      => open,
---          ML_n    => open,
---          VP_n    => open,
---          VDA     => open,
---          VPA     => open,
---          A       => c_addr,
---          DI      => c_din,
---          DO      => c_dout
---      );
 
 
   cpu : entity work.T65
@@ -751,53 +662,6 @@ clk_8 <= CLK_40;
   -- main memory
   --
 
---    SRAM_ADDR_OUT     : out   std_logic_vector(15 downto 0);
---    SRAM_DATA_IN      : in    std_logic_vector(7 downto 0);
---    SRAM_WE_OUT       : out   std_logic
-
-
---   ram_pros: process(ena_4)
---   begin
---	 if ena_4'event AND ena_4 = '1' then
---        SRAM_ADDR_OUT(9 downto 0) <= v_addr(9 downto 0);
---        SRAM_ADDR_OUT(17 downto 13) <= (others => '0');
---
---        if ram_sel_l(0) = '0' then
---			SRAM_ADDR_OUT(12 downto 10) <= "000";
---		elsif ram_sel_l(4) = '0' then
---			SRAM_ADDR_OUT(12 downto 10) <= "001";
---		elsif ram_sel_l(5) = '0' then
---			SRAM_ADDR_OUT(12 downto 10) <= "010";
---		elsif ram_sel_l(6) = '0' then
---			SRAM_ADDR_OUT(12 downto 10) <= "011";
---		elsif ram_sel_l(7) = '0' then
---			SRAM_ADDR_OUT(12 downto 10) <= "100";
---		elsif col_ram_sel_l = '0' then
---			SRAM_ADDR_OUT(12 downto 10) <= "101";
---	    end if;
---	
---        if v_rw_l = '0' then
---			SRAM_WE_OUT <= '0';
---			SRAM_DATA <= v_data;
---		else 
---			SRAM_DATA <= "ZZZZZZZZ";
---			SRAM_WE_OUT <= '1';
---			if (ram_sel_l(0) = '0') then
---			  ram0_dout <= SRAM_DATA;		  
---			elsif (ram_sel_l(4) = '0') then
---			  ram45_dout <= SRAM_DATA;		  
---			elsif (ram_sel_l(5) = '0') then
---			  ram45_dout <= SRAM_DATA;		  
---			elsif (ram_sel_l(6) = '0') then
---			  ram67_dout <= SRAM_DATA;		  
---			elsif (ram_sel_l(7) = '0') then
---			  ram67_dout <= SRAM_DATA;		
---			elsif col_ram_sel_l = '0' then
---			  col_ram_dout <= SRAM_DATA;	  
---			end if;
---		end if;
---	  end if;
---   end process;
 
   rams0 : entity work.VIC20_RAMS
     port map (
@@ -886,14 +750,6 @@ clk_8 <= CLK_40;
       ADDR        => c_addr(12 downto 0),
       DATA        => kernal_rom_dout
       );
-
-
---  game_rom : VIC20_GAME_ROM
---    port map (
---      CLK         => clk_4,
---      ADDR        => c_addr(12 downto 0),
---      DATA        => cart_data_temp
---      );
 
 
   -- end comment;
