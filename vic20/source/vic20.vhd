@@ -661,91 +661,68 @@ begin
   --
   -- main memory
   --
-  
-  ram_blk0 : entity work.VIC20_RAM_BLK
-    generic map
-    (
-      numblks_a	=> 5
-    )
+
+
+  rams0 : entity work.VIC20_RAMS
     port map (
-      V_ADDR  => v_addr(9 downto 0),
-      DIN     => v_data,
-      DOUT0   => ram0_dout,
-      DOUT1   => ram4_dout,
-      DOUT2   => ram5_dout,
-      DOUT3   => ram6_dout,
-      DOUT4   => ram7_dout,
-      V_RW_L  => v_rw_l,
-      CS_L(0)  => ram_sel_l(0),
-      CS_L(1)  => ram_sel_l(4),
-      CS_L(2)  => ram_sel_l(5),
-      CS_L(3)  => ram_sel_l(6),
-      CS_L(4)  => ram_sel_l(7),
-      CLK     => ena_4
-    );
-    
+      V_ADDR => v_addr(9 downto 0),
+      DIN    => v_data,
+      DOUT   => ram0_dout,
+      V_RW_L => v_rw_l,
+      CS_L  => ram_sel_l(0),
+      CLK    => ena_4
+      );
+
+  rams4 : entity work.VIC20_RAMS
+    port map (
+      V_ADDR => v_addr(9 downto 0),
+      DIN    => v_data,
+      DOUT   => ram4_dout,
+      V_RW_L => v_rw_l,
+      CS_L  => ram_sel_l(4),
+      CLK    => ena_4
+      );
+      
+  rams5 : entity work.VIC20_RAMS
+    port map (
+      V_ADDR => v_addr(9 downto 0),
+      DIN    => v_data,
+      DOUT   => ram5_dout,
+      V_RW_L => v_rw_l,
+      CS_L  => ram_sel_l(5),
+      CLK    => ena_4
+      );
+
+  rams6 : entity work.VIC20_RAMS
+    port map (
+      V_ADDR => v_addr(9 downto 0),
+      DIN    => v_data,
+      DOUT   => ram6_dout,
+      V_RW_L => v_rw_l,
+      CS_L  => ram_sel_l(6),
+      CLK    => ena_4
+      );
+ 
+  rams7 : entity work.VIC20_RAMS
+    port map (
+      V_ADDR => v_addr(9 downto 0),
+      DIN    => v_data,
+      DOUT   => ram7_dout,
+      V_RW_L => v_rw_l,
+      CS_L  => ram_sel_l(7),
+      CLK    => ena_4
+      );
 
 
---  rams0 : entity work.VIC20_RAMS
---    port map (
---      V_ADDR => v_addr(9 downto 0),
---      DIN    => v_data,
---      DOUT   => ram0_dout,
---      V_RW_L => v_rw_l,
---      CS_L  => ram_sel_l(0),
---      CLK    => ena_4
---      );
---
---  rams4 : entity work.VIC20_RAMS
---    port map (
---      V_ADDR => v_addr(9 downto 0),
---      DIN    => v_data,
---      DOUT   => ram4_dout,
---      V_RW_L => v_rw_l,
---      CS_L  => ram_sel_l(4),
---      CLK    => ena_4
---      );
---      
---  rams5 : entity work.VIC20_RAMS
---    port map (
---      V_ADDR => v_addr(9 downto 0),
---      DIN    => v_data,
---      DOUT   => ram5_dout,
---      V_RW_L => v_rw_l,
---      CS_L  => ram_sel_l(5),
---      CLK    => ena_4
---      );
---
---  rams6 : entity work.VIC20_RAMS
---    port map (
---      V_ADDR => v_addr(9 downto 0),
---      DIN    => v_data,
---      DOUT   => ram6_dout,
---      V_RW_L => v_rw_l,
---      CS_L  => ram_sel_l(6),
---      CLK    => ena_4
---      );
--- 
---  rams7 : entity work.VIC20_RAMS
---    port map (
---      V_ADDR => v_addr(9 downto 0),
---      DIN    => v_data,
---      DOUT   => ram7_dout,
---      V_RW_L => v_rw_l,
---      CS_L  => ram_sel_l(7),
---      CLK    => ena_4
---      );
---
---
---  col_ram : entity work.VIC20_RAMS
---    port map (
---      V_ADDR => v_addr(9 downto 0),
---      DIN    => v_data,
---      DOUT   => col_ram_dout,
---      V_RW_L => v_rw_l,
---      CS_L   => col_ram_sel_l,
---      CLK    => ena_4
---      );
+  col_ram : entity work.VIC20_RAMS
+    port map (
+      V_ADDR => v_addr(9 downto 0),
+      DIN    => v_data,
+      DOUT   => col_ram_dout,
+      V_RW_L => v_rw_l,
+      CS_L   => col_ram_sel_l,
+      CLK    => ena_4
+      );
 
   --
   -- roms
