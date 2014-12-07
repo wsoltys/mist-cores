@@ -67,6 +67,7 @@ entity VIC20 is
     CART_ADDR         : out   std_logic_vector(12 downto 0);
     CART_DOUT         : in    std_logic_vector(7 downto 0);
     CART_CLK          : out   std_logic;
+    CART_SHIFT        : in    std_logic := '0';
 
     RESET_L           : in    std_logic;
     CLK_40            : in    std_logic;
@@ -135,6 +136,8 @@ architecture RTL of VIC20 is
     signal ram5_dout          : std_logic_vector(7 downto 0);
     signal ram6_dout          : std_logic_vector(7 downto 0);
     signal ram7_dout          : std_logic_vector(7 downto 0);
+    signal ramb1_dout         : std_logic_vector(7 downto 0);
+    signal ramb2_dout         : std_logic_vector(7 downto 0);
     --
     signal col_ram_dout       : std_logic_vector(7 downto 0);
 
@@ -585,7 +588,7 @@ begin
   end process;
 
 
-  p_v_read_mux : process(col_ram_sel_l, ram_sel_l, vic_oe_l, v_addr,
+  p_v_read_mux : process(col_ram_sel_l, ram_sel_l, blk_sel_l, vic_oe_l, v_addr,
                          col_ram_dout, ram0_dout, ram4_dout, ram5_dout, ram6_dout, ram7_dout,
                          vic_dout, char_rom_dout,
                          v_data_read_muxr)
@@ -618,6 +621,12 @@ begin
       v_data_oe_l     <= '0';
     elsif (v_addr(13 downto 12) = "00") then
       v_data_read_mux <= char_rom_dout;
+      v_data_oe_l     <= '0';
+    elsif (blk_sel_l(1) = '0') then
+      v_data_read_mux <= ramb1_dout;
+      v_data_oe_l     <= '0';
+    elsif (blk_sel_l(2) = '0') then
+      v_data_read_mux <= ramb2_dout;
       v_data_oe_l     <= '0';
     else
       -- emulate floating bus
@@ -712,6 +721,26 @@ begin
       CS_L  => ram_sel_l(7),
       CLK    => ena_4
       );
+      
+  ram_blk1 : entity work.VIC20_RAM8k
+    port map (
+      V_ADDR => v_addr(12 downto 0),
+      DIN    => v_data,
+      DOUT   => ramb1_dout,
+      V_RW_L => v_rw_l,
+      CS_L  => blk_sel_l(1),
+      CLK    => ena_4
+      );
+  
+  ram_blk2 : entity work.VIC20_RAM8k
+    port map (
+      V_ADDR => v_addr(12 downto 0),
+      DIN    => v_data,
+      DOUT   => ramb2_dout,
+      V_RW_L => v_rw_l,
+      CS_L  => blk_sel_l(2),
+      CLK    => ena_4
+      );
 
 
   col_ram : entity work.VIC20_RAMS
@@ -781,7 +810,7 @@ begin
   --
   -- cart slot 0xA000-0xBFFF (8K)
   --
-  CART_ADDR <= (c_addr(12 downto 0) + 2); -- add two to have the magic bytes at the right spot
+  CART_ADDR <= (c_addr(12 downto 0) + 2) when CART_SHIFT ='1' else c_addr(12 downto 0); -- add two to have the magic bytes at the right spot
   CART_CLK  <= clk_4;
   
   p_video_ouput : process

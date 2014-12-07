@@ -110,13 +110,15 @@ architecture rtl of vic20_mist is
   signal cart_dout: std_logic_vector(7 downto 0);
   signal cart_addr: std_logic_vector(12 downto 0);
   signal cart_clk: std_logic;
+  signal cart_switch: std_logic := '0';
+  signal cart_shift: std_logic := '0';
   signal vic_joy: std_logic_vector(4 downto 0);
   
   signal vic_audio : std_logic_vector( 3 downto 0);
   signal audio_pwm : std_logic;
 
   -- config string used by the io controller to fill the OSD
-  constant CONF_STR : string := "VIC20;PRG;";
+  constant CONF_STR : string := "VIC20;A0;O1,Shift Cartridge,no,2 bytes;";
 
   function to_slv(s: string) return std_logic_vector is
     constant ss: string(1 to s'length) := s;
@@ -195,20 +197,19 @@ begin
               HSYNC_OUT   => VGA_HS_O,
               VSYNC_OUT   => VGA_VS_O,
               
-              CART_SWITCH => not downl,
+              CART_SWITCH => cart_switch,
               SWITCH      => "00",
               
               CART_ADDR   => cart_addr,
               CART_DOUT   => cart_dout,
               CART_CLK    => cart_clk,
+              CART_SHIFT  => cart_shift,
               
               JOYSTICK    => vic_joy,
               
               RESET_L     => not reset,
               CLK_40   => osd_clk
     );
-              
-
 
   --  OSD
   osd_inst : osd
@@ -232,16 +233,21 @@ begin
   data_io_inst: data_io
     port map(SPI_SCK, SPI_SS2, SPI_DI, downl, size, cart_clk, '0', a_ram, (others=>'0'), d_ram);
     
-  process(downl)
+  process(downl, buttons)
   begin
     if(downl = '0') then
       a_ram <= cart_addr;
       cart_dout <= d_ram;
       forceReset <= '0';
+      if(buttons(1) = '1') then
+        cart_switch <= '0';
+      end if;
     else
       a_ram <= cart_addr;
       cart_dout <= x"FF";
       forceReset <= '1';
+      cart_switch <= '1';
+      cart_shift <= status(1);
     end if;
   end process;
  
@@ -278,7 +284,7 @@ begin
       SPI_SS_IO => CONF_DATA0,
       SPI_MOSI => SPI_DI,
       SPI_MISO => SPI_DO,
-		conf_str => to_slv(CONF_STR),
+      conf_str => to_slv(CONF_STR),
       switches => switches,
       buttons  => buttons,
       joystick_1 => joy1,
