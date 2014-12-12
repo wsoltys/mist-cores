@@ -17,6 +17,9 @@ module osd (
 	input [5:0]  	blue_in,
 	input				hs_in,
 	input				vs_in,
+  
+  // enable scanlines
+  input       scanline_ena_h,
 	
 	// VGA signals going to video connector
 	output [5:0]  	red_out,
@@ -91,6 +94,7 @@ reg [9:0] hs_low, hs_high;
 wire hs_pol = hs_high < hs_low;
 wire [9:0] h_dsp_width = hs_pol?hs_low:hs_high;
 wire [9:0] h_dsp_ctr = { 1'b0, h_dsp_width[9:1] };
+reg scanline = 0;
 
 always @(posedge pclk) begin
 	// bring hsync into local clock domain
@@ -101,6 +105,7 @@ always @(posedge pclk) begin
 	if(!hsD && hsD2) begin	
 		h_cnt <= 10'd0;
 		hs_high <= h_cnt;
+    scanline <= ~scanline;
 	end
 
 	// rising edge of hs_in
@@ -172,9 +177,13 @@ always @(posedge pclk)
   osd_byte <= osd_buffer[{osd_vcnt[6:4], osd_hcnt}];
 
 wire [2:0] osd_color = OSD_COLOR;
-assign red_out   = !osd_de?red_in:  {osd_pixel, osd_pixel, osd_color[2], red_in[5:3]  };
-assign green_out = !osd_de?green_in:{osd_pixel, osd_pixel, osd_color[1], green_in[5:3]};
-assign blue_out  = !osd_de?blue_in: {osd_pixel, osd_pixel, osd_color[0], blue_in[5:3] };
+wire [5:0] red_t     = (scanline && scanline_ena_h)?{1'b0, red_in[5:1]}: red_in;
+wire [5:0] green_t   = (scanline && scanline_ena_h)?{1'b0, green_in[5:1]}: green_in;
+wire [5:0] blue_t    = (scanline && scanline_ena_h)?{1'b0, blue_in[5:1]}: blue_in;
+
+assign red_out   = !osd_de?red_t:  {osd_pixel, osd_pixel, osd_color[2], red_t[5:3]  };
+assign green_out = !osd_de?green_t:{osd_pixel, osd_pixel, osd_color[1], green_t[5:3]};
+assign blue_out  = !osd_de?blue_t: {osd_pixel, osd_pixel, osd_color[0], blue_t[5:3] };
 
 assign hs_out = hs_in;
 assign vs_out = vs_in;

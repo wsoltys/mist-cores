@@ -75,7 +75,7 @@ end mist_top;
 
 architecture datapath of mist_top is
 
-  constant CONF_STR : string := "AppleII+;NIB;O1,Video mode,Color,B&W;O2,Joysticks,Normal,Swapped;";
+  constant CONF_STR : string := "AppleII+;NIB;O1,Video mode,Color,B&W;O2,Joysticks,Normal,Swapped;O3,Enable Scanlines,off,on;";
 
   function to_slv(s: string) return std_logic_vector is 
     constant ss: string(1 to s'length) := s; 
@@ -149,7 +149,7 @@ architecture datapath of mist_top is
   end component;
   
   component osd
-    port ( pclk, sck, ss, sdi, hs_in, vs_in : in std_logic;
+    port ( pclk, sck, ss, sdi, hs_in, vs_in, scanline_ena_h : in std_logic;
            red_in, blue_in, green_in : in std_logic_vector(5 downto 0);
            red_out, blue_out, green_out : out std_logic_vector(5 downto 0);
            hs_out, vs_out : out std_logic
@@ -489,79 +489,12 @@ begin
       blue_in => std_logic_vector(b(9 downto 4)),
       hs_in => not hsync,
       vs_in => not vsync,
+      scanline_ena_h => status(3),
       red_out => VGA_R,
       green_out => VGA_G,
       blue_out => VGA_B,
       hs_out => VGA_HS,
       vs_out => VGA_VS
     );
-
---  SRAM_DQ(7 downto 0) <= D when ram_we = '1' else (others => 'Z');
---  SRAM_ADDR(17) <= '0';
---  SRAM_ADDR(16) <= '0';
---  SRAM_UB_N <= '1';
---  SRAM_LB_N <= '0';
---  SRAM_CE_N <= '0';
---  SRAM_WE_N <= not ram_we;
---  SRAM_OE_N <= ram_we;
---
---  LEDR(17) <= D1_ACTIVE;
---  LEDR(16) <= D2_ACTIVE;
---  LEDR(15) <= TRACK_RAM_WE;
---
---  LEDG(8 downto 1) <= (others => '0');
---  LEDR(14 downto 4) <= (others => '0');
---
---  UART_TXD <= '0';
---  FL_ADDR <= (others => '0');
---  FL_WE_N <= '1';
---  FL_RST_N <= '0';
---  FL_OE_N <= '1';
---  FL_CE_N <= '1';
---  OTG_ADDR <= (others => '0');
---  OTG_CS_N <= '1';
---  OTG_RD_N <= '1';
---  OTG_RD_N <= '1';
---  OTG_WR_N <= '1';
---  OTG_RST_N <= '1';
---  OTG_FSPEED <= '1';
---  OTG_LSPEED <= '1';
---  OTG_DACK0_N <= '1';
---  OTG_DACK1_N <= '1';
---
---  LCD_ON <= '0';
---  LCD_BLON <= '0';
---  LCD_RW <= '1';
---  LCD_EN <= '0';
---  LCD_RS <= '0';
---
---  TDO <= '0';
---
---  I2C_SCLK <= '0';
---
---  ENET_CMD <= '0';
---  ENET_CS_N <= '1';
---  ENET_WR_N <= '1';
---  ENET_RD_N <= '1';
---  ENET_RST_N <= '1';
---  ENET_CLK <= '0';
---
---  AUD_DACDAT <= '0';
---  AUD_XCK <= '0';
---
---  TD_RESET <= '0';
---
---  -- Set all bidirectional ports to tri-state
---  FL_DQ       <= (others => 'Z');
---  SRAM_DQ(15 downto 8) <= (others => 'Z');
---  OTG_DATA    <= (others => 'Z');
---  LCD_DATA    <= (others => 'Z');
---  I2C_SDAT    <= 'Z';
---  ENET_DATA   <= (others => 'Z');
---  AUD_ADCLRCK <= 'Z';
---  AUD_DACLRCK <= 'Z';
---  AUD_BCLK    <= 'Z';
---  GPIO_0      <= (others => 'Z');
---  GPIO_1      <= (others => 'Z');
 
 end datapath;
