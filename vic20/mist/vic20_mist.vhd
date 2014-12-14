@@ -75,8 +75,8 @@ end entity;
 architecture rtl of vic20_mist is
 
 -- System clocks
-  signal clk40m: std_logic := '0';
-  signal osd_clk : std_logic := '0';
+  signal clk16m: std_logic := '0';
+  signal clk8m : std_logic := '0';
   
   signal reset    : std_logic;
   signal audio    : std_logic;
@@ -104,21 +104,42 @@ architecture rtl of vic20_mist is
 -- DataIO handling
   signal forceReset : std_logic := '0';
   signal downl : std_logic := '0';
-  signal size : std_logic_vector(15 downto 0) := (others=>'0');
-  signal d_ram: std_logic_vector(7 downto 0);
-  signal a_ram: std_logic_vector(12 downto 0);
+  signal downlr : std_logic := '0';
+  signal size : std_logic_vector(25 downto 0) := (others=>'0');
+  signal io_dout: std_logic_vector(7 downto 0);
+  signal io_ram_dout: std_logic_vector(7 downto 0);
+  signal io_addr: std_logic_vector(25 downto 0);
+  signal io_ram_addr: std_logic_vector(15 downto 0);
+  signal io_we: std_logic := '0';
+  signal io_ram_we: std_logic := '0';
+  signal io_load_addr: std_logic_vector(15 downto 0) := (others=>'0');
+  signal ram_dout: std_logic_vector(7 downto 0);
+  signal ram_din: std_logic_vector(7 downto 0);
+  signal ram_addr: std_logic_vector(15 downto 0);
+  signal ram_clk: std_logic;
+  signal ram_we: std_logic;
   signal cart_dout: std_logic_vector(7 downto 0);
+  signal cart_din: std_logic_vector(7 downto 0);
   signal cart_addr: std_logic_vector(12 downto 0);
-  signal cart_clk: std_logic;
+  signal cart_we: std_logic;
+  signal vic_cart_dout: std_logic_vector(7 downto 0);
+  signal vic_cart_addr: std_logic_vector(12 downto 0);
   signal cart_switch: std_logic := '0';
-  signal cart_shift: std_logic := '0';
   signal vic_joy: std_logic_vector(4 downto 0);
+  signal io_is_prg : std_logic := '1';
   
   signal vic_audio : std_logic_vector( 3 downto 0);
   signal audio_pwm : std_logic;
+  
+  attribute keep: boolean;
+  attribute keep of io_load_addr: signal is true;
+  attribute keep of io_addr: signal is true;
+  attribute keep of io_ram_addr: signal is true;
+  attribute keep of io_ram_dout: signal is true;
+  attribute keep of io_ram_we: signal is true;
 
   -- config string used by the io controller to fill the OSD
-  constant CONF_STR : string := "VIC20;A0;O1,Shift Cartridge,no,2 bytes;";
+  constant CONF_STR : string := "VIC20;PRG;O1,program type,rom,prg;";
 
   function to_slv(s: string) return std_logic_vector is
     constant ss: string(1 to s'length) := s;
@@ -155,18 +176,17 @@ architecture rtl of vic20_mist is
     );
   end component user_io;
   
-    component data_io is
-        port(sck: in std_logic;
-             ss: in std_logic;
-             sdi: in std_logic;
-             downloading: out std_logic;
-             size: out std_logic_vector(15 downto 0);
-             clk: in std_logic;
-             we: in std_logic;
-             a: in std_logic_vector(12 downto 0);
-             din: in std_logic_vector(7 downto 0);
-             dout: out std_logic_vector(7 downto 0));
-    end component;
+  component data_io is
+    port ( sck: in std_logic;
+           ss: in std_logic;
+           sdi: in std_logic;
+           downloading: out std_logic;
+           size: out std_logic_vector(25 downto 0);
+           clk: in std_logic;
+           wr: out std_logic;
+           a: out std_logic_vector(25 downto 0);
+           d: out std_logic_vector(7 downto 0));
+  end component;
 
   component osd
     port (
@@ -186,6 +206,8 @@ begin
   SDRAM_nCAS <= '1'; -- disable sdram
   reset <= status(0) or buttons(1) or forceReset;
   
+  io_is_prg <= status(1);
+  
   
   vic20_inst : entity work.VIC20
     port map (I_PS2_CLK     => ps2Clk,
@@ -198,23 +220,26 @@ begin
               VSYNC_OUT   => VGA_VS_O,
               
               CART_SWITCH => cart_switch,
-              SWITCH      => "00",
               
-              CART_ADDR   => cart_addr,
-              CART_DOUT   => cart_dout,
-              CART_CLK    => cart_clk,
-              CART_SHIFT  => cart_shift,
+              RAM_ADDR   => ram_addr,
+              RAM_DOUT   => ram_dout,
+              RAM_DIN    => ram_din,
+              RAM_CLK    => ram_clk,
+              RAM_we     => ram_we,
+              
+              CART_ADDR  => vic_cart_addr,
+              CART_DOUT  => vic_cart_dout,
               
               JOYSTICK    => vic_joy,
               
               RESET_L     => not reset,
-              CLK_40   => osd_clk
+              CLK_40   => clk8m
     );
 
   --  OSD
   osd_inst : osd
     port map (
-      pclk => clk40m,
+      pclk => clk16m,
       sdi => SPI_DI,
       sck => SPI_SCK,
       ss => SPI_SS3,
@@ -229,27 +254,88 @@ begin
       hs_out => VGA_HS,
       vs_out => VGA_VS
     );
-  
-  data_io_inst: data_io
-    port map(SPI_SCK, SPI_SS2, SPI_DI, downl, size, cart_clk, '0', a_ram, (others=>'0'), d_ram);
     
-  process(downl, buttons)
+  data_io_inst: data_io
+    port map(SPI_SCK, SPI_SS2, SPI_DI, downl, size, clk8m, io_we, io_addr, io_dout);
+    
+--  cart_addr <= vic_cart_addr when downl='0' else io_addr(12 downto 0);
+--  vic_cart_dout <= cart_dout when downl='0' else x"FF";
+--  cart_din <= io_dout;
+--  cart_we <= '0' when downl='0' else '1';
+    
+  process(clk8m)
   begin
-    if(downl = '0') then
-      a_ram <= cart_addr;
-      cart_dout <= d_ram;
-      forceReset <= '0';
-      if(buttons(1) = '1') then
-        cart_switch <= '0';
+    if falling_edge(clk8m) then
+      
+      downlr <= downl;
+      
+      if(downl = '0') then
+        forceReset <= '0';
+        io_ram_we <= '0';
+        if(buttons(1) = '1') then
+          cart_switch <= '0';
+        end if;
+      else
+
+        if (io_addr = "00000000000000000000000000") then
+          io_load_addr(7 downto 0) <= io_dout;
+        elsif (io_addr = "00000000000000000000000001") then
+          io_load_addr(15 downto 8) <= io_dout;
+        else
+          io_ram_we <= io_we;
+          io_ram_addr <= std_logic_vector(unsigned(io_load_addr) + unsigned(io_addr(15 downto 0)) - 4610);
+          io_ram_dout <= io_dout;
+        end if;
+        
       end if;
-    else
-      a_ram <= cart_addr;
-      cart_dout <= x"FF";
-      forceReset <= '1';
-      cart_switch <= '1';
-      cart_shift <= status(1);
+      
+      if(downl = '0' and downlr = '1' and io_is_prg = '0') then
+        cart_switch <= '1';
+        forceReset <= '1';
+      end if;
     end if;
   end process;
+  
+  -- main memory 
+  ram_inst : entity work.dpram_blk
+    generic map
+    (
+      widthad_a	=> 15
+    )
+    port map
+    (
+      clock_a	=> ram_clk,
+      address_a	=> ram_addr(14 downto 0),
+      wren_a	=> ram_we,
+      data_a	=> ram_din,
+      q_a	=> ram_dout,
+      
+      clock_b => clk8m,
+      address_b => io_ram_addr(14 downto 0),
+      wren_b => io_ram_we,
+      data_b => io_ram_dout
+    );
+  
+  -- cart rom blk5
+  cart_inst : entity work.dpram
+    generic map
+    (
+      widthad_a	=> 13
+    )
+    port map
+    (
+      clock_a	=> ram_clk,
+      address_a	=> vic_cart_addr,
+      wren_a	=> '0',
+      data_a	=> (others=>'0'),
+      q_a	=> vic_cart_dout,
+      
+      clock_b	=> clk8m,
+      address_b	=> io_addr(12 downto 0),
+      wren_b	=> io_we,
+      data_b	=> io_dout
+    );
+  
  
 
 -- -----------------------------------------------------------------------
@@ -258,7 +344,7 @@ begin
   pllInstance : entity work.pll27
     port map (
       inclk0 => CLOCK_27(0),
-      c0 => clk40m,
+      c0 => clk16m,
       c1 => clk12k,
       locked => open
     );
@@ -268,9 +354,9 @@ begin
       DIVISOR => 2
     )
     port map (
-      clk    => clk40m,
+      clk    => clk16m,
       reset  => '0',
-      clk_en => osd_clk
+      clk_en => clk8m
     );
 
 -- ------------------------------------------------------------------------
@@ -310,7 +396,7 @@ begin
   --
   u_dac : entity work.dac
     port  map(
-      clk     => osd_clk,
+      clk     => clk8m,
       reset   => not reset,
       dac_in  => vic_audio,
       dac_out => audio_pwm
