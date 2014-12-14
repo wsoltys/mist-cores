@@ -674,18 +674,18 @@ begin
   --
 
   --ram_pros: process(v_rw_l, ram_sel_l, blk_sel_l, v_addr, c_addr, v_data, RAM_DOUT)
-  ram_pros: process(ena_4)
+  ram_pros: process(clk_8)
   begin
       if ram_sel_l(5) = '0' then
-        RAM_ADDR(15 downto 0) <= "000001" & v_addr(9 downto 0);
+        RAM_ADDR(15 downto 0) <= "000101" & v_addr(9 downto 0); -- user area starts at $1400
       elsif ram_sel_l(6) = '0' then
-        RAM_ADDR(15 downto 0) <= "000010" & v_addr(9 downto 0);
+        RAM_ADDR(15 downto 0) <= "000110" & v_addr(9 downto 0);
       elsif ram_sel_l(7) = '0' then
-        RAM_ADDR(15 downto 0) <= "000011" & v_addr(9 downto 0);
+        RAM_ADDR(15 downto 0) <= "000111" & v_addr(9 downto 0);
       elsif blk_sel_l(1) = '0' then
-        RAM_ADDR(15 downto 0) <= "001" & v_addr(12 downto 0);
+        RAM_ADDR(15 downto 0) <= "001" & v_addr(12 downto 0);   -- blk1 starts at $2000
       elsif blk_sel_l(2) = '0' then
-        RAM_ADDR(15 downto 0) <= "010" & v_addr(12 downto 0);
+        RAM_ADDR(15 downto 0) <= "010" & v_addr(12 downto 0);   -- blk2 starts at $4000
       end if;
     
       if v_rw_l = '0' then

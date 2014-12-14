@@ -283,7 +283,7 @@ begin
           io_load_addr(15 downto 8) <= io_dout;
         else
           io_ram_we <= io_we;
-          io_ram_addr <= std_logic_vector(unsigned(io_load_addr) + unsigned(io_addr(15 downto 0)) - 4610);
+          io_ram_addr <= std_logic_vector(unsigned(io_load_addr) + unsigned(io_addr(15 downto 0)) - 2);
           io_ram_dout <= io_dout;
         end if;
         
