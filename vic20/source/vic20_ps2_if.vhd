@@ -229,7 +229,7 @@ begin
         when x"04" => rowcol <= x"75";--      f3              f3
         when x"03" => rowcol <= x"76";--      f5              f5
         when x"83" => rowcol <= x"77";--      f7              f7
-        when others => rowcol <= x"07";
+        when others => rowcol <= x"FF";
       end case;
     else
       rowcol <= x"ff";
