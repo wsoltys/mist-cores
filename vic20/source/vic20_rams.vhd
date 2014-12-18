@@ -1,87 +1,45 @@
---
--- A simulation model of VIC20 hardware
--- Copyright (c) MikeJ - March 2003
---
--- All rights reserved
---
--- Redistribution and use in source and synthezised forms, with or without
--- modification, are permitted provided that the following conditions are met:
---
--- Redistributions of source code must retain the above copyright notice,
--- this list of conditions and the following disclaimer.
---
--- Redistributions in synthesized form must reproduce the above copyright
--- notice, this list of conditions and the following disclaimer in the
--- documentation and/or other materials provided with the distribution.
---
--- Neither the name of the author nor the names of other contributors may
--- be used to endorse or promote products derived from this software without
--- specific prior written permission.
---
--- THIS CODE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
--- AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
--- THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
--- PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE
--- LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
--- CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
--- SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
--- INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
--- CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
--- ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
--- POSSIBILITY OF SUCH DAMAGE.
---
--- You are responsible for any legal issues arising from your use of this code.
---
--- The latest version of this file can be found at: www.fpgaarcade.com
---
--- Email vic20@fpgaarcade.com
---
---
--- Revision list
---
--- version 001 initial release
 
-library ieee;
-  use ieee.std_logic_1164.all;
-  use ieee.std_logic_arith.all;
-  use ieee.std_logic_unsigned.all;
 
-use work.pkg_vic20.all;
+library IEEE;
+use IEEE.STD_LOGIC_1164.all;
+use IEEE.Numeric_Std.all;
 
 entity VIC20_RAMS is
   port (
-  V_ADDR : in  std_logic_vector(9 downto 0);
-  DIN    : in  std_logic_vector(7 downto 0);
-  DOUT   : out std_logic_vector(7 downto 0);
-  V_RW_L : in  std_logic;
-  CS_L   : in  std_logic; -- used for write enable gate only
-  CLK    : in  std_logic
+    CLK     : in  std_logic;
+    V_RW_L    : in  std_logic;
+	 CS_L    : in  std_logic;
+    V_ADDR    : in  std_logic_vector;
+    DIN     : in  std_logic_vector;
+    DOUT    : out std_logic_vector
   );
-end;
+end entity VIC20_RAMS;
 
 architecture RTL of VIC20_RAMS is
 
-  signal we : std_logic;
+   type ram_type is array (0 to (2**V_ADDR'length)-1) of std_logic_vector(DIN'range);
+   signal ram : ram_type;
+   signal read_address : std_logic_vector(V_ADDR'range);
+	signal we : std_logic;
 
 begin
 
-  ram_inst : entity work.spram
-    generic map
-    (
-      widthad_a	=> V_ADDR'length
-    )
-    port map
-    (
-      clock	  => CLK,
-      address	=> V_ADDR,
-      wren	  => we,
-      data	  => DIN,
-      q	=> DOUT
-    );
-
   p_we : process(V_RW_L, CS_L)
   begin
-    we <= not CS_L and not V_RW_L;
-  end process;
+    we <= not (CS_L or V_RW_L);
+  end process p_we;
+
+  p_ram : process(CLK) is
+  begin
+    if rising_edge(CLK) then
+      if we = '1' then
+        ram(to_integer(unsigned(V_ADDR))) <= DIN;
+      end if;
+		DOUT <= ram(to_integer(unsigned(V_ADDR)));
+  --    read_address <= V_ADDR;
+    end if;
+  end process p_ram;
+
+  -- DOUT <= ram(to_integer(unsigned(read_address)));
 
 end architecture RTL;

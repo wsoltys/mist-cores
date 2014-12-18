@@ -45,9 +45,9 @@ library ieee;
   use ieee.std_logic_1164.all;
   use ieee.std_logic_arith.all;
   use ieee.std_logic_unsigned.all;
-
---use work.pkg_vic20_xilinx_prims.all;
-use work.pkg_vic20.all;
+  --use IEEE.numeric_std.ALL;
+  
+  use work.pkg_vic20.all;
 
 entity VIC20 is
   port (
@@ -64,18 +64,19 @@ entity VIC20 is
 	
     CLK_8_o           : out   std_logic;
     
-    RAM_ADDR          : out   std_logic_vector(15 downto 0);
-    RAM_DOUT          : in    std_logic_vector(7 downto 0);
-    RAM_DIN           : out   std_logic_vector(7 downto 0);
-    RAM_CLK           : out   std_logic;
-    RAM_WE            : out   std_logic;
-    CART_ADDR         : out   std_logic_vector(12 downto 0);
-    CART_DOUT         : in    std_logic_vector(7 downto 0);
+    IO_WE             : in    std_logic;
+    IO_ADDR           : in    std_logic_vector(15 downto 0);
+    IO_DOUT           : in    std_logic_vector(7 downto 0);
+    IO_DOWNL          : in    std_logic;
+    FORCERESET        : out   std_logic;
+    IO_IS_PRG         : in    std_logic;
+    RESET_B           : in    std_logic;
 
     RESET_L           : in    std_logic;
     CLK_40            : in    std_logic;
+    CLKTST            : in    std_logic;
 
-    CART_SWITCH       : in    std_logic;
+    --CART_SWITCH       : in    std_logic;
     
     JOYSTICK          : in   std_logic_vector(4 downto 0)
 
@@ -93,7 +94,7 @@ architecture RTL of VIC20 is
     signal ena_4              : std_logic;
    -- signal c_ena              : std_logic;
 
-	signal clk_diviner        : integer range 0 to 10;
+    signal clk_diviner        : integer range 0 to 10;
 
     signal delay_count        : std_logic_vector(7 downto 0) := (others => '0');
 
@@ -134,6 +135,7 @@ architecture RTL of VIC20 is
 
     -- ram
     signal ram0_dout          : std_logic_vector(7 downto 0);
+    signal ram4t_dout         : std_logic_vector(7 downto 0);
     signal ram4_dout          : std_logic_vector(7 downto 0);
     signal ram5_dout          : std_logic_vector(7 downto 0);
     signal ram6_dout          : std_logic_vector(7 downto 0);
@@ -206,8 +208,30 @@ architecture RTL of VIC20 is
     signal vsync_x2           : std_logic;
     
 
-	signal cart_data          : std_logic_vector(7 downto 0);
-	signal cart_data_temp     : std_logic_vector(7 downto 0);
+    signal cart_data          : std_logic_vector(7 downto 0);
+    signal cart_data_temp     : std_logic_vector(7 downto 0);
+    
+    signal downlr             : std_logic;
+    signal cart_switch        : std_logic;
+    signal io_load_addr       : std_logic_vector(15 downto 0) := (others=>'0');
+    signal io_ram_addr        : std_logic_vector(15 downto 0);
+    signal io_ram_dout        : std_logic_vector(7 downto 0);
+    signal io_ram_we          : std_logic := '0';
+    
+    signal vic_cart_dout      : std_logic_vector(7 downto 0);
+    
+    signal ram_dout: std_logic_vector(7 downto 0);
+    signal ram_din: std_logic_vector(7 downto 0);
+    signal ram_addr: std_logic_vector(15 downto 0);
+    signal ram_clk: std_logic;
+    signal ram_we: std_logic;
+    
+    attribute keep: boolean;
+    attribute keep of io_load_addr: signal is true;
+    attribute keep of IO_ADDR: signal is true;
+    attribute keep of io_ram_addr: signal is true;
+    attribute keep of io_ram_dout: signal is true;
+    attribute keep of io_ram_we: signal is true;
 
 
 begin
@@ -673,43 +697,100 @@ begin
   -- main memory
   --
 
-  --ram_pros: process(v_rw_l, ram_sel_l, blk_sel_l, v_addr, c_addr, v_data, RAM_DOUT)
-  ram_pros: process(clk_8)
+  ram_pros: process(v_rw_l, ram_sel_l, blk_sel_l, v_addr, v_data, RAM_DOUT, ram4t_dout)
+  --ram_pros: process(clk_8)
   begin
-      if ram_sel_l(5) = '0' then
-        RAM_ADDR(15 downto 0) <= "000101" & v_addr(9 downto 0); -- user area starts at $1400
+      if ram_sel_l(4) = '0' then
+        ram_addr(15 downto 0) <= "000100" & v_addr(9 downto 0);  
+      elsif ram_sel_l(5) = '0' then
+        ram_addr(15 downto 0) <= "000101" & v_addr(9 downto 0); -- user area starts at $1400
       elsif ram_sel_l(6) = '0' then
-        RAM_ADDR(15 downto 0) <= "000110" & v_addr(9 downto 0);
+        ram_addr(15 downto 0) <= "000110" & v_addr(9 downto 0);
       elsif ram_sel_l(7) = '0' then
-        RAM_ADDR(15 downto 0) <= "000111" & v_addr(9 downto 0);
+        ram_addr(15 downto 0) <= "000111" & v_addr(9 downto 0);
       elsif blk_sel_l(1) = '0' then
-        RAM_ADDR(15 downto 0) <= "001" & v_addr(12 downto 0);   -- blk1 starts at $2000
+        ram_addr(15 downto 0) <= "001" & c_addr(12 downto 0);   -- blk1 starts at $2000
       elsif blk_sel_l(2) = '0' then
-        RAM_ADDR(15 downto 0) <= "010" & v_addr(12 downto 0);   -- blk2 starts at $4000
+        ram_addr(15 downto 0) <= "010" & c_addr(12 downto 0);   -- blk2 starts at $4000
+      elsif blk_sel_l(5) = '0' then
+        ram_addr(15 downto 0) <= "011" & c_addr(12 downto 0);   -- blk5 starts at $A000 here at $6000
       end if;
     
       if v_rw_l = '0' then
-        if blk_sel_l(5) = '0' then
-          RAM_WE <= '0';
+        if blk_sel_l(5) = '1' then
+          ram_we <= '1';
+          ram_din <= v_data;
         else
-          RAM_WE <= '1';
+          ram_we <= '0';
+          ram_din <= "ZZZZZZZZ";
         end if;
-        RAM_DIN <= v_data;
       else 
-        RAM_DIN <= "ZZZZZZZZ";
-        RAM_WE <= '0';		  
-        if (ram_sel_l(5) = '0') then
-          ram5_dout <= RAM_DOUT;		  
+        ram_din <= "ZZZZZZZZ";
+        RAM_WE <= '0';
+        if ram_sel_l(4) = '0' then
+          if v_addr(9) = '0' then
+            ram4_dout <= ram4t_dout;
+          else
+            ram4_dout <= ram_dout;
+          end if;
+        elsif (ram_sel_l(5) = '0') then
+          ram5_dout <= ram_dout;		  
         elsif (ram_sel_l(6) = '0') then
-          ram6_dout <= RAM_DOUT;		  
+          ram6_dout <= ram_dout;		  
         elsif (ram_sel_l(7) = '0') then
-          ram7_dout <= RAM_DOUT;		
-        elsif blk_sel_l(1) = '0' then
-          ramb1_dout <= RAM_DOUT;
+          ram7_dout <= ram_dout;
+        end if;
+        
+        if blk_sel_l(1) = '0' then
+          ramb1_dout <= ram_dout;
         elsif blk_sel_l(2) = '0' then
-          ramb2_dout <= RAM_DOUT;
+          ramb2_dout <= ram_dout;
+        elsif blk_sel_l(5) = '0' then
+          vic_cart_dout <= ram_dout;
         end if;
       end if;
+  end process;
+  
+  process(clk_8)
+  begin
+    if falling_edge(clk_8) then
+      
+      downlr <= IO_DOWNL;
+      
+      --if(RESET_L = '0') then
+        --io_load_addr <= (others=>'0');
+      if(IO_DOWNL = '0') then
+        forceReset <= '0';
+        io_ram_we <= '0';
+        if(RESET_B = '1') then
+          cart_switch <= '0';
+        end if;
+      else
+        if IO_IS_PRG = '1' then
+          if (io_addr = "0000000000000000") then
+            io_load_addr(7 downto 0) <= io_dout;
+          elsif (io_addr = "0000000000000001") then
+            io_load_addr(15 downto 8) <= io_dout;
+          else
+            io_ram_we <= io_we;
+            if io_load_addr(15 downto 13) = "101" then
+              io_load_addr(15 downto 13) <= "011";
+            end if;
+            io_ram_addr <= io_load_addr + io_addr - 2;
+            io_ram_dout <= io_dout;
+          end if;
+        else
+          io_ram_we <= io_we;
+          io_ram_addr <= "011" & io_addr(12 downto 0);
+          io_ram_dout <= io_dout;
+        end if;
+      end if;
+      
+      if(IO_DOWNL = '0' and downlr = '1' and (IO_IS_PRG = '0' or io_load_addr(15 downto 13) = "011")) then
+        cart_switch <= '1';
+        forceReset <= '1';
+      end if;
+    end if;
   end process;
 
   -- BASIC working memory
@@ -723,12 +804,12 @@ begin
       CLK    => ena_4
       );
 
-  -- Screen memory
+  -- Screen memory $1000-$11FF
   rams4 : entity work.VIC20_RAMS
     port map (
       V_ADDR => v_addr(9 downto 0),
       DIN    => v_data,
-      DOUT   => ram4_dout,
+      DOUT   => ram4t_dout,
       V_RW_L => v_rw_l,
       CS_L  => ram_sel_l(4),
       CLK    => ena_4
@@ -737,13 +818,33 @@ begin
   -- Screen color memory
   col_ram : entity work.VIC20_RAMS
     port map (
-      V_ADDR => v_addr(9 downto 0),
+      V_ADDR => v_addr(8 downto 0),
       DIN    => v_data,
       DOUT   => col_ram_dout,
       V_RW_L => v_rw_l,
       CS_L   => col_ram_sel_l,
       CLK    => ena_4
       );
+      
+  -- main memory including blk1,2 and 5
+  ram_inst : entity work.dpram_blk
+    generic map
+    (
+      widthad_a	=> 15
+    )
+    port map
+    (
+      clock_a	=> ena_4,
+      address_a	=> ram_addr(14 downto 0),
+      wren_a	=> ram_we,
+      data_a	=> ram_din,
+      q_a	=> ram_dout,
+      
+      clock_b => clk_8,
+      address_b => io_ram_addr(14 downto 0),
+      wren_b => io_ram_we,
+      data_b => io_ram_dout
+    );
 
   --
   -- roms
@@ -802,15 +903,15 @@ begin
   --
   -- cart slot 0xA000-0xBFFF (8K)
   --
-  CART_ADDR <= c_addr(12 downto 0); -- add two to have the magic bytes at the right spot
+  --CART_ADDR <= c_addr(12 downto 0); -- add two to have the magic bytes at the right spot
   RAM_CLK  <= clk_4;
   
   p_video_ouput : process
   begin
     wait until rising_edge(clk_8);
 
-	if CART_SWITCH = '1' then
-      cart_data <= CART_DOUT;
+    if cart_switch = '1' then
+      cart_data <= vic_cart_dout;
     end if;
     -- switch is on (up) use scan converter and light led
     --sw_reg <= I_SW;
@@ -824,13 +925,11 @@ begin
       VSYNC_OUT   <= vSync_X2;
     else
 --      --O_LED(0) <= '0';
---      O_VIDEO_R <= video_r;
---      O_VIDEO_G <= video_g;
---      O_VIDEO_B <= video_b;
---      --O_HSYNC   <= hSync;
---      --O_VSYNC   <= vSync;
---      O_HSYNC   <= cSync;
---      O_VSYNC   <= '1';
+      VIDEO_R_OUT <= video_r;
+      VIDEO_G_OUT <= video_g;
+      VIDEO_B_OUT <= video_b;
+      HSYNC_OUT   <= hSync;
+      VSYNC_OUT   <= vSync;
     end if;
   end process;
 
