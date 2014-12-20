@@ -105,39 +105,15 @@ architecture rtl of vic20_mist is
 -- DataIO handling
   signal forceReset : std_logic := '0';
   signal downl : std_logic := '0';
-  signal downlr : std_logic := '0';
   signal size : std_logic_vector(25 downto 0) := (others=>'0');
   signal io_dout: std_logic_vector(7 downto 0);
-  signal io_ram_dout: std_logic_vector(7 downto 0);
   signal io_addr: std_logic_vector(25 downto 0);
-  signal io_ram_addr: std_logic_vector(15 downto 0);
   signal io_we: std_logic := '0';
-  signal io_ram_we: std_logic := '0';
-  signal io_load_addr: std_logic_vector(15 downto 0) := (others=>'0');
-  signal ram_dout: std_logic_vector(7 downto 0);
-  signal ram_din: std_logic_vector(7 downto 0);
-  signal ram_addr: std_logic_vector(15 downto 0);
-  signal ram_clk: std_logic;
-  signal ram_we: std_logic;
-  signal cart_dout: std_logic_vector(7 downto 0);
-  signal cart_din: std_logic_vector(7 downto 0);
-  signal cart_addr: std_logic_vector(12 downto 0);
-  signal cart_we: std_logic;
-  signal vic_cart_dout: std_logic_vector(7 downto 0);
-  signal vic_cart_addr: std_logic_vector(12 downto 0);
-  signal cart_switch: std_logic := '0';
   signal vic_joy: std_logic_vector(4 downto 0);
   signal io_is_prg : std_logic := '1';
   
   signal vic_audio : std_logic_vector( 3 downto 0);
   signal audio_pwm : std_logic;
-  
---  attribute keep: boolean;
---  attribute keep of io_load_addr: signal is true;
---  attribute keep of io_addr: signal is true;
---  attribute keep of io_ram_addr: signal is true;
---  attribute keep of io_ram_dout: signal is true;
---  attribute keep of io_ram_we: signal is true;
 
   -- config string used by the io controller to fill the OSD
   constant CONF_STR : string := "VIC20;PRG;O1,program type,rom,prg;";

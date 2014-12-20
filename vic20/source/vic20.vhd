@@ -214,9 +214,16 @@ architecture RTL of VIC20 is
     signal downlr             : std_logic;
     signal cart_switch        : std_logic;
     signal io_load_addr       : std_logic_vector(15 downto 0) := (others=>'0');
+    signal io_res_addr       : std_logic_vector(15 downto 0) := (others=>'0');
     signal io_ram_addr        : std_logic_vector(15 downto 0);
     signal io_ram_dout        : std_logic_vector(7 downto 0);
     signal io_ram_we          : std_logic := '0';
+    signal io_cart_addr        : std_logic_vector(12 downto 0);
+    signal io_cart_dout        : std_logic_vector(7 downto 0);
+    signal io_cart_we          : std_logic := '0';
+    signal io_ram4_addr        : std_logic_vector(9 downto 0);
+    signal io_ram4_dout        : std_logic_vector(7 downto 0);
+    signal io_ram4_we          : std_logic := '0';
     
     signal vic_cart_dout      : std_logic_vector(7 downto 0);
     
@@ -697,12 +704,10 @@ begin
   -- main memory
   --
 
-  ram_pros: process(v_rw_l, ram_sel_l, blk_sel_l, v_addr, v_data, RAM_DOUT, ram4t_dout)
+  ram_pros: process(v_rw_l, ram_sel_l, blk_sel_l, v_addr, v_data, RAM_DOUT)
   --ram_pros: process(clk_8)
   begin
-      if ram_sel_l(4) = '0' then
-        ram_addr(15 downto 0) <= "000100" & v_addr(9 downto 0);  
-      elsif ram_sel_l(5) = '0' then
+      if ram_sel_l(5) = '0' then
         ram_addr(15 downto 0) <= "000101" & v_addr(9 downto 0); -- user area starts at $1400
       elsif ram_sel_l(6) = '0' then
         ram_addr(15 downto 0) <= "000110" & v_addr(9 downto 0);
@@ -712,41 +717,24 @@ begin
         ram_addr(15 downto 0) <= "001" & c_addr(12 downto 0);   -- blk1 starts at $2000
       elsif blk_sel_l(2) = '0' then
         ram_addr(15 downto 0) <= "010" & c_addr(12 downto 0);   -- blk2 starts at $4000
-      elsif blk_sel_l(5) = '0' then
-        ram_addr(15 downto 0) <= "011" & c_addr(12 downto 0);   -- blk5 starts at $A000 here at $6000
       end if;
     
       if v_rw_l = '0' then
-        if blk_sel_l(5) = '1' then
-          ram_we <= '1';
-          ram_din <= v_data;
-        else
-          ram_we <= '0';
-          ram_din <= "ZZZZZZZZ";
-        end if;
+        ram_we <= not (ram_sel_l(5) and ram_sel_l(6) and ram_sel_l(7) and blk_sel_l(1) and blk_sel_l(2));
+        ram_din <= v_data;
       else 
         ram_din <= "ZZZZZZZZ";
-        RAM_WE <= '0';
-        if ram_sel_l(4) = '0' then
-          if v_addr(9) = '0' then
-            ram4_dout <= ram4t_dout;
-          else
-            ram4_dout <= ram_dout;
-          end if;
-        elsif (ram_sel_l(5) = '0') then
+        ram_we <= '0';
+        if (ram_sel_l(5) = '0') then
           ram5_dout <= ram_dout;		  
         elsif (ram_sel_l(6) = '0') then
           ram6_dout <= ram_dout;		  
         elsif (ram_sel_l(7) = '0') then
           ram7_dout <= ram_dout;
-        end if;
-        
-        if blk_sel_l(1) = '0' then
+        elsif blk_sel_l(1) = '0' then
           ramb1_dout <= ram_dout;
         elsif blk_sel_l(2) = '0' then
           ramb2_dout <= ram_dout;
-        elsif blk_sel_l(5) = '0' then
-          vic_cart_dout <= ram_dout;
         end if;
       end if;
   end process;
@@ -761,7 +749,6 @@ begin
         --io_load_addr <= (others=>'0');
       if(IO_DOWNL = '0') then
         forceReset <= '0';
-        io_ram_we <= '0';
         if(RESET_B = '1') then
           cart_switch <= '0';
         end if;
@@ -772,21 +759,35 @@ begin
           elsif (io_addr = "0000000000000001") then
             io_load_addr(15 downto 8) <= io_dout;
           else
-            io_ram_we <= io_we;
-            if io_load_addr(15 downto 13) = "101" then
-              io_load_addr(15 downto 13) <= "011";
+            io_res_addr <= io_load_addr + io_addr - 2;
+            
+            if io_res_addr < "0001010000000000" then
+              -- ram4
+              io_ram4_addr <= io_res_addr(9 downto 0);
+              io_ram4_dout <= io_dout;
+              io_ram4_we   <= io_we;
+            elsif io_res_addr < "0110000000000000" then
+              -- main memory (ram 5,6,7 and blk1 and 2) $1400 to $5FFF
+              io_ram_addr  <= io_res_addr;
+              io_ram_dout <= io_dout;
+              io_ram_we <= io_we;
+            elsif io_res_addr >= "1010000000000000" then
+              -- Cartridge ROM blk5 $A000 to $BFFF
+              io_cart_we <= io_we;
+              io_cart_addr <= io_res_addr(12 downto 0);
+              io_cart_dout <= io_dout;
             end if;
-            io_ram_addr <= io_load_addr + io_addr - 2;
-            io_ram_dout <= io_dout;
+            
           end if;
         else
-          io_ram_we <= io_we;
-          io_ram_addr <= "011" & io_addr(12 downto 0);
-          io_ram_dout <= io_dout;
+          -- ROM Cartridges without start bytes at $A000 (blk5)
+          io_cart_we <= io_we;
+          io_cart_addr <= io_addr(12 downto 0);
+          io_cart_dout <= io_dout;
         end if;
       end if;
       
-      if(IO_DOWNL = '0' and downlr = '1' and (IO_IS_PRG = '0' or io_load_addr(15 downto 13) = "011")) then
+      if(IO_DOWNL = '0' and downlr = '1' and (IO_IS_PRG = '0' or io_res_addr(15 downto 13) = "101")) then
         cart_switch <= '1';
         forceReset <= '1';
       end if;
@@ -804,17 +805,6 @@ begin
       CLK    => ena_4
       );
 
-  -- Screen memory $1000-$11FF
-  rams4 : entity work.VIC20_RAMS
-    port map (
-      V_ADDR => v_addr(9 downto 0),
-      DIN    => v_data,
-      DOUT   => ram4t_dout,
-      V_RW_L => v_rw_l,
-      CS_L  => ram_sel_l(4),
-      CLK    => ena_4
-      );
-
   -- Screen color memory
   col_ram : entity work.VIC20_RAMS
     port map (
@@ -826,7 +816,27 @@ begin
       CLK    => ena_4
       );
       
-  -- main memory including blk1,2 and 5
+  -- ram select 4, 1kb ram from $1000 to $13FF ($1000-$11FF screen memory)
+  ram4_inst : entity work.dpram
+    generic map
+    (
+      widthad_a	=> 10
+    )
+    port map
+    (
+      clock_a	=> ena_4,
+      address_a	=> v_addr(9 downto 0),
+      wren_a	=> not (ram_sel_l(4) or v_rw_l),
+      data_a	=> v_data,
+      q_a	=> ram4_dout,
+      
+      clock_b => clk_8,
+      address_b => io_ram4_addr,
+      wren_b => io_ram4_we,
+      data_b => io_ram4_dout
+    );
+    
+  -- main memory (ram 5,6,7 and blk1 and 2), $1400 to $5FFF
   ram_inst : entity work.dpram_blk
     generic map
     (
@@ -845,6 +855,28 @@ begin
       wren_b => io_ram_we,
       data_b => io_ram_dout
     );
+      
+  -- blk5 cartridge 8kb rom at $A000
+  blk5_inst : entity work.dpram
+    generic map
+    (
+      widthad_a	=> 13
+    )
+    port map
+    (
+      clock_a	=> ena_4,
+      address_a	=> c_addr(12 downto 0),
+      wren_a	=> '0',
+      data_a	=> "ZZZZZZZZ",
+      q_a	=> vic_cart_dout,
+      
+      clock_b => clk_8,
+      address_b => io_cart_addr,
+      wren_b => io_cart_we,
+      data_b => io_cart_dout
+    );
+      
+
 
   --
   -- roms
