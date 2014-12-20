@@ -277,7 +277,6 @@ set_global_assignment -name EDA_SIMULATION_TOOL "<None>"
 set_global_assignment -name ENABLE_SIGNALTAP ON
 set_global_assignment -name USE_SIGNALTAP_FILE out/stp2.stp
 set_global_assignment -name VHDL_FILE ../roms/vic20_kernal_ntsc.vhd
-set_global_assignment -name VHDL_FILE dpram_blk.vhd
 set_global_assignment -name VHDL_FILE dpram.vhd
 set_global_assignment -name VHDL_FILE ../source/dac.vhd
 set_global_assignment -name VERILOG_FILE data_io.v

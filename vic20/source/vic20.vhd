@@ -135,7 +135,6 @@ architecture RTL of VIC20 is
 
     -- ram
     signal ram0_dout          : std_logic_vector(7 downto 0);
-    signal ram4t_dout         : std_logic_vector(7 downto 0);
     signal ram4_dout          : std_logic_vector(7 downto 0);
     signal ram5_dout          : std_logic_vector(7 downto 0);
     signal ram6_dout          : std_logic_vector(7 downto 0);
@@ -215,18 +214,22 @@ architecture RTL of VIC20 is
     signal cart_switch        : std_logic;
     signal io_load_addr       : std_logic_vector(15 downto 0) := (others=>'0');
     signal io_res_addr       : std_logic_vector(15 downto 0) := (others=>'0');
-    signal io_ram_addr        : std_logic_vector(15 downto 0);
+    signal io_blk_addr        : std_logic_vector(12 downto 0);
+    signal io_blk_dout        : std_logic_vector(7 downto 0);
+    signal io_blk1_we          : std_logic := '0';
+    signal io_blk2_we          : std_logic := '0';
+    signal io_blk5_we          : std_logic := '0';
+    signal io_ram_addr        : std_logic_vector(9 downto 0);
     signal io_ram_dout        : std_logic_vector(7 downto 0);
-    signal io_ram_we          : std_logic := '0';
-    signal io_cart_addr        : std_logic_vector(12 downto 0);
-    signal io_cart_dout        : std_logic_vector(7 downto 0);
-    signal io_cart_we          : std_logic := '0';
-    signal io_ram4_addr        : std_logic_vector(9 downto 0);
-    signal io_ram4_dout        : std_logic_vector(7 downto 0);
     signal io_ram4_we          : std_logic := '0';
+    signal io_ram5_we          : std_logic := '0';
+    signal io_ram6_we          : std_logic := '0';
+    signal io_ram7_we          : std_logic := '0';
     
     signal vic_cart_dout      : std_logic_vector(7 downto 0);
     
+    signal blk1_dout: std_logic_vector(7 downto 0);
+    signal blk2_dout: std_logic_vector(7 downto 0);
     signal ram_dout: std_logic_vector(7 downto 0);
     signal ram_din: std_logic_vector(7 downto 0);
     signal ram_addr: std_logic_vector(15 downto 0);
@@ -236,9 +239,9 @@ architecture RTL of VIC20 is
     attribute keep: boolean;
     attribute keep of io_load_addr: signal is true;
     attribute keep of IO_ADDR: signal is true;
-    attribute keep of io_ram_addr: signal is true;
-    attribute keep of io_ram_dout: signal is true;
-    attribute keep of io_ram_we: signal is true;
+   -- attribute keep of io_ram_addr: signal is true;
+    --attribute keep of io_ram_dout: signal is true;
+    --attribute keep of io_ram_we: signal is true;
 
 
 begin
@@ -684,9 +687,9 @@ begin
     elsif (io_sel_l(0) = '0') and (c_addr(5) = '1') then -- blk4
       c_din <= via2_dout;
     elsif (blk_sel_l(1) = '0') then
-      c_din <= ramb1_dout;
+      c_din <= blk1_dout;
     elsif (blk_sel_l(2) = '0') then
-      c_din <= ramb2_dout;
+      c_din <= blk2_dout;
     elsif (blk_sel_l(5) = '0') then
       c_din <= expansion_din;
     elsif (blk_sel_l(6) = '0') then
@@ -704,40 +707,40 @@ begin
   -- main memory
   --
 
-  ram_pros: process(v_rw_l, ram_sel_l, blk_sel_l, v_addr, v_data, RAM_DOUT)
-  --ram_pros: process(clk_8)
-  begin
-      if ram_sel_l(5) = '0' then
-        ram_addr(15 downto 0) <= "000101" & v_addr(9 downto 0); -- user area starts at $1400
-      elsif ram_sel_l(6) = '0' then
-        ram_addr(15 downto 0) <= "000110" & v_addr(9 downto 0);
-      elsif ram_sel_l(7) = '0' then
-        ram_addr(15 downto 0) <= "000111" & v_addr(9 downto 0);
-      elsif blk_sel_l(1) = '0' then
-        ram_addr(15 downto 0) <= "001" & c_addr(12 downto 0);   -- blk1 starts at $2000
-      elsif blk_sel_l(2) = '0' then
-        ram_addr(15 downto 0) <= "010" & c_addr(12 downto 0);   -- blk2 starts at $4000
-      end if;
-    
-      if v_rw_l = '0' then
-        ram_we <= not (ram_sel_l(5) and ram_sel_l(6) and ram_sel_l(7) and blk_sel_l(1) and blk_sel_l(2));
-        ram_din <= v_data;
-      else 
-        ram_din <= "ZZZZZZZZ";
-        ram_we <= '0';
-        if (ram_sel_l(5) = '0') then
-          ram5_dout <= ram_dout;		  
-        elsif (ram_sel_l(6) = '0') then
-          ram6_dout <= ram_dout;		  
-        elsif (ram_sel_l(7) = '0') then
-          ram7_dout <= ram_dout;
-        elsif blk_sel_l(1) = '0' then
-          ramb1_dout <= ram_dout;
-        elsif blk_sel_l(2) = '0' then
-          ramb2_dout <= ram_dout;
-        end if;
-      end if;
-  end process;
+--  ram_pros: process(v_rw_l, ram_sel_l, blk_sel_l, v_addr, v_data, RAM_DOUT)
+--  --ram_pros: process(clk_8)
+--  begin
+--      if ram_sel_l(5) = '0' then
+--        ram_addr(15 downto 0) <= "000101" & v_addr(9 downto 0); -- user area starts at $1400
+--      elsif ram_sel_l(6) = '0' then
+--        ram_addr(15 downto 0) <= "000110" & v_addr(9 downto 0);
+--      elsif ram_sel_l(7) = '0' then
+--        ram_addr(15 downto 0) <= "000111" & v_addr(9 downto 0);
+--      elsif blk_sel_l(1) = '0' then
+--        ram_addr(15 downto 0) <= "001" & c_addr(12 downto 0);   -- blk1 starts at $2000
+--      elsif blk_sel_l(2) = '0' then
+--        ram_addr(15 downto 0) <= "010" & c_addr(12 downto 0);   -- blk2 starts at $4000
+--      end if;
+--    
+----      if v_rw_l = '0' then
+----        ram_we <= not (ram_sel_l(5) and ram_sel_l(6) and ram_sel_l(7) and blk_sel_l(1) and blk_sel_l(2));
+----        ram_din <= v_data;
+----      else 
+----        ram_din <= "ZZZZZZZZ";
+----        ram_we <= '0';
+----        if (ram_sel_l(5) = '0') then
+----          ram5_dout <= ram_dout;		  
+----        elsif (ram_sel_l(6) = '0') then
+----          ram6_dout <= ram_dout;		  
+----        elsif (ram_sel_l(7) = '0') then
+----          ram7_dout <= ram_dout;
+----        elsif blk_sel_l(1) = '0' then
+----          ramb1_dout <= blk1_dout;
+----        elsif blk_sel_l(2) = '0' then
+----          ramb2_dout <= blk2_dout;
+----        end if;
+----      end if;
+--  end process;
   
   process(clk_8)
   begin
@@ -760,30 +763,50 @@ begin
             io_load_addr(15 downto 8) <= io_dout;
           else
             io_res_addr <= io_load_addr + io_addr - 2;
+            io_ram4_we <= '0';
+            io_ram5_we <= '0';
+            io_ram6_we <= '0';
+            io_ram7_we <= '0';
+            io_blk1_we <= '0';
+            io_blk2_we <= '0';
+            io_blk5_we <= '0';
             
-            if io_res_addr < "0001010000000000" then
-              -- ram4
-              io_ram4_addr <= io_res_addr(9 downto 0);
-              io_ram4_dout <= io_dout;
-              io_ram4_we   <= io_we;
-            elsif io_res_addr < "0110000000000000" then
-              -- main memory (ram 5,6,7 and blk1 and 2) $1400 to $5FFF
-              io_ram_addr  <= io_res_addr;
+            if io_res_addr < "0010000000000000" then
+              -- main memory
+              io_ram_addr  <= io_res_addr(9 downto 0);
               io_ram_dout <= io_dout;
-              io_ram_we <= io_we;
+              if io_res_addr < "0001010000000000" then
+                io_ram4_we <= io_we;
+              elsif io_res_addr < "0001100000000000" then
+                io_ram5_we <= io_we;
+              elsif io_res_addr < "0001110000000000" then
+                io_ram6_we <= io_we;
+              elsif io_res_addr < "0010000000000000" then
+                io_ram7_we <= io_we;
+              end if;
+            elsif io_res_addr < "0100000000000000" then
+              -- blk1 $2000 to $3FFF
+              io_blk_addr <= io_res_addr(12 downto 0);
+              io_blk_dout <= io_dout;
+              io_blk1_we  <= io_we;
+            elsif io_res_addr < "0110000000000000" then
+              -- blk2 $4000 to $5FFF
+              io_blk_addr <= io_res_addr(12 downto 0);
+              io_blk_dout <= io_dout;
+              io_blk2_we  <= io_we;
             elsif io_res_addr >= "1010000000000000" then
               -- Cartridge ROM blk5 $A000 to $BFFF
-              io_cart_we <= io_we;
-              io_cart_addr <= io_res_addr(12 downto 0);
-              io_cart_dout <= io_dout;
+              io_blk5_we <= io_we;
+              io_blk_addr <= io_res_addr(12 downto 0);
+              io_blk_dout <= io_dout;
             end if;
             
           end if;
         else
           -- ROM Cartridges without start bytes at $A000 (blk5)
-          io_cart_we <= io_we;
-          io_cart_addr <= io_addr(12 downto 0);
-          io_cart_dout <= io_dout;
+          io_blk5_we <= io_we;
+          io_blk_addr <= io_addr(12 downto 0);
+          io_blk_dout <= io_dout;
         end if;
       end if;
       
@@ -816,7 +839,7 @@ begin
       CLK    => ena_4
       );
       
-  -- ram select 4, 1kb ram from $1000 to $13FF ($1000-$11FF screen memory)
+  -- ram select 4 1kb $1000 to $13FF ($1000-$11FF screen memory)
   ram4_inst : entity work.dpram
     generic map
     (
@@ -831,31 +854,111 @@ begin
       q_a	=> ram4_dout,
       
       clock_b => clk_8,
-      address_b => io_ram4_addr,
+      address_b => io_ram_addr,
       wren_b => io_ram4_we,
-      data_b => io_ram4_dout
+      data_b => io_ram_dout
     );
     
-  -- main memory (ram 5,6,7 and blk1 and 2), $1400 to $5FFF
-  ram_inst : entity work.dpram_blk
+  -- ram select 5 1kb ram from $1400 to $17FF
+  ram5_inst : entity work.dpram
     generic map
     (
-      widthad_a	=> 15
+      widthad_a	=> 10
     )
     port map
     (
       clock_a	=> ena_4,
-      address_a	=> ram_addr(14 downto 0),
-      wren_a	=> ram_we,
-      data_a	=> ram_din,
-      q_a	=> ram_dout,
+      address_a	=> v_addr(9 downto 0),
+      wren_a	=> not (ram_sel_l(5) or v_rw_l),
+      data_a	=> v_data,
+      q_a	=> ram5_dout,
       
       clock_b => clk_8,
-      address_b => io_ram_addr(14 downto 0),
-      wren_b => io_ram_we,
+      address_b => io_ram_addr,
+      wren_b => io_ram5_we,
       data_b => io_ram_dout
     );
+    
+  -- main memory ram 6, $1800 to $1BFF
+  ram6_inst : entity work.dpram
+    generic map
+    (
+      widthad_a	=> 10
+    )
+    port map
+    (
+      clock_a	=> ena_4,
+      address_a	=> v_addr(9 downto 0),
+      wren_a	=> not (ram_sel_l(6) or v_rw_l),
+      data_a	=> v_data,
+      q_a	=> ram6_dout,
       
+      clock_b => clk_8,
+      address_b => io_ram_addr,
+      wren_b => io_ram6_we,
+      data_b => io_ram_dout
+    );
+    
+  -- main memory ram 7, $1C00 to $1FFF
+  ram7_inst : entity work.dpram
+    generic map
+    (
+      widthad_a	=> 10
+    )
+    port map
+    (
+      clock_a	=> ena_4,
+      address_a	=> v_addr(9 downto 0),
+      wren_a	=> not (ram_sel_l(7) or v_rw_l),
+      data_a	=> v_data,
+      q_a	=> ram7_dout,
+      
+      clock_b => clk_8,
+      address_b => io_ram_addr,
+      wren_b => io_ram7_we,
+      data_b => io_ram_dout
+    );
+    
+   -- blk1 cartridge 8kb rom at $2000
+  blk1_inst : entity work.dpram
+    generic map
+    (
+      widthad_a	=> 13
+    )
+    port map
+    (
+      clock_a	=> ena_4,
+      address_a	=> c_addr(12 downto 0),
+      wren_a	=> not (blk_sel_l(1) or v_rw_l),
+      data_a	=> v_data,
+      q_a	=> blk1_dout,
+      
+      clock_b => clk_8,
+      address_b => io_blk_addr,
+      wren_b => io_blk1_we,
+      data_b => io_blk_dout
+    );
+
+  -- blk2 cartridge 8kb rom at $4000
+  blk2_inst : entity work.dpram
+    generic map
+    (
+      widthad_a	=> 13
+    )
+    port map
+    (
+      clock_a	=> ena_4,
+      address_a	=> c_addr(12 downto 0),
+      wren_a	=> not (blk_sel_l(2) or v_rw_l),
+      data_a	=> v_data,
+      q_a	=> blk2_dout,
+      
+      clock_b => clk_8,
+      address_b => io_blk_addr,
+      wren_b => io_blk2_we,
+      data_b => io_blk_dout
+    );
+    
   -- blk5 cartridge 8kb rom at $A000
   blk5_inst : entity work.dpram
     generic map
@@ -871,9 +974,9 @@ begin
       q_a	=> vic_cart_dout,
       
       clock_b => clk_8,
-      address_b => io_cart_addr,
-      wren_b => io_cart_we,
-      data_b => io_cart_dout
+      address_b => io_blk_addr,
+      wren_b => io_blk5_we,
+      data_b => io_blk_dout
     );
       
 
