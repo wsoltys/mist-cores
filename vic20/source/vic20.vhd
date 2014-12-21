@@ -70,6 +70,7 @@ entity VIC20 is
     IO_DOWNL          : in    std_logic;
     FORCERESET        : out   std_logic;
     IO_IS_PRG         : in    std_logic;
+    SCANDOUBLER       : in    std_logic := '1';
     RESET_B           : in    std_logic;
 
     RESET_L           : in    std_logic;
@@ -756,6 +757,15 @@ begin
           cart_switch <= '0';
         end if;
       else
+      
+        io_ram4_we <= '0';
+        io_ram5_we <= '0';
+        io_ram6_we <= '0';
+        io_ram7_we <= '0';
+        io_blk1_we <= '0';
+        io_blk2_we <= '0';
+        io_blk5_we <= '0';
+        
         if IO_IS_PRG = '1' then
           if (io_addr = "0000000000000000") then
             io_load_addr(7 downto 0) <= io_dout;
@@ -763,13 +773,6 @@ begin
             io_load_addr(15 downto 8) <= io_dout;
           else
             io_res_addr <= io_load_addr + io_addr - 2;
-            io_ram4_we <= '0';
-            io_ram5_we <= '0';
-            io_ram6_we <= '0';
-            io_ram7_we <= '0';
-            io_blk1_we <= '0';
-            io_blk2_we <= '0';
-            io_blk5_we <= '0';
             
             if io_res_addr < "0010000000000000" then
               -- main memory
@@ -1048,18 +1051,14 @@ begin
     if cart_switch = '1' then
       cart_data <= vic_cart_dout;
     end if;
-    -- switch is on (up) use scan converter and light led
-    --sw_reg <= I_SW;
 
-    if true then
-      --O_LED(0) <= '1';
+    if SCANDOUBLER = '1' then
       VIDEO_R_OUT <= video_r_x2;
       VIDEO_G_OUT <= video_g_x2;
       VIDEO_B_OUT <= video_b_x2;
       HSYNC_OUT   <= hSync_X2;
       VSYNC_OUT   <= vSync_X2;
     else
---      --O_LED(0) <= '0';
       VIDEO_R_OUT <= video_r;
       VIDEO_G_OUT <= video_g;
       VIDEO_B_OUT <= video_b;
