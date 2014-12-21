@@ -305,6 +305,4 @@ begin
   AUDIO_L <= audio_pwm;
   AUDIO_R <= audio_pwm;
 
- -- LED <= not p_color; -- yellow led is bright when color mode is selected
-
 end architecture;

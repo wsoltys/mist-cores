@@ -76,8 +76,6 @@ entity VIC20 is
     RESET_L           : in    std_logic;
     CLK_40            : in    std_logic;
     CLKTST            : in    std_logic;
-
-    --CART_SWITCH       : in    std_logic;
     
     JOYSTICK          : in   std_logic_vector(4 downto 0)
 
@@ -87,7 +85,6 @@ end;
 architecture RTL of VIC20 is
 
     signal reset_dll_h        : std_logic;
-    --signal reset_l_sampled    : std_logic;
 
     signal clk_4              : std_logic;
 
@@ -140,9 +137,7 @@ architecture RTL of VIC20 is
     signal ram5_dout          : std_logic_vector(7 downto 0);
     signal ram6_dout          : std_logic_vector(7 downto 0);
     signal ram7_dout          : std_logic_vector(7 downto 0);
-    signal ramb1_dout         : std_logic_vector(7 downto 0);
-    signal ramb2_dout         : std_logic_vector(7 downto 0);
-    signal ramb5_dout         : std_logic_vector(7 downto 0);
+
     --
     signal col_ram_dout       : std_logic_vector(7 downto 0);
 
@@ -231,18 +226,10 @@ architecture RTL of VIC20 is
     
     signal blk1_dout: std_logic_vector(7 downto 0);
     signal blk2_dout: std_logic_vector(7 downto 0);
-    signal ram_dout: std_logic_vector(7 downto 0);
-    signal ram_din: std_logic_vector(7 downto 0);
-    signal ram_addr: std_logic_vector(15 downto 0);
-    signal ram_clk: std_logic;
-    signal ram_we: std_logic;
     
     attribute keep: boolean;
     attribute keep of io_load_addr: signal is true;
     attribute keep of IO_ADDR: signal is true;
-   -- attribute keep of io_ram_addr: signal is true;
-    --attribute keep of io_ram_dout: signal is true;
-    --attribute keep of io_ram_we: signal is true;
 
 
 begin
@@ -251,10 +238,6 @@ begin
   --
 
 
- --C_ADDR_OUT <= c_addr(12 downto 0);
-
-  -- expansion port
-  -- <= c_addr;
   p_expansion : process(blk_sel_l, cart_data)
   begin
     expansion_din <= x"FF";
@@ -262,21 +245,15 @@ begin
       expansion_din <= cart_data;
     end if;
   end process;
-
-  -- <= c_rw_l;
-  -- <= v_rw_l;
+  
   expansion_nmi_l <= '1';
   expansion_irq_l <= '1';
-  -- <= ram_sel_l;
-  -- <= io_sel_l;
-  -- <= reset_l_sampled;
+
 
   -- user port
   user_port_cb1_in <= '0';
   user_port_cb2_in <= '0';
   user_port_in <= x"00";
-  -- <= user_port_out
-  -- <= user_port_out_oe_l
 
   -- tape
   cass_read <= '0';
@@ -314,27 +291,6 @@ begin
      clk_4 <= not clk_4;
    end if;
  end process;
- --clk_4 <= ena_4;
-  --clk_4 <= clk_cnt(2);
-
-  p_delay : process(RESET_L, clk_4)
-  begin
-    if (RESET_L = '0') then
-	  delay_count <= x"00";
-      --reset_l_sampled <= '0';
-    elsif rising_edge(clk_4) then
-      if (delay_count(7 downto 0) = (x"FF")) then
-        delay_count <= (x"00");
-        --reset_l_sampled <= RESET_L;
-      else
-        delay_count <= delay_count + "1";
-      end if;
-    end if;
-  end process;
-  --reset_l_sampled <= RESET_L; -- simulation
-
- -- c_ena <= ena_1mhz and ena_4; -- clk ena
-
 
   cpu : entity work.T65
       port map (
@@ -662,7 +618,6 @@ begin
       v_data_oe_l     <= '0';
     else
       -- emulate floating bus
-      --v_data_read_mux <= "XXXXXXXX";
       v_data_read_mux <= v_data_read_muxr;
     end if;
 
@@ -677,7 +632,7 @@ begin
   p_cpu_read_mux : process(p2_h, c_addr, io_sel_l, ram_sel_l, blk_sel_l,
                            v_data_read_mux, via1_dout, via2_dout, v_data_oe_l,
                            basic_rom_dout, kernal_rom_dout, expansion_din,
-                           ramb1_dout, ramb2_dout)
+                           blk1_dout, blk2_dout)
   begin
 
     if (p2_h = '0') then -- vic is on the bus
@@ -705,43 +660,8 @@ begin
   end process;
 
   --
-  -- main memory
+  -- IO upload
   --
-
---  ram_pros: process(v_rw_l, ram_sel_l, blk_sel_l, v_addr, v_data, RAM_DOUT)
---  --ram_pros: process(clk_8)
---  begin
---      if ram_sel_l(5) = '0' then
---        ram_addr(15 downto 0) <= "000101" & v_addr(9 downto 0); -- user area starts at $1400
---      elsif ram_sel_l(6) = '0' then
---        ram_addr(15 downto 0) <= "000110" & v_addr(9 downto 0);
---      elsif ram_sel_l(7) = '0' then
---        ram_addr(15 downto 0) <= "000111" & v_addr(9 downto 0);
---      elsif blk_sel_l(1) = '0' then
---        ram_addr(15 downto 0) <= "001" & c_addr(12 downto 0);   -- blk1 starts at $2000
---      elsif blk_sel_l(2) = '0' then
---        ram_addr(15 downto 0) <= "010" & c_addr(12 downto 0);   -- blk2 starts at $4000
---      end if;
---    
-----      if v_rw_l = '0' then
-----        ram_we <= not (ram_sel_l(5) and ram_sel_l(6) and ram_sel_l(7) and blk_sel_l(1) and blk_sel_l(2));
-----        ram_din <= v_data;
-----      else 
-----        ram_din <= "ZZZZZZZZ";
-----        ram_we <= '0';
-----        if (ram_sel_l(5) = '0') then
-----          ram5_dout <= ram_dout;		  
-----        elsif (ram_sel_l(6) = '0') then
-----          ram6_dout <= ram_dout;		  
-----        elsif (ram_sel_l(7) = '0') then
-----          ram7_dout <= ram_dout;
-----        elsif blk_sel_l(1) = '0' then
-----          ramb1_dout <= blk1_dout;
-----        elsif blk_sel_l(2) = '0' then
-----          ramb2_dout <= blk2_dout;
-----        end if;
-----      end if;
---  end process;
   
   process(clk_8)
   begin
@@ -749,8 +669,6 @@ begin
       
       downlr <= IO_DOWNL;
       
-      --if(RESET_L = '0') then
-        --io_load_addr <= (others=>'0');
       if(IO_DOWNL = '0') then
         forceReset <= '0';
         if(RESET_B = '1') then
@@ -819,6 +737,11 @@ begin
       end if;
     end if;
   end process;
+  
+  
+  --
+  -- main memory
+  --
 
   -- BASIC working memory
   rams0 : entity work.VIC20_RAMS
@@ -962,6 +885,10 @@ begin
       data_b => io_blk_dout
     );
     
+  --
+  -- cart slot 0xA000-0xBFFF (8K)
+  --
+    
   -- blk5 cartridge 8kb rom at $A000
   blk5_inst : entity work.dpram
     generic map
@@ -1012,9 +939,6 @@ begin
       );
 
 
-  -- end comment;
-
-
   --
   -- scan doubler
   --
@@ -1037,12 +961,6 @@ begin
       CLK               => clk_8
     );
   
-  
-  --
-  -- cart slot 0xA000-0xBFFF (8K)
-  --
-  --CART_ADDR <= c_addr(12 downto 0); -- add two to have the magic bytes at the right spot
-  RAM_CLK  <= clk_4;
   
   p_video_ouput : process
   begin
