@@ -299,4 +299,5 @@ set_global_assignment -name VERILOG_FILE osd.v
 set_global_assignment -name VERILOG_FILE user_io.v
 set_global_assignment -name VHDL_FILE vic20_mist.vhd
 set_global_assignment -name QIP_FILE pll27.qip
+set_global_assignment -name CDF_FILE out/Chain2.cdf
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

@@ -116,7 +116,7 @@ architecture rtl of vic20_mist is
   signal audio_pwm : std_logic;
 
   -- config string used by the io controller to fill the OSD
-  constant CONF_STR : string := "VIC20;PRG;O1,Program type,prg,rom;O2,Enable Scanlines,off,on;O3,Enable Scandoubler,on,off;";
+  constant CONF_STR : string := "VIC20;PRG;O1,Program type,prg,rom;O2,Enable Scanlines,off,on;O3,Enable Scandoubler,on,off;O4,Enable 8K+ Expansion,on,off;O5,Enable 3K Expansion,off,on;";
 
   function to_slv(s: string) return std_logic_vector is
     constant ss: string(1 to s'length) := s;
@@ -204,12 +204,13 @@ begin
               FORCERESET => ForceReset,
               IO_IS_PRG  => not status(1),
               SCANDOUBLER=> not status(3),
+              EXP8KP     => not status(4),
+              EXP3K      => '0', --status(5),
               RESET_B    => buttons(1),
               
               JOYSTICK    => vic_joy,
               
               RESET_L     => not reset,
-              CLKTST      => clk16m,
               CLK_40   => clk8m
     );
 

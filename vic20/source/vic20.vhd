@@ -71,11 +71,12 @@ entity VIC20 is
     FORCERESET        : out   std_logic;
     IO_IS_PRG         : in    std_logic;
     SCANDOUBLER       : in    std_logic := '1';
+    EXP8KP            : in    std_logic := '1';
+    EXP3K             : in    std_logic := '0';
     RESET_B           : in    std_logic;
 
     RESET_L           : in    std_logic;
     CLK_40            : in    std_logic;
-    CLKTST            : in    std_logic;
     
     JOYSTICK          : in   std_logic_vector(4 downto 0)
 
@@ -133,6 +134,9 @@ architecture RTL of VIC20 is
 
     -- ram
     signal ram0_dout          : std_logic_vector(7 downto 0);
+    signal ram1_dout          : std_logic_vector(7 downto 0);
+    signal ram2_dout          : std_logic_vector(7 downto 0);
+    signal ram3_dout          : std_logic_vector(7 downto 0);
     signal ram4_dout          : std_logic_vector(7 downto 0);
     signal ram5_dout          : std_logic_vector(7 downto 0);
     signal ram6_dout          : std_logic_vector(7 downto 0);
@@ -217,6 +221,9 @@ architecture RTL of VIC20 is
     signal io_blk5_we          : std_logic := '0';
     signal io_ram_addr        : std_logic_vector(9 downto 0);
     signal io_ram_dout        : std_logic_vector(7 downto 0);
+    signal io_ram1_we          : std_logic := '0';
+    signal io_ram2_we          : std_logic := '0';
+    signal io_ram3_we          : std_logic := '0';
     signal io_ram4_we          : std_logic := '0';
     signal io_ram5_we          : std_logic := '0';
     signal io_ram6_we          : std_logic := '0';
@@ -583,8 +590,8 @@ begin
 
 
   p_v_read_mux : process(col_ram_sel_l, ram_sel_l, blk_sel_l, vic_oe_l, v_addr,
-                         col_ram_dout, ram0_dout, ram4_dout, ram5_dout, ram6_dout, ram7_dout,
-                         vic_dout, char_rom_dout,
+                         col_ram_dout, ram0_dout, ram1_dout, ram2_dout, ram3_dout, ram4_dout, ram5_dout, ram6_dout, ram7_dout,
+                         vic_dout, char_rom_dout, EXP3K,
                          v_data_read_muxr)
   begin
     -- simplified data read mux
@@ -600,6 +607,15 @@ begin
       v_data_oe_l     <= '0';
     elsif (ram_sel_l(0) = '0') then
       v_data_read_mux <= ram0_dout;
+      v_data_oe_l     <= '0';
+    elsif (ram_sel_l(1) = '0' and EXP3K = '1') then
+      v_data_read_mux <= ram1_dout;
+      v_data_oe_l     <= '0';
+    elsif (ram_sel_l(2) = '0' and EXP3K = '1') then
+      v_data_read_mux <= ram2_dout;
+      v_data_oe_l     <= '0';
+    elsif (ram_sel_l(3) = '0' and EXP3K = '1') then
+      v_data_read_mux <= ram3_dout;
       v_data_oe_l     <= '0';
     elsif (ram_sel_l(4) = '0') then
       v_data_read_mux <= ram4_dout;
@@ -632,7 +648,7 @@ begin
   p_cpu_read_mux : process(p2_h, c_addr, io_sel_l, ram_sel_l, blk_sel_l,
                            v_data_read_mux, via1_dout, via2_dout, v_data_oe_l,
                            basic_rom_dout, kernal_rom_dout, expansion_din,
-                           blk1_dout, blk2_dout)
+                           blk1_dout, blk2_dout, EXP8KP)
   begin
 
     if (p2_h = '0') then -- vic is on the bus
@@ -642,9 +658,9 @@ begin
       c_din <= via1_dout;
     elsif (io_sel_l(0) = '0') and (c_addr(5) = '1') then -- blk4
       c_din <= via2_dout;
-    elsif (blk_sel_l(1) = '0') then
+    elsif (blk_sel_l(1) = '0' and EXP8KP = '1') then
       c_din <= blk1_dout;
-    elsif (blk_sel_l(2) = '0') then
+    elsif (blk_sel_l(2) = '0' and EXP8KP = '1') then
       c_din <= blk2_dout;
     elsif (blk_sel_l(5) = '0') then
       c_din <= expansion_din;
@@ -669,20 +685,23 @@ begin
       
       downlr <= IO_DOWNL;
       
+      io_ram1_we <= '0';
+      io_ram2_we <= '0';
+      io_ram3_we <= '0';
+      io_ram4_we <= '0';
+      io_ram5_we <= '0';
+      io_ram6_we <= '0';
+      io_ram7_we <= '0';
+      io_blk1_we <= '0';
+      io_blk2_we <= '0';
+      io_blk5_we <= '0';
+      
       if(IO_DOWNL = '0') then
         forceReset <= '0';
         if(RESET_B = '1') then
           cart_switch <= '0';
         end if;
       else
-      
-        io_ram4_we <= '0';
-        io_ram5_we <= '0';
-        io_ram6_we <= '0';
-        io_ram7_we <= '0';
-        io_blk1_we <= '0';
-        io_blk2_we <= '0';
-        io_blk5_we <= '0';
         
         if IO_IS_PRG = '1' then
           if (io_addr = "0000000000000000") then
@@ -696,7 +715,13 @@ begin
               -- main memory
               io_ram_addr  <= io_res_addr(9 downto 0);
               io_ram_dout <= io_dout;
-              if io_res_addr < "0001010000000000" then
+              if io_res_addr < "0000100000000000" then
+                io_ram1_we <= io_we;
+              elsif io_res_addr < "0000110000000000" then
+                io_ram2_we <= io_we;
+              elsif io_res_addr < "0001000000000000" then
+                io_ram3_we <= io_we;
+              elsif io_res_addr < "0001010000000000" then
                 io_ram4_we <= io_we;
               elsif io_res_addr < "0001100000000000" then
                 io_ram5_we <= io_we;
@@ -764,6 +789,66 @@ begin
       CS_L   => col_ram_sel_l,
       CLK    => ena_4
       );
+      
+  -- ram select 1 1kb
+  ram1_inst : entity work.dpram
+    generic map
+    (
+      widthad_a	=> 10
+    )
+    port map
+    (
+      clock_a	=> ena_4,
+      address_a	=> v_addr(9 downto 0),
+      wren_a	=> not (ram_sel_l(1) or v_rw_l) and EXP3K,
+      data_a	=> v_data,
+      q_a	=> ram1_dout,
+      
+      clock_b => clk_8,
+      address_b => io_ram_addr,
+      wren_b => io_ram1_we,
+      data_b => io_ram_dout
+    );
+    
+  -- ram select 2 1kb
+  ram2_inst : entity work.dpram
+    generic map
+    (
+      widthad_a	=> 10
+    )
+    port map
+    (
+      clock_a	=> ena_4,
+      address_a	=> v_addr(9 downto 0),
+      wren_a	=> not (ram_sel_l(2) or v_rw_l) and EXP3K,
+      data_a	=> v_data,
+      q_a	=> ram2_dout,
+      
+      clock_b => clk_8,
+      address_b => io_ram_addr,
+      wren_b => io_ram2_we,
+      data_b => io_ram_dout
+    );
+    
+  -- ram select 3 1kb
+  ram3_inst : entity work.dpram
+    generic map
+    (
+      widthad_a	=> 10
+    )
+    port map
+    (
+      clock_a	=> ena_4,
+      address_a	=> v_addr(9 downto 0),
+      wren_a	=> not (ram_sel_l(3) or v_rw_l) and EXP3K,
+      data_a	=> v_data,
+      q_a	=> ram3_dout,
+      
+      clock_b => clk_8,
+      address_b => io_ram_addr,
+      wren_b => io_ram3_we,
+      data_b => io_ram_dout
+    );
       
   -- ram select 4 1kb $1000 to $13FF ($1000-$11FF screen memory)
   ram4_inst : entity work.dpram
@@ -855,7 +940,7 @@ begin
     (
       clock_a	=> ena_4,
       address_a	=> c_addr(12 downto 0),
-      wren_a	=> not (blk_sel_l(1) or v_rw_l),
+      wren_a	=> not (blk_sel_l(1) or v_rw_l) and EXP8KP,
       data_a	=> v_data,
       q_a	=> blk1_dout,
       
@@ -875,7 +960,7 @@ begin
     (
       clock_a	=> ena_4,
       address_a	=> c_addr(12 downto 0),
-      wren_a	=> not (blk_sel_l(2) or v_rw_l),
+      wren_a	=> not (blk_sel_l(2) or v_rw_l) and EXP8KP,
       data_a	=> v_data,
       q_a	=> blk2_dout,
       
