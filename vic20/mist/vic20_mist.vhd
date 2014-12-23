@@ -205,7 +205,7 @@ begin
               IO_IS_PRG  => not status(1),
               SCANDOUBLER=> not status(3),
               EXP8KP     => not status(4),
-              EXP3K      => '0', --status(5),
+              EXP3K      => status(5),
               RESET_B    => buttons(1),
               
               JOYSTICK    => vic_joy,
