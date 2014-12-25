@@ -286,11 +286,11 @@ begin
     
   -- Joystick
   --  "11111"; -- 0 up, 1 down, 2 left,  3 right, 4 fire
-  vic_joy(0) <= not joy0(3);
-  vic_joy(1) <= not joy0(2);
-  vic_joy(2) <= not joy0(1);
-  vic_joy(3) <= not joy0(0);
-  vic_joy(4) <= not joy0(4);
+  vic_joy(0) <= not joy1(3);
+  vic_joy(1) <= not joy1(2);
+  vic_joy(2) <= not joy1(1);
+  vic_joy(3) <= not joy1(0);
+  vic_joy(4) <= not joy1(4);
 
   --
   -- Audio
