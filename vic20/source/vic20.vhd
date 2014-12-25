@@ -234,6 +234,9 @@ architecture RTL of VIC20 is
     signal blk1_dout: std_logic_vector(7 downto 0);
     signal blk2_dout: std_logic_vector(7 downto 0);
     
+    signal exp8_r             : std_logic;
+    signal exp3_r             : std_logic;
+    
     attribute keep: boolean;
     attribute keep of io_load_addr: signal is true;
     attribute keep of IO_ADDR: signal is true;
@@ -685,6 +688,8 @@ begin
     if falling_edge(clk_8) then
       
       downlr <= IO_DOWNL;
+      exp8_r <= EXP8KP;
+      exp3_r <= EXP3K;
       
       io_ram1_we <= '0';
       io_ram2_we <= '0';
@@ -759,6 +764,9 @@ begin
       
       if(IO_DOWNL = '0' and downlr = '1' and (IO_IS_PRG = '0' or io_res_addr(15 downto 13) = "101")) then
         cart_switch <= '1';
+        forceReset <= '1';
+      end if;
+      if((EXP3K /= exp3_r) or (EXP8KP /= exp8_r)) then
         forceReset <= '1';
       end if;
     end if;
@@ -1023,7 +1031,6 @@ begin
       ADDR        => c_addr(12 downto 0),
       DATA        => kernal_rom_dout
       );
-
 
   --
   -- scan doubler
