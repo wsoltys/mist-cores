@@ -1,6 +1,13 @@
--- This is a slightly modified file to fix an INTERRUPT bug
--- until Daniel merges the fix - MikeJ
+-- ****
+-- T65(b) core. In an effort to merge and maintain bug fixes ....
 --
+--
+-- Ver 301 more merging
+-- Ver 300 Bugfixes by ehenciak added, started tidyup *bust*
+-- MikeJ March 2005
+-- Latest version from www.fpgaarcade.com (original www.opencores.org)
+--
+-- ****
 --
 -- 65xx compatible microprocessor core
 --
@@ -55,107 +62,119 @@
 --
 
 library IEEE;
-use IEEE.std_logic_1164.all;
-use IEEE.numeric_std.all;
-use work.T65_Pack.all;
+  use IEEE.std_logic_1164.all;
+  use IEEE.numeric_std.all;
+  use work.T65_Pack.all;
 
+-- ehenciak 2-23-2005 : Added the enable signal so that one doesn't have to use
+-- the ready signal to limit the CPU.
 entity T65 is
 	port(
-		Mode    : in std_logic_vector(1 downto 0);      -- "00" => 6502, "01" => 65C02, "10" => 65C816
-		Res_n   : in std_logic;
-		Clk             : in std_logic;
-		Rdy             : in std_logic;
-		Abort_n : in std_logic;
-		IRQ_n   : in std_logic;
-		NMI_n   : in std_logic;
-		SO_n    : in std_logic;
+		Mode    : in  std_logic_vector(1 downto 0);      -- "00" => 6502, "01" => 65C02, "10" => 65C816
+		Res_n   : in  std_logic;
+		Enable  : in  std_logic;
+		Clk     : in  std_logic;
+		Rdy     : in  std_logic;
+		Abort_n : in  std_logic;
+		IRQ_n   : in  std_logic;
+		NMI_n   : in  std_logic;
+		SO_n    : in  std_logic;
 		R_W_n   : out std_logic;
 		Sync    : out std_logic;
-		EF              : out std_logic;
-		MF              : out std_logic;
-		XF              : out std_logic;
+		EF      : out std_logic;
+		MF      : out std_logic;
+		XF      : out std_logic;
 		ML_n    : out std_logic;
 		VP_n    : out std_logic;
-		VDA             : out std_logic;
-		VPA             : out std_logic;
-		A               : out std_logic_vector(23 downto 0);
-		DI              : in std_logic_vector(7 downto 0);
-		DO              : out std_logic_vector(7 downto 0)
+		VDA     : out std_logic;
+		VPA     : out std_logic;
+		A       : out std_logic_vector(23 downto 0);
+		DI      : in  std_logic_vector(7 downto 0);
+		DO      : out std_logic_vector(7 downto 0)
 	);
 end T65;
 
 architecture rtl of T65 is
 
 	-- Registers
-	signal ABC, X, Y, D         : std_logic_vector(15 downto 0);
-	signal P, AD, DL            : std_logic_vector(7 downto 0) :=  x"00";
-	signal BAH                          : std_logic_vector(7 downto 0);
-	signal BAL                          : std_logic_vector(8 downto 0);
-	signal PBR                          : std_logic_vector(7 downto 0);
-	signal DBR                          : std_logic_vector(7 downto 0);
-	signal PC                           : unsigned(15 downto 0);
-	signal S                            : unsigned(15 downto 0);
-	signal EF_i                         : std_logic;
-	signal MF_i                         : std_logic;
-	signal XF_i                         : std_logic;
+	signal ABC, X, Y, D       : std_logic_vector(15 downto 0);
+	signal P, AD, DL          : std_logic_vector(7 downto 0) :=  x"00";
+	signal BAH                : std_logic_vector(7 downto 0);
+	signal BAL                : std_logic_vector(8 downto 0);
+	signal PBR                : std_logic_vector(7 downto 0);
+	signal DBR                : std_logic_vector(7 downto 0);
+	signal PC                 : unsigned(15 downto 0);
+	signal S                  : unsigned(15 downto 0);
+	signal EF_i               : std_logic;
+	signal MF_i               : std_logic;
+	signal XF_i               : std_logic;
 
-	signal IR                           : std_logic_vector(7 downto 0);
+	signal IR                 : std_logic_vector(7 downto 0);
+	signal MCycle             : std_logic_vector(2 downto 0);
 
-	signal MCycle                       : std_logic_vector(2 downto 0);
+	signal Mode_r             : std_logic_vector(1 downto 0);
+	signal ALU_Op_r           : std_logic_vector(3 downto 0);
+	signal Write_Data_r       : std_logic_vector(2 downto 0);
+	signal Set_Addr_To_r      : std_logic_vector(1 downto 0);
+	signal PCAdder            : unsigned(8 downto 0);
 
-	signal Mode_r                       : std_logic_vector(1 downto 0);
-	signal ALU_Op_r                     : std_logic_vector(3 downto 0);
-	signal Write_Data_r         : std_logic_vector(2 downto 0);
-	signal Set_Addr_To_r        : std_logic_vector(1 downto 0);
+	signal RstCycle           : std_logic;
+	signal IRQCycle           : std_logic;
+	signal NMICycle           : std_logic;
 
-	signal PCAdder                      : unsigned(8 downto 0);
+	signal B_o                : std_logic;
+	signal SO_n_o             : std_logic;
+	signal IRQ_n_o            : std_logic;
+	signal NMI_n_o            : std_logic;
+	signal NMIAct             : std_logic;
 
-	signal RstCycle                     : std_logic;
-	signal IRQCycle                     : std_logic;
-	signal NMICycle                     : std_logic;
-
-	signal B_o                          : std_logic;
-	signal SO_n_o                       : std_logic;
-	signal IRQ_n_o                      : std_logic;
-	signal NMI_n_o                      : std_logic;
-	signal NMIAct                       : std_logic;
-
-	signal Break                        : std_logic;
+	signal Break              : std_logic;
 
 	-- ALU signals
-	signal BusA                         : std_logic_vector(7 downto 0);
-	signal BusA_r                       : std_logic_vector(7 downto 0);
-	signal BusB                         : std_logic_vector(7 downto 0);
-	signal ALU_Q                        : std_logic_vector(7 downto 0);
-	signal P_Out                        : std_logic_vector(7 downto 0);
+	signal BusA               : std_logic_vector(7 downto 0);
+	signal BusA_r             : std_logic_vector(7 downto 0);
+	signal BusB               : std_logic_vector(7 downto 0);
+	signal ALU_Q              : std_logic_vector(7 downto 0);
+	signal P_Out              : std_logic_vector(7 downto 0);
 
 	-- Micro code outputs
-	signal LCycle                       : std_logic_vector(2 downto 0);
-	signal ALU_Op                       : std_logic_vector(3 downto 0);
-	signal Set_BusA_To          : std_logic_vector(2 downto 0);
-	signal Set_Addr_To          : std_logic_vector(1 downto 0);
-	signal Write_Data           : std_logic_vector(2 downto 0);
-	signal Jump                         : std_logic_vector(1 downto 0);
-	signal BAAdd                        : std_logic_vector(1 downto 0);
-	signal BreakAtNA            : std_logic;
-	signal ADAdd                        : std_logic;
-	signal PCAdd                        : std_logic;
-	signal Inc_S                        : std_logic;
-	signal Dec_S                        : std_logic;
-	signal LDA                          : std_logic;
-	signal LDP                          : std_logic;
-	signal LDX                          : std_logic;
-	signal LDY                          : std_logic;
-	signal LDS                          : std_logic;
-	signal LDDI                         : std_logic;
-	signal LDALU                        : std_logic;
-	signal LDAD                         : std_logic;
-	signal LDBAL                        : std_logic;
-	signal LDBAH                        : std_logic;
-	signal SaveP                        : std_logic;
-	signal Write                        : std_logic;
+	signal LCycle             : std_logic_vector(2 downto 0);
+	signal ALU_Op             : std_logic_vector(3 downto 0);
+	signal Set_BusA_To        : std_logic_vector(2 downto 0);
+	signal Set_Addr_To        : std_logic_vector(1 downto 0);
+	signal Write_Data         : std_logic_vector(2 downto 0);
+	signal Jump               : std_logic_vector(1 downto 0);
+	signal BAAdd              : std_logic_vector(1 downto 0);
+	signal BreakAtNA          : std_logic;
+	signal ADAdd              : std_logic;
+	signal AddY               : std_logic;
+	signal PCAdd              : std_logic;
+	signal Inc_S              : std_logic;
+	signal Dec_S              : std_logic;
+	signal LDA                : std_logic;
+	signal LDP                : std_logic;
+	signal LDX                : std_logic;
+	signal LDY                : std_logic;
+	signal LDS                : std_logic;
+	signal LDDI               : std_logic;
+	signal LDALU              : std_logic;
+	signal LDAD               : std_logic;
+	signal LDBAL              : std_logic;
+	signal LDBAH              : std_logic;
+	signal SaveP              : std_logic;
+	signal Write              : std_logic;
+
+	signal really_rdy         : std_logic;
+	signal R_W_n_i            : std_logic;
 
 begin
+	-- ehenciak : gate Rdy with read/write to make an "OK, it's
+	--            really OK to stop the processor now if Rdy is
+	--            deasserted" signal
+	really_rdy <= Rdy or not(R_W_n_i);
+
+	-- ehenciak : Drive R_W_n_i off chip.
+	R_W_n      <= R_W_n_i;
 
 	Sync <= '1' when MCycle = "000" else '0';
 	EF <= EF_i;
@@ -163,39 +182,41 @@ begin
 	XF <= XF_i;
 	ML_n <= '0' when IR(7 downto 6) /= "10" and IR(2 downto 1) = "11" and MCycle(2 downto 1) /= "00" else '1';
 	VP_n <= '0' when IRQCycle = '1' and (MCycle = "101" or MCycle = "110") else '1';
-	VDA <= '1' when Set_Addr_To_r /= "000" else '0';            -- Incorrect !!!!!!!!!!!!
-	VPA <= '1' when Jump(1) = '0' else '0';                             -- Incorrect !!!!!!!!!!!!
+	VDA <= '1' when Set_Addr_To_r /= "00" else '0';             -- Incorrect !!!!!!!!!!!!
+	VPA <= '1' when Jump(1) = '0' else '0';                     -- Incorrect !!!!!!!!!!!!
 
 	mcode : T65_MCode
 		port map(
-			Mode => Mode_r,
-			IR => IR,
-			MCycle => MCycle,
-			P => P,
-			LCycle => LCycle,
-			ALU_Op => ALU_Op,
+			Mode        => Mode_r,
+			IR          => IR,
+			MCycle      => MCycle,
+			P           => P,
+			LCycle      => LCycle,
+			ALU_Op      => ALU_Op,
 			Set_BusA_To => Set_BusA_To,
 			Set_Addr_To => Set_Addr_To,
-			Write_Data => Write_Data,
-			Jump => Jump,
-			BAAdd => BAAdd,
-			BreakAtNA => BreakAtNA,
-			ADAdd => ADAdd,
-			PCAdd => PCAdd,
-			Inc_S => Inc_S,
-			Dec_S => Dec_S,
-			LDA => LDA,
-			LDP => LDP,
-			LDX => LDX,
-			LDY => LDY,
-			LDS => LDS,
-			LDDI => LDDI,
-			LDALU => LDALU,
-			LDAD => LDAD,
-			LDBAL => LDBAL,
-			LDBAH => LDBAH,
-			SaveP => SaveP,
-			Write => Write);
+			Write_Data  => Write_Data,
+			Jump        => Jump,
+			BAAdd       => BAAdd,
+			BreakAtNA   => BreakAtNA,
+			ADAdd       => ADAdd,
+			AddY        => AddY,
+			PCAdd       => PCAdd,
+			Inc_S       => Inc_S,
+			Dec_S       => Dec_S,
+			LDA         => LDA,
+			LDP         => LDP,
+			LDX         => LDX,
+			LDY         => LDY,
+			LDS         => LDS,
+			LDDI        => LDDI,
+			LDALU       => LDALU,
+			LDAD        => LDAD,
+			LDBAL       => LDBAL,
+			LDBAH       => LDBAH,
+			SaveP       => SaveP,
+			Write       => Write
+			);
 
 	alu : T65_ALU
 		port map(
@@ -205,16 +226,15 @@ begin
 			BusB => BusB,
 			P_In => P,
 			P_Out => P_Out,
-			Q => ALU_Q);
+			Q => ALU_Q
+			);
 
 	process (Res_n, Clk)
 	begin
 		if Res_n = '0' then
 			PC <= (others => '0');  -- Program Counter
 			IR <= "00000000";
-
 			S <= (others => '0');       -- Dummy !!!!!!!!!!!!!!!!!!!!!
-
 			D <= (others => '0');
 			PBR <= (others => '0');
 			DBR <= (others => '0');
@@ -224,14 +244,15 @@ begin
 			Write_Data_r <= "000";
 			Set_Addr_To_r <= "00";
 
-			R_W_n <= '1';
+			R_W_n_i <= '1';
 			EF_i <= '1';
 			MF_i <= '1';
 			XF_i <= '1';
 
 		elsif Clk'event and Clk = '1' then
-			if Rdy = '1' then
-				R_W_n <= not Write or RstCycle;
+		  if (Enable = '1') then
+			if (really_rdy = '1') then
+				R_W_n_i <= not Write or RstCycle;
 
 				D <= (others => '1');   -- Dummy
 				PBR <= (others => '1'); -- Dummy
@@ -275,30 +296,41 @@ begin
 				if IR = "00000000" and MCycle = "001" and IRQCycle = '0' and NMICycle = '0' then
 					PC <= PC + 1;
 				end if;
+				--
+				-- jump control logic
+				--
 				case Jump is
-				when "01" =>
-					PC <= PC + 1;
-				when "10" =>
-					PC <= unsigned(DI & DL);
-				when "11" =>
-					if PCAdder(8) = '1' then
-						if DL(7) = '0' then
-							PC(15 downto 8) <= PC(15 downto 8) + 1;
-						else
-							PC(15 downto 8) <= PC(15 downto 8) - 1;
-						end if;
-					end if;
-					PC(7 downto 0) <= PCAdder(7 downto 0);
-				when others =>
+				  when "01" =>
+					  PC <= PC + 1;
+
+				  when "10" =>
+					  PC <= unsigned(DI & DL);
+
+				  when "11" =>
+					  if PCAdder(8) = '1' then
+						  if DL(7) = '0' then
+							  PC(15 downto 8) <= PC(15 downto 8) + 1;
+						  else
+							  PC(15 downto 8) <= PC(15 downto 8) - 1;
+						  end if;
+					  end if;
+					  PC(7 downto 0) <= PCAdder(7 downto 0);
+
+				  when others => null;
 				end case;
 			end if;
+		  end if;
 		end if;
 	end process;
+
+	PCAdder <= resize(PC(7 downto 0),9) + resize(unsigned(DL(7) & DL),9) when PCAdd = '1'
+			   else "0" & PC(7 downto 0);
 
 	process (Clk)
 	begin
 		if Clk'event and Clk = '1' then
-			if Rdy = '1' then
+		  if (Enable = '1') then
+			if (really_rdy = '1') then
 				if MCycle = "000" then
 					if LDA = '1' then
 						ABC(7 downto 0) <= ALU_Q;
@@ -338,13 +370,26 @@ begin
 					when others =>
 					end case;
 				end if;
-				if IR = "00000000" and MCycle = "011" and RstCycle = '0' and NMICycle = '0' and IRQCycle = '0' then
-					P(Flag_B) <= '1';
+
+				--if IR = "00000000" and MCycle = "011" and RstCycle = '0' and NMICycle = '0' and IRQCycle = '0' then
+				--	P(Flag_B) <= '1';
+				--end if;
+				--if IR = "00000000" and MCycle = "100" and RstCycle = '0' and (NMICycle = '1' or IRQCycle = '1')  then
+				--	P(Flag_I) <= '1';
+				--	P(Flag_B) <= B_o;
+				--end if;
+
+        -- B=1 always on the 6502
+				P(Flag_B) <= '1';
+				if IR = "00000000" and RstCycle = '0' and (NMICycle = '1' or IRQCycle = '1') then
+          if MCycle = "011" then
+            -- B=0 in *copy* of P pushed onto the stack
+            P(Flag_B) <= '0';
+          elsif MCycle = "100" then
+            P(Flag_I) <= '1';
+          end if;
 				end if;
-				if IR = "00000000" and MCycle = "100" and RstCycle = '0' and (NMICycle = '1' or IRQCycle = '1')  then
-					P(Flag_I) <= '1';
-					P(Flag_B) <= B_o;
-				end if;
+
 				if SO_n_o = '1' and SO_n = '0' then
 					P(Flag_V) <= '1';
 				end if;
@@ -360,6 +405,7 @@ begin
 				IRQ_n_o <= IRQ_n;
 				NMI_n_o <= NMI_n;
 			end if;
+		  end if;
 		end if;
 	end process;
 
@@ -379,7 +425,8 @@ begin
 			BAH <= (others => '0');
 			DL <= (others => '0');
 		elsif Clk'event and Clk = '1' then
-			if Rdy = '1' then
+		  if (Enable = '1') then
+			if (Rdy = '1') then
 				BusA_r <= BusA;
 				BusB <= DI;
 
@@ -399,8 +446,13 @@ begin
 				when others =>
 				end case;
 
+				-- ehenciak : modified to use Y register as well (bugfix)
 				if ADAdd = '1' then
+				  if (AddY = '1') then
+					AD <= std_logic_vector(unsigned(AD) + unsigned(Y(7 downto 0)));
+				  else
 					AD <= std_logic_vector(unsigned(AD) + unsigned(X(7 downto 0)));
+				  end if;
 				end if;
 
 				if IR = "00000000" then
@@ -436,11 +488,11 @@ begin
 				end if;
 			end if;
 		end if;
+	  end if;
 	end process;
 
 	Break <= (BreakAtNA and not BAL(8)) or (PCAdd and not PCAdder(8));
 
-	PCAdder <= resize(PC(7 downto 0),9) + resize(unsigned(DL(7) & DL),9) when PCAdd = '1' else "0" & PC(7 downto 0);
 
 	with Set_BusA_To select
 		BusA <= DI when "000",
@@ -482,7 +534,8 @@ begin
 			NMICycle <= '0';
 			NMIAct <= '0';
 		elsif Clk'event and Clk = '1' then
-			if Rdy = '1' then
+		  if (Enable = '1') then
+			if (really_rdy = '1') then
 				if MCycle = LCycle or Break = '1' then
 					MCycle <= "000";
 					RstCycle <= '0';
@@ -504,6 +557,7 @@ begin
 					NMIAct <= '1';
 				end if;
 			end if;
+		  end if;
 		end if;
 	end process;
 

@@ -1,3 +1,12 @@
+-- ****
+-- T65(b) core. In an effort to merge and maintain bug fixes ....
+--
+--
+-- Ver 300 Bugfixes by ehenciak added
+-- MikeJ March 2005
+-- Latest version from www.fpgaarcade.com (original www.opencores.org)
+--
+-- ****
 --
 -- 6502 compatible microprocessor core
 --
@@ -38,13 +47,13 @@
 -- you have the latest version of this file.
 --
 -- The latest version of this file can be found at:
---	http://www.opencores.org/cvsweb.shtml/t65/
+--      http://www.opencores.org/cvsweb.shtml/t65/
 --
 -- Limitations :
 --
 -- File history :
 --
---	0245 : First version
+--      0245 : First version
 --
 
 library IEEE;
@@ -54,29 +63,29 @@ use work.T65_Pack.all;
 
 entity T65_ALU is
 	port(
-		Mode	: in std_logic_vector(1 downto 0);	-- "00" => 6502, "01" => 65C02, "10" => 65816
-		Op		: in std_logic_vector(3 downto 0);
-		BusA	: in std_logic_vector(7 downto 0);
-		BusB	: in std_logic_vector(7 downto 0);
-		P_In	: in std_logic_vector(7 downto 0);
-		P_Out	: out std_logic_vector(7 downto 0);
-		Q		: out std_logic_vector(7 downto 0)
+		Mode    : in std_logic_vector(1 downto 0);      -- "00" => 6502, "01" => 65C02, "10" => 65816
+		Op      : in std_logic_vector(3 downto 0);
+		BusA    : in std_logic_vector(7 downto 0);
+		BusB    : in std_logic_vector(7 downto 0);
+		P_In    : in std_logic_vector(7 downto 0);
+		P_Out   : out std_logic_vector(7 downto 0);
+		Q       : out std_logic_vector(7 downto 0)
 	);
 end T65_ALU;
 
 architecture rtl of T65_ALU is
 
 	-- AddSub variables (temporary signals)
-	signal	ADC_Z		: std_logic;
-	signal	ADC_C		: std_logic;
-	signal	ADC_V		: std_logic;
-	signal	ADC_N		: std_logic;
-	signal	ADC_Q		: std_logic_vector(7 downto 0);
-	signal	SBC_Z		: std_logic;
-	signal	SBC_C		: std_logic;
-	signal	SBC_V		: std_logic;
-	signal	SBC_N		: std_logic;
-	signal	SBC_Q		: std_logic_vector(7 downto 0);
+	signal      ADC_Z           : std_logic;
+	signal      ADC_C           : std_logic;
+	signal      ADC_V           : std_logic;
+	signal      ADC_N           : std_logic;
+	signal      ADC_Q           : std_logic_vector(7 downto 0);
+	signal      SBC_Z           : std_logic;
+	signal      SBC_C           : std_logic;
+	signal      SBC_V           : std_logic;
+	signal      SBC_N           : std_logic;
+	signal      SBC_Q           : std_logic_vector(7 downto 0);
 
 begin
 

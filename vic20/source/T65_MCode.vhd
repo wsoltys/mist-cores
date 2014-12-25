@@ -1,7 +1,18 @@
+-- ****
+-- T65(b) core. In an effort to merge and maintain bug fixes ....
+--
+--
+-- Ver 302 minor timing fixes
+-- Ver 301 Jump timing fixed
+-- Ver 300 Bugfixes by ehenciak added
+-- MikeJ March 2005
+-- Latest version from www.fpgaarcade.com (original www.opencores.org)
+--
+-- ****
 --
 -- 65xx compatible microprocessor core
 --
--- Version : 0246
+-- Version : 0246 + fix
 --
 -- Copyright (c) 2002 Daniel Wallner (jesus@opencores.org)
 --
@@ -38,7 +49,7 @@
 -- you have the latest version of this file.
 --
 -- The latest version of this file can be found at:
---	http://www.opencores.org/cvsweb.shtml/t65/
+--      http://www.opencores.org/cvsweb.shtml/t65/
 --
 -- Limitations :
 --
@@ -48,7 +59,7 @@
 --
 -- File history :
 --
---	0246 : First release
+--      0246 : First release
 --
 
 library IEEE;
@@ -58,34 +69,35 @@ use work.T65_Pack.all;
 
 entity T65_MCode is
 	port(
-		Mode			: in std_logic_vector(1 downto 0);	-- "00" => 6502, "01" => 65C02, "10" => 65816
-		IR				: in std_logic_vector(7 downto 0);
-		MCycle			: in std_logic_vector(2 downto 0);
-		P				: in std_logic_vector(7 downto 0);
-		LCycle			: out std_logic_vector(2 downto 0);
-		ALU_Op			: out std_logic_vector(3 downto 0);
-		Set_BusA_To		: out std_logic_vector(2 downto 0); -- DI,A,X,Y,S,P
-		Set_Addr_To		: out std_logic_vector(1 downto 0); -- PC Adder,S,AD,BA
-		Write_Data		: out std_logic_vector(2 downto 0); -- DL,A,X,Y,S,P,PCL,PCH
-		Jump			: out std_logic_vector(1 downto 0); -- PC,++,DIDL,Rel
-		BAAdd			: out std_logic_vector(1 downto 0);	-- None,DB Inc,BA Add,BA Adj
-		BreakAtNA		: out std_logic;
-		ADAdd			: out std_logic;
-		PCAdd			: out std_logic;
-		Inc_S			: out std_logic;
-		Dec_S			: out std_logic;
-		LDA				: out std_logic;
-		LDP				: out std_logic;
-		LDX				: out std_logic;
-		LDY				: out std_logic;
-		LDS				: out std_logic;
-		LDDI			: out std_logic;
-		LDALU			: out std_logic;
-		LDAD			: out std_logic;
-		LDBAL			: out std_logic;
-		LDBAH			: out std_logic;
-		SaveP			: out std_logic;
-		Write			: out std_logic
+		Mode                    : in  std_logic_vector(1 downto 0);      -- "00" => 6502, "01" => 65C02, "10" => 65816
+		IR                      : in  std_logic_vector(7 downto 0);
+		MCycle                  : in  std_logic_vector(2 downto 0);
+		P                       : in  std_logic_vector(7 downto 0);
+		LCycle                  : out std_logic_vector(2 downto 0);
+		ALU_Op                  : out std_logic_vector(3 downto 0);
+		Set_BusA_To             : out std_logic_vector(2 downto 0); -- DI,A,X,Y,S,P
+		Set_Addr_To             : out std_logic_vector(1 downto 0); -- PC Adder,S,AD,BA
+		Write_Data              : out std_logic_vector(2 downto 0); -- DL,A,X,Y,S,P,PCL,PCH
+		Jump                    : out std_logic_vector(1 downto 0); -- PC,++,DIDL,Rel
+		BAAdd                   : out std_logic_vector(1 downto 0);     -- None,DB Inc,BA Add,BA Adj
+		BreakAtNA               : out std_logic;
+		ADAdd                   : out std_logic;
+		AddY                    : out std_logic;
+		PCAdd                   : out std_logic;
+		Inc_S                   : out std_logic;
+		Dec_S                   : out std_logic;
+		LDA                     : out std_logic;
+		LDP                     : out std_logic;
+		LDX                     : out std_logic;
+		LDY                     : out std_logic;
+		LDS                     : out std_logic;
+		LDDI                    : out std_logic;
+		LDALU                   : out std_logic;
+		LDAD                    : out std_logic;
+		LDBAL                   : out std_logic;
+		LDBAH                   : out std_logic;
+		SaveP                   : out std_logic;
+		Write                   : out std_logic
 	);
 end T65_MCode;
 
@@ -97,42 +109,44 @@ begin
 
 	with IR(7 downto 5) select
 		Branch <= not P(Flag_N) when "000",
-			P(Flag_N) when "001",
-			not P(Flag_V) when "010",
-			P(Flag_V) when "011",
-			not P(Flag_C) when "100",
-			P(Flag_C) when "101",
-			not P(Flag_Z) when "110",
-			P(Flag_Z) when others;
+					  P(Flag_N) when "001",
+				  not P(Flag_V) when "010",
+					  P(Flag_V) when "011",
+				  not P(Flag_C) when "100",
+					  P(Flag_C) when "101",
+				  not P(Flag_Z) when "110",
+					  P(Flag_Z) when others;
 
 	process (IR, MCycle, P, Branch, Mode)
 	begin
-		LCycle <= "001";
+		LCycle      <= "001";
 		Set_BusA_To <= "001"; -- A
 		Set_Addr_To <= (others => '0');
-		Write_Data <= (others => '0');
-		Jump <= (others => '0');
-		BAAdd <= "00";
-		BreakAtNA <= '0';
-		ADAdd <= '0';
-		PCAdd <= '0';
-		Inc_S <= '0';
-		Dec_S <= '0';
-		LDA <= '0';
-		LDP <= '0';
-		LDX <= '0';
-		LDY <= '0';
-		LDS <= '0';
-		LDDI <= '0';
-		LDALU <= '0';
-		LDAD <= '0';
-		LDBAL <= '0';
-		LDBAH <= '0';
-		SaveP <= '0';
-		Write <= '0';
+		Write_Data  <= (others => '0');
+		Jump        <= (others => '0');
+		BAAdd       <= "00";
+		BreakAtNA   <= '0';
+		ADAdd       <= '0';
+		PCAdd       <= '0';
+		Inc_S       <= '0';
+		Dec_S       <= '0';
+		LDA         <= '0';
+		LDP         <= '0';
+		LDX         <= '0';
+		LDY         <= '0';
+		LDS         <= '0';
+		LDDI        <= '0';
+		LDALU       <= '0';
+		LDAD        <= '0';
+		LDBAL       <= '0';
+		LDBAH       <= '0';
+		SaveP       <= '0';
+		Write       <= '0';
+		AddY        <= '0';
 
 		case IR(7 downto 5) is
 		when "100" =>
+		--{{{
 			case IR(1 downto 0) is
 			when "00" =>
 				Set_BusA_To <= "011"; -- Y
@@ -143,7 +157,9 @@ begin
 			when others =>
 				Write_Data <= "001"; -- A
 			end case;
+		--}}}
 		when "101" =>
+		--{{{
 			case IR(1 downto 0) is
 			when "00" =>
 				if IR(4) /= '1' or IR(2) /= '0' then
@@ -155,7 +171,9 @@ begin
 				LDA <= '1';
 			end case;
 			Set_BusA_To <= "000"; -- DI
+		--}}}
 		when "110" =>
+		--{{{
 			case IR(1 downto 0) is
 			when "00" =>
 				if IR(4) = '0' then
@@ -165,7 +183,9 @@ begin
 			when others =>
 				Set_BusA_To <= "001"; -- A
 			end case;
+		--}}}
 		when "111" =>
+		--{{{
 			case IR(1 downto 0) is
 			when "00" =>
 				if IR(4) = '0' then
@@ -175,6 +195,7 @@ begin
 			when others =>
 				Set_BusA_To <= "001"; -- A
 			end case;
+		--}}}
 		when others =>
 		end case;
 
@@ -184,6 +205,7 @@ begin
 
 		case IR(4 downto 0) is
 		when "00000" | "01000" | "01010" | "11000" | "11010" =>
+		--{{{
 			-- Implied
 			case IR is
 			when "00000000" =>
@@ -417,20 +439,22 @@ begin
 				when others =>
 				end case;
 
---			when "00011000" | "00111000" | "01011000" | "01111000" | "10111000" | "11011000" | "11111000" | "11001000" | "11101000" =>
---				-- CLC, SEC, CLI, SEI, CLV, CLD, SED, INY, INX
---				case to_integer(unsigned(MCycle)) is
---				when 1 =>
---				when others =>
---				end case;
+		--                      when "00011000" | "00111000" | "01011000" | "01111000" | "10111000" | "11011000" | "11111000" | "11001000" | "11101000" =>
+		--                              -- CLC, SEC, CLI, SEI, CLV, CLD, SED, INY, INX
+		--                              case to_integer(unsigned(MCycle)) is
+		--                              when 1 =>
+		--                              when others =>
+		--                              end case;
 			when others =>
 				case to_integer(unsigned(MCycle)) is
 				when 0 =>
 				when others =>
 				end case;
 			end case;
+		--}}}
 
 		when "00001" | "00011" =>
+		--{{{
 			-- Zero Page Indexed Indirect (d,x)
 			LCycle <= "101";
 			if IR(7 downto 6) /= "10" then
@@ -446,7 +470,7 @@ begin
 				ADAdd <= '1';
 				Set_Addr_To <= "10"; -- AD
 			when 3 =>
-				BAAdd <= "01";	-- DB Inc
+				BAAdd <= "01";  -- DB Inc
 				LDBAL <= '1';
 				Set_Addr_To <= "10"; -- AD
 			when 4 =>
@@ -458,8 +482,10 @@ begin
 			when 5 =>
 			when others =>
 			end case;
+		--}}}
 
 		when "01001" | "01011" =>
+		--{{{
 			-- Immediate
 			LDA <= '1';
 			case to_integer(unsigned(MCycle)) is
@@ -469,7 +495,10 @@ begin
 			when others =>
 			end case;
 
+		--}}}
+
 		when "00010" | "10010" =>
+		--{{{
 			-- Immediate, KIL
 			LDX <= '1';
 			case to_integer(unsigned(MCycle)) is
@@ -483,8 +512,10 @@ begin
 				end if;
 			when others =>
 			end case;
+		--}}}
 
 		when "00100" =>
+		--{{{
 			-- Zero Page
 			LCycle <= "010";
 			case to_integer(unsigned(MCycle)) is
@@ -502,8 +533,10 @@ begin
 			when 2 =>
 			when others =>
 			end case;
+		--}}}
 
 		when "00101" | "00110" | "00111" =>
+		--{{{
 			-- Zero Page
 			if IR(7 downto 6) /= "10" and IR(1 downto 0) = "10" then
 				-- Read-Modify-Write
@@ -543,29 +576,33 @@ begin
 				when others =>
 				end case;
 			end if;
+		--}}}
 
 		when "01100" =>
+		--{{{
 			-- Absolute
 			if IR(7 downto 6) = "01" and IR(4 downto 0) = "01100" then
 				-- JMP
 				if IR(5) = '0' then
-					LCycle <= "011";
+					--LCycle <= "011";
+					LCycle <= "010";
 					case to_integer(unsigned(MCycle)) is
-					when 2 =>
+					when 1 =>
 						Jump <= "01";
 						LDDI <= '1';
-					when 3 =>
+					when 2 =>
 						Jump <= "10"; -- DIDL
 					when others =>
 					end case;
 				else
-					LCycle <= "101";
+					--LCycle <= "101";
+					LCycle <= "100"; -- mikej
 					case to_integer(unsigned(MCycle)) is
-					when 2 =>
+					when 1 =>
 						Jump <= "01";
 						LDDI <= '1';
 						LDBAL <= '1';
-					when 3 =>
+					when 2 =>
 						LDBAH <= '1';
 						if Mode /= "00" then
 							Jump <= "10"; -- DIDL
@@ -573,15 +610,15 @@ begin
 						if Mode = "00" then
 							Set_Addr_To <= "11"; -- BA
 						end if;
-					when 4 =>
+					when 3 =>
 						LDDI <= '1';
 						if Mode = "00" then
 							Set_Addr_To <= "11"; -- BA
-							BAAdd <= "01";	-- DB Inc
+							BAAdd <= "01";      -- DB Inc
 						else
 							Jump <= "01";
 						end if;
-					when 5 =>
+					when 4 =>
 						Jump <= "10"; -- DIDL
 					when others =>
 					end case;
@@ -607,8 +644,10 @@ begin
 				when others =>
 				end case;
 			end if;
+		--}}}
 
 		when "01101" | "01110" | "01111" =>
+		--{{{
 			-- Absolute
 			if IR(7 downto 6) /= "10" and IR(1 downto 0) = "10" then
 				-- Read-Modify-Write
@@ -631,7 +670,7 @@ begin
 					SaveP <= '1';
 					Set_Addr_To <= "11"; -- BA
 				when 5 =>
-					SaveP <= '1';
+					SaveP <= '0'; -- MIKEJ was 1
 				when others =>
 				end case;
 			else
@@ -655,26 +694,71 @@ begin
 				when others =>
 				end case;
 			end if;
+		--}}}
 
 		when "10000" =>
+		--{{{
 			-- Relative
-			if Branch = '1' then
-				LCycle <= "100";
+
+						-- This circuit dictates when the last
+						-- microcycle occurs for the branch depending on
+						-- whether or not the branch is taken and if a page
+						-- is crossed...
+			if (Branch = '1') then
+
+							 LCycle <= "011"; -- We're done @ T3 if branching...upper
+											  -- level logic will stop at T2 if no page cross
+											  -- (See the Break signal)
 			else
-				LCycle <= "010";
+
+							 LCycle <= "001";
+
 			end if;
+
+						-- This decodes the current microcycle and takes the
+						-- proper course of action...
 			case to_integer(unsigned(MCycle)) is
-			when 2 =>
-				Jump <= "01";
-				LDDI <= '1';
-			when 3 =>
-				Jump <= "11"; -- Rel
-				PCAdd <= '1';
-			when 4 =>
-			when others =>
+
+							-- On the T1 microcycle, increment the program counter
+							-- and instruct the upper level logic to fetch the offset
+							-- from the Din bus and store it in the data latches. This
+							-- will be the last microcycle if the branch isn't taken.
+				when 1 =>
+
+					Jump <= "01"; -- Increments the PC by one (PC will now be PC+2)
+											  -- from microcycle T0.
+
+				LDDI <= '1';  -- Tells logic in top level (T65.vhd) to route
+											  -- the Din bus to the memory data latch (DL)
+											  -- so that the branch offset is fetched.
+
+							-- In microcycle T2, tell the logic in the top level to
+							-- add the offset.  If the most significant byte of the
+							-- program counter (i.e. the current "page") does not need
+							-- updating, we are done here...the Break signal at the
+							-- T65.vhd level takes care of that...
+				when 2 =>
+
+				Jump    <= "11"; -- Tell the PC Jump logic to use relative mode.
+
+				PCAdd   <= '1';  -- This tells the PC adder to update itself with
+												 -- the current offset recently fetched from
+												 -- memory.
+
+							-- The following is microcycle T3 :
+							-- The program counter should be completely updated
+							-- on this cycle after the page cross is detected.
+							-- We don't need to do anything here...
+				when 3 =>
+
+
+				when others => null; -- Do nothing.
+
 			end case;
+		--}}}
 
 		when "10001" | "10011" =>
+		--{{{
 			-- Zero Page Indirect Indexed (d),y
 			LCycle <= "101";
 			if IR(7 downto 6) /= "10" then
@@ -688,15 +772,15 @@ begin
 				Set_Addr_To <= "10"; -- AD
 			when 2 =>
 				LDBAL <= '1';
-				BAAdd <= "01";	-- DB Inc
+				BAAdd <= "01";  -- DB Inc
 				Set_Addr_To <= "10"; -- AD
 			when 3 =>
 				Set_BusA_To <= "011"; -- Y
-				BAAdd <= "10";	-- BA Add
+				BAAdd <= "10";  -- BA Add
 				LDBAH <= '1';
 				Set_Addr_To <= "11"; -- BA
 			when 4 =>
-				BAAdd <= "11";	-- BA Adj
+				BAAdd <= "11";  -- BA Adj
 				if IR(7 downto 5) = "100" then
 					Write <= '1';
 				else
@@ -706,8 +790,10 @@ begin
 			when 5 =>
 			when others =>
 			end case;
+		--}}}
 
 		when "10100" | "10101" | "10110" | "10111" =>
+		--{{{
 			-- Zero Page, X
 			if IR(7 downto 6) /= "10" and IR(1 downto 0) = "10" then
 				-- Read-Modify-Write
@@ -745,16 +831,23 @@ begin
 					Set_Addr_To <= "10"; -- AD
 				when 2 =>
 					ADAdd <= '1';
+					-- Added this check for Y reg. use...
+					if (IR(3 downto 0) = "0110") then
+					  AddY <= '1';
+					end if;
+
 					if IR(7 downto 5) = "100" then
 						Write <= '1';
 					end if;
 					Set_Addr_To <= "10"; -- AD
-				when 3 =>
+				when 3 => null;
 				when others =>
 				end case;
 			end if;
+		--}}}
 
 		when "11001" | "11011" =>
+		--{{{
 			-- Absolute Y
 			LCycle <= "100";
 			if IR(7 downto 6) /= "10" then
@@ -768,11 +861,11 @@ begin
 			when 2 =>
 				Jump <= "01";
 				Set_BusA_To <= "011"; -- Y
-				BAAdd <= "10";	-- BA Add
+				BAAdd <= "10";  -- BA Add
 				LDBAH <= '1';
 				Set_Addr_To <= "11"; -- BA
 			when 3 =>
-				BAAdd <= "11";	-- BA adj
+				BAAdd <= "11";  -- BA adj
 				if IR(7 downto 5) = "100" then
 					Write <= '1';
 				else
@@ -782,9 +875,12 @@ begin
 			when 4 =>
 			when others =>
 			end case;
+		--}}}
 
 		when "11100" | "11101" | "11110" | "11111" =>
+		--{{{
 			-- Absolute X
+
 			if IR(7 downto 6) /= "10" and IR(1 downto 0) = "10" then
 				-- Read-Modify-Write
 				LCycle <= "110";
@@ -795,11 +891,11 @@ begin
 				when 2 =>
 					Jump <= "01";
 					Set_BusA_To <= "010"; -- X
-					BAAdd <= "10";	-- BA Add
+					BAAdd <= "10";      -- BA Add
 					LDBAH <= '1';
 					Set_Addr_To <= "11"; -- BA
 				when 3 =>
-					BAAdd <= "11";	-- BA adj
+					BAAdd <= "11";      -- BA adj
 					Set_Addr_To <= "11"; -- BA
 				when 4 =>
 					LDDI <= '1';
@@ -825,12 +921,18 @@ begin
 					LDBAL <= '1';
 				when 2 =>
 					Jump <= "01";
-					Set_BusA_To <= "010"; -- X
-					BAAdd <= "10";	-- BA Add
+					-- mikej
+					-- special case 0xBE which uses Y reg as index!!
+					if (IR = "10111110") then
+					  Set_BusA_To <= "011"; -- Y
+					else
+					  Set_BusA_To <= "010"; -- X
+					end if;
+					BAAdd <= "10";      -- BA Add
 					LDBAH <= '1';
 					Set_Addr_To <= "11"; -- BA
 				when 3 =>
-					BAAdd <= "11";	-- BA adj
+					BAAdd <= "11";      -- BA adj
 					if IR(7 downto 5) = "100" then
 						Write <= '1';
 					else
@@ -841,6 +943,7 @@ begin
 				when others =>
 				end case;
 			end if;
+		--}}}
 		when others =>
 		end case;
 	end process;
@@ -851,6 +954,7 @@ begin
 		-- ASL, ROL, LSR, ROR, BIT, LD, DEC, INC
 		case IR(1 downto 0) is
 		when "00" =>
+		--{{{
 			case IR(4 downto 2) is
 			when "000" | "001" | "011" =>
 				case IR(7 downto 5) is
@@ -896,10 +1000,14 @@ begin
 					ALU_Op <= "0100";
 				end case;
 			end case;
-		when "01" =>
+		--}}}
+		when "01" => -- OR
+		--{{{
 			ALU_Op(3) <= '0';
 			ALU_Op(2 downto 0) <= IR(7 downto 5);
+		--}}}
 		when "10" =>
+		--{{{
 			ALU_Op(3) <= '1';
 			ALU_Op(2 downto 0) <= IR(7 downto 5);
 			case IR(7 downto 5) is
@@ -922,7 +1030,9 @@ begin
 				end if;
 			when others =>
 			end case;
+		--}}}
 		when others =>
+		--{{{
 			case IR(7 downto 5) is
 			when "100" =>
 				ALU_Op <= "0100";
@@ -935,6 +1045,7 @@ begin
 					ALU_Op(2 downto 0) <= IR(7 downto 5);
 				end if;
 			end case;
+		--}}}
 		end case;
 	end process;
 
