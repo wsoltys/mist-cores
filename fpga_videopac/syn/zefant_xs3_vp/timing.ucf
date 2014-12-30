@@ -1,0 +1,53 @@
+################################################################################
+# Clock Constraints
+################################################################################
+
+#NET "osc1" TNM_NET = "osc1";
+#TIMESPEC "TS_osc1" = PERIOD "osc1" 15.15 ns;
+
+# NET "osc2" TNM_NET = "osc2";
+# TIMESPEC "TS_osc2" = PERIOD "osc2" 24 ns;
+
+NET "osc1"           LOC = "AB12" | IOSTANDARD = LVTTL ;
+# NET "osc2"         LOC = "AA11" | IOSTANDARD = LVTTL ;
+
+NET "aud_bit_clk" TNM_NET = "aud_bit_clk";
+TIMESPEC "ts_aud_bit_clk" = PERIOD "aud_bit_clk" 81 ns;
+
+# the definition of clk_43m_s and the related clock clk_21m5_s
+# requires that osc1 is not defined as a clock
+# otherwise, osc1 would be propagated through the DCM and this UCF could
+# not define the 43 MHz clock separatly
+NET clk_43m_s TNM_NET = clk_43m_s;
+TIMESPEC TS_clk_43m_s = PERIOD clk_43m_s 23307.692307692 pS HIGH 50%;
+#NET clk_21m5_s TNM_NET = clk_21m5_s;
+#TIMESPEC TS_clk_21m5_s = PERIOD clk_21m5_s TS_clk_43m_s * 2;
+NET "clk_21m5_s" TNM_NET = "Clk_21m5";
+TIMESPEC "TS_MCP_clk_21m5" = FROM "Clk_21m5" TO "Clk_21m5" "TS_clk_43m_s" * 2;
+
+
+################################################################################
+# Timing Constraints
+################################################################################
+
+
+INST "aud_sdata_in" TNM = "aud_inputs";
+INST "aud_sdata_out" TNM = "aud_outputs";
+INST "aud_cin" TNM = "aud_outputs";
+INST "aud_reset_n" TNM = "aud_outputs";
+INST "aud_sync" TNM = "aud_sync";
+
+# LM4550 generates data 15ns after rising clock edge, 500ps margin
+# ac97_ctrl samples with falling clock edge
+# 81ns * 30% - ( 15ns + 0.5ns )
+TIMEGRP "aud_inputs" OFFSET = IN 8.5 ns BEFORE "aud_bit_clk" LOW ;
+
+# ac97_ctrl generates outputs with rising clock edge
+# LM4550 expects data 15ns before falling clock edge, 500ps margin
+# 81ns * 30% - ( 15ns + 0.5ns )
+TIMEGRP "aud_outputs" OFFSET = OUT 8.5 ns AFTER "aud_bit_clk" HIGH ;
+
+# ac97_ctrl generates outputs with rising clock edge
+# LM4550 expects data ??ns before rising clock edge, 500ps margin
+# 81ns - ( 15ns + 0.5ns)
+TIMEGRP "aud_sync" OFFSET = OUT 65.5 ns AFTER "aud_bit_clk" HIGH ;

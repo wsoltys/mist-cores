@@ -1,0 +1,103 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html; charset=ISO-8859-1"
+ http-equiv="content-type">
+  <title>FPGA Videopac Multicard Controller</title>
+  <meta content="Arnim L&auml;uger" name="author">
+  <meta content="Multicard Controller for the FPGA Videopac project"
+ name="description">
+</head>
+<body>
+<h1 style="text-align: center;">Multicart Controller</h1>
+<br>
+<br>
+<br>
+The multicard controller (MC) is inserted between the VP cartridge port
+and the game ROM/EPROM/FLASH storage chip. It generates the address for
+the storage chip based on the VP address and the current mode settings.<br>
+In general, the MC operates in either of two modes:<br>
+<ul>
+  <li>menu mode</li>
+  <li>application mode</li>
+</ul>
+After reset, it starts in menu mode and traverses to application mode
+once under software control. Switching back to menu mode is only
+possible with reset or power cycle.<br>
+<h2>Menu Mode</h2>
+The first 2k of the external storage memory are available as plain
+program memory in menu mode. I.e. this range is mapped as a standard 2k
+game cartridge with exclusion of A10, BS0 and BS1. To allow for 256
+menu entries, there is a bank switching mechanism active that banks the
+last page of the first 1k<br>
+<div style="margin-left: 40px;">--&gt; programm address range from
+0700h to 07ffh<br>
+</div>
+<br>
+Whenever this range is accessed, a programmable bank offset is added to
+the external memory address:<br>
+<br>
+<code>External memory&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 8048 program
+memory<br>
++-------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
++-------+<br>
+| 0700h | ebank 0&nbsp;&nbsp;&nbsp;&nbsp; | 0700h |<br>
+| 07ffh | --------+-&gt; | 07ffh |<br>
++-------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;
++-------+<br>
+| 0800h | ebank 1 |<br>
+| 08ffh | --------+<br>
++-------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |<br>
+| 0900h | ebank 2 |<br>
+| 09ffh | --------+<br>
++-------+<br>
+<br>
+&nbsp; [...]</code><br>
+<br>
+In menu mode, there are several registers defined and active that serve
+the purpose of configuring the application mode by means of software.<br>
+<br>
+<span style="font-weight: bold;">CART_2K_OFFSET&nbsp; (@ 080h)</span><br>
+Specifies the offset for external storage memory access in application
+mode in units or 2k blocks. All 8 bits are used, thus the max offset is<br>
+<div style="margin-left: 40px;">255 * 2k = 510k<br>
+</div>
+<br>
+<span style="font-weight: bold;">CART_SIZE_MASK&nbsp; (@ 081h)</span><br>
+Bit 7: 0 = skip A10, 1 = use A10<br>
+<div style="margin-left: 40px;">Selects the usage of A10 in application
+mode.<br>
+Setting this to 0 skips A10, resulting in a memory layout compatible
+with standard 2k, 4k and 8k cartridge.<br>
+Setting this to 1 uses A10 for cartridges with 12k or 16k size.<br>
+</div>
+Bit 1..0: Size mask<br>
+<div style="margin-left: 40px;">Selects the size mask in application
+mode.<br>
+These bits mask the BS0 (bit 0) and BS1 (bit 1) to generate the proper
+addresses for 2k, 4k and &gt;= 8k cartridges.<br>
+<code>&nbsp; Cart&nbsp; Bits<br>
+&nbsp; Size&nbsp;&nbsp; 1 0<br>
+&nbsp;------------<br>
+&nbsp;&nbsp;&nbsp; 2k&nbsp;&nbsp; 0 0<br>
+&nbsp;&nbsp;&nbsp; 4k&nbsp;&nbsp; 0 1<br>
+&nbsp; &gt;=8k&nbsp;&nbsp; 1 1<br>
+</code></div>
+<br>
+<span style="font-weight: bold;">CART_EBANK (@ 082h)</span><br>
+Specifies the offset for program memory range 0700h to 07ffh in menu
+mode in units of a page. Only the lower 4 bits are used, thus the max
+offset is<br>
+<div style="margin-left: 40px;">15 * 256 = 3840<br>
+</div>
+<br>
+<span style="font-weight: bold;">CART_MODE (@0ffh)</span><br>
+When written with 0a5h, the mode is switched from menu to application.
+A reset on mc_res_n_o output is generated and the settings in
+CART_2K_OFFSET and CART_SIZE_MASK become effective.<br>
+<h2>Application Mode</h2>
+All registers of menu mode are disabled, thus there's no means for the
+game software to change the settings done during menu mode.<br>
+<br>
+</body>
+</html>

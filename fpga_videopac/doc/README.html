@@ -1,0 +1,488 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html; charset=ISO-8859-1"
+ http-equiv="content-type">
+  <title>The FPGA Videopac Project</title>
+  <meta content="Arnim L&auml;uger &lt;arnim.laeuger at gmx.net&gt;" name="author">
+  <meta content="Readme for the FPGA Videopac Project"
+ name="description">
+  <meta content="videopac,odyssey,FPGA,8048,8244,8245,console"
+ name="Keywords">
+</head>
+<body>
+<h1 style="text-align: center;">The FPGA Videopac Project</h1>
+<div style="text-align: center;"><br>
+06-Apr-2007<br>
+$Name: videopac_rel_1_0 $<br>
+</div>
+<br>
+<br>
+<div style="text-align: left;">
+<div style="text-align: center;">
+<div style="text-align: left;"><br>
+<span style="font-style: italic;"></span></div>
+</div>
+<h2>Contents</h2>
+This project recreates most of the circuits found on the
+original PCBs of the Philips VIDEOPAC G7000 and Magnavox Odyssey<sup>2</sup>
+consoles, including CPU, RAM, video and sound
+generation.<br>
+Following is a detailed list of internal components:<br>
+<ul>
+  <li><a href="http://en.wikipedia.org/wiki/8048">i8048</a> CPU - T48
+core from <a
+ href="http://www.opencores.org/projects.cgi/web/t48/overview">opencores.org</a><br>
+Copyright (c) 2004-2007 Arnim L&auml;uger (arniml at opencores.org)<br>
+Including 1 kByte BIOS ROM<br>
+  </li>
+  <li>i8244 / i8245 Video Display Controller<br>
+Including 256 Byte characterset ROM</li>
+  <li>256 Byte RAM<br>
+  </li>
+  <li>General purpose I/O for controller</li>
+  <li>Clock generator - operates with main 21.5&nbsp;MHz (NTSC) or
+35.5&nbsp;MHz
+(PAL) clock (external
+or PLL)</li>
+  <li>Reset generator - requires power-on reset capability of FPGA<br>
+  </li>
+</ul>
+External components are:<br>
+<ul>
+  <li>Cartridge ROM - up to 16 kByte</li>
+  <li>Optional software driven <a href="mc_ctrl.html">multicart
+controller</a><br>
+  </li>
+  <li>PS/2 keyboard interface logic by John Clayton and John Kent<br>
+  </li>
+  <li>RGB DACs</li>
+  <li>Audio DAC</li>
+</ul>
+<h2>Console Interfaces<br>
+</h2>
+The external components are attached via several interfaces to the
+Videopac console:<br>
+<ul>
+  <li>Clock Input: Base clock for NTSC or PAL version.<br>
+  </li>
+  <li>Reset Input: Active low external reset input.<br>
+  </li>
+  <li>Controller Interface:
+    <ul>
+      <li>Player 1 - 8-way joystick, one action button<br>
+      </li>
+      <li>Player 2 - 8-way joystick, one action button<br>
+      </li>
+    </ul>
+  </li>
+  <li>Keyboard Interface: Native matrix keyboard, augmented by PS/2
+keyboard controller<br>
+  </li>
+  <li>RGB Video Interface:
+    <ul>
+      <li>1 bit channels for red, green, blue and luminance video
+information</li>
+      <li>Composite synchronization output</li>
+      <li>VGA output with separate horizontal and vertical
+synchronization outputs<br>
+      </li>
+    </ul>
+  </li>
+  <li>Audio Interface</li>
+  <ul>
+    <li>4 bit digital audio sound output</li>
+    <li>1 bit Delta-Sigma DAC sound output</li>
+    <li>AC97 audio stream output<br>
+    </li>
+  </ul>
+  <li>Cartridge ROM Interface: Address and data buses for up to 16
+kByte of cartridge ROM, optionally augmented by a <a
+ href="mc_ctrl.html">multicart controller</a><br>
+  </li>
+</ul>
+<br>
+<h3>Controller and Keyboard Interface</h3>
+Both joystick interfaces are straigth-forward 5-wire ports with
+low-active signals for up, down, left and right direction plus one
+action button.<br>
+The primary keyboard interface of the Videopac console is a 14 bit wide
+bus connecting to a key matrix. This matrix can be replaced by glue
+logic that receives keystrokes from a PS/2 keyboard and maps them to
+shorts in this matrix. See the zefant_xs3_vp toplevel for
+implementation details.<br>
+<h3>BIOS ROM</h3>
+The BIOS ROM is included from <code>roms/hex/rom_t48.vhd</code>. This
+file contains an RTL description of the BIOS ROM and is generated
+automatically by means of the Makefile located in the same directory -
+simply type '<code>make rom_t48.vhd</code>' at the command prompt. To
+successfully convert the binary image from <code>roms/bios/o2rom.bin</code>,
+Daniel Wallner's hex2rom utility is required (source code provided in <code>sw/hex2rom</code>).<br>
+<h3>Cartridge Memory<br>
+</h3>
+In general, the Videopac cartridges can use a 12 bit wide address bus,
+supported by 2 bank switching signals, ending up with 16&nbsp;kByte
+address space. How the address and bank switch signals are used was up
+to the cartridge manufacturer, but a quasi-standard can be assumed for
+most of the carts: A10 is not used, A11 connects to a10 of the ROM, and
+BS0 + BS1 connect to a11 + a12 of the ROM.<br>
+This scheme is hardwired in
+the two system toplevels for <a href="http://www.simple-solutions.de/">Simple
+Solutions</a>
+<a href="http://www.simple-solutions.de/en/products/index.php">Zefant
+XS3</a> and <a href="http://www.jopdesign.com/">JOP.design</a> <a
+ href="http://www.jopdesign.com/cyclone/index.jsp">Cyclone FPGA Board</a>.
+It supports up to 8&nbsp;kByte cartridges. ROM images of smaller carts
+(2&nbsp;kByte and 4&nbsp;kByte) can be used with this scheme by filling
+the 8&nbsp;kByte space 4 or 2 times with the ROM image.<br>
+The Jop.design toplevel included in this release integrates CPU BIOS
+and RAM plus
+video RAM inside the FPGA as well as the cartridge ROM (although a
+commented part shows how to easily move the cartridge memory to
+external RAMA). While with the Zefant XS3 toplevel, the cartridge ROM
+is located on the
+board. This design uses external RAM chips for storing cartridge
+information for the sake of flexibility. Here, SRAM1 of the optional
+SRAM-SODIMM holds the cartridge data.<br>
+As an optional extension, a <a href="mc_ctrl.html">multicart controller</a>
+is availabe which allows software-driven selection of multiple
+cartridge images. Refer to the Zefant XS3 toplevel for integration
+details.<br>
+<h3>RGB Video<br>
+</h3>
+In the simplest approach, the digital information for the three RGB
+channels have to be converted
+to analog voltages by three DAC circuits, each of them consists of
+simple resitors. Such DACs were built for the JOP.design board. See the
+following figure for a proposal on how to build them.<br>
+<br>
+<div style="text-align: center;"><img title="RGB DACs"
+ alt="RGB DACs implemented with resistors" src="rgb_dac.png"
+ style="width: 304px; height: 305px;">
+<br>
+<div style="text-align: left;"><br>
+The better approach is to use a professional DAC circuit like found on
+the <a href="http://www.zefant.de/">Zefant Mini-ITX board</a>. This
+one offers a VGA interface to a
+standard PC monitor. Three video DAC channels can be fed with 8-bit
+wide color information each. The drawback is that the simple RGB video
+information has to be brushed up to suit the VGA standard. A scan
+doubler is used here to double the pixel rate towards the VGA monitor
+although the VDC inside the console core still outputs RGB video
+signals. This scan doubler operates in the LRGB domain (4&nbsp;bit
+color
+information) and its output is converted to 8&nbsp;bit RGB values which
+are
+derived from o2em emulator distribution.<br>
+<br>
+Either approach makes use of the <code>i8244_col_pack.vhd</code>
+package that
+includes an array for mapping the LRGB signals of the i8244 core to 3x
+8&nbsp;bit RGB values suitable for such video DACs. Depending on how
+many bits are used for the DAC, the lower positions should be skipped.<br>
+</div>
+</div>
+<div style="text-align: left;"><br>
+<h3>Digital Audio<br>
+</h3>
+The digital audio information is supplied via an 4&nbsp;bit wide
+unsigned
+vector ranging from 0 to 15. It
+depends on the DAC implementation on your board whether this value can
+be used as it is or some post processing is needed. On the JOP.design
+board, I
+use a delta-sigma DAC implementation. This one requires a minimum
+number of external components but adds some logic in the FPGA. For a
+detailed discussion of delta-sigma DACs refer to Xilinx' application
+note <a href="http://direct.xilinx.com/bvdocs/appnotes/xapp154.pdf">XAPP154</a>.
+The external circuit is shown in the next figure.<br>
+<br>
+<div style="text-align: center;"><img
+ alt="Low-Pass Filter for Delta-Sigma Audio DAC Implementation"
+ title="Low-Pass Filter" src="audio_sigma_delta_dac.png"
+ style="width: 292px; height: 80px;"><br>
+<div style="text-align: left;"><br>
+</div>
+</div>
+</div>
+Please keep in mind that the output of these circuits can reach the
+full VCCIO level of the FPGA device. Make sure to match the level to
+the requirements of the following input.<br>
+<br>
+Again, the <a href="http://www.zefant.de/">Zefant Mini-ITX board</a>
+provides a professional solution here
+as well. It contains an AC97 compatible codec chip that handles all the
+audio stuff. You "simply" have to supply an AC97 audio
+stream. Fortunately, the <a
+ href="http://www.opencores.org/projects.cgi/web/ac97/overview">AC97
+controller core</a> from <a href="http://opencores.org/">opencores.org</a>
+has proven to be versatile enough to allow ad-hoc generation of such a
+stream.
+All required design instances are included in the project release.<br>
+<br>
+<h3>Clock Generation</h3>
+All clocks in the system are derived from a single clock source that
+runs at a dedicated frequency depending on whether NTSC or PAL video
+standard is selected. The CPU and VDC clocks are derived from this
+single source by clock enable signals that qualify rising edges of the
+main clock input. The follwing table shows the frequency and clock
+enable settings for NTSC and PAL:<br>
+<br>
+<table
+ style="margin-left: auto; margin-right: auto; text-align: left; width: 458px; height: 122px;"
+ border="1" cellpadding="2" cellspacing="0">
+  <tbody>
+    <tr>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;"><span style="font-weight: bold;">NTSC</span><br>
+      </td>
+      <td style="vertical-align: top;"><span style="font-weight: bold;">PAL</span><br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">Main clock<br>
+      </td>
+      <td style="vertical-align: top;">21.477 MHz<br>
+      </td>
+      <td style="vertical-align: top;">35.469 MHz<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">VDC divider<br>
+      </td>
+      <td style="vertical-align: top;">3<br>
+      </td>
+      <td style="vertical-align: top;">5<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">VDC clock<br>
+      </td>
+      <td style="vertical-align: top;">7.159 MHz<br>
+      </td>
+      <td style="vertical-align: top;">7.094 MHz<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">CPU divider<br>
+      </td>
+      <td style="vertical-align: top;">4<br>
+      </td>
+      <td style="vertical-align: top;">6<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">CPU clock<br>
+      </td>
+      <td style="vertical-align: top;">5.369 MHz<br>
+      </td>
+      <td style="vertical-align: top;">5.911 MHz<br>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<br>
+Note that the frequencies of the main clock and the VDC clock are
+different from the frequencies found on the original console PCBs. The
+main clock frequency values have been selected to be an integer
+multiple of the CPU and VDC frequencies for design simplicity. While
+the VDC clocks are twice as high as the original frequencies. This is
+because the i8244 / i8245 operate on the rising and falling clock edge
+which is has been turned into rising edge only design with doubled
+clock when recreating the VDC chip for FPGA.<br>
+<br>
+<h3>Power-on Reset Module</h3>
+The power-on reset module in <code>vp_por.vhd</code>
+uses device specific features to generate a reset signal upon power-on
+(or start of operation after device configuration). Consult the
+documentation of the FPGA device family on how to implement such
+functionality.<br>
+<br>
+<h2>Resource Usage</h2>
+Following is the flow summary for an Altera Cyclone device:<br>
+<br>
+<code>+------------------------------------------------------------------+<br>
+; Flow
+Summary&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;<br>
++-------------------------+----------------------------------------+<br>
+; Flow
+Status&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+; Successful - Thu Apr 05 23:40:29 2007&nbsp; ;<br>
+; Quartus II Version&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ; 7.0 Build 33
+02/05/2007 SJ Web Edition ;<br>
+; Revision
+Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ;
+jop_vp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;<br>
+; Top-level Entity Name&nbsp;&nbsp; ;
+jop_vp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;<br>
+;
+Family&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;
+Cyclone&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;<br>
+;
+Device&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;
+EP1C12Q240C8&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;<br>
+; Timing
+Models&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ;
+Final&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;<br>
+; Met timing requirements ;
+N/A&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;<br>
+; Total logic elements&nbsp;&nbsp;&nbsp; ; 3,503 / 12,060 ( 29 %
+)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;<br>
+; Total
+pins&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+; 139 / 173 ( 80 %
+)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;<br>
+; Total virtual pins&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ;
+0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;<br>
+; Total memory bits&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ; 79,360 /
+239,616 ( 33 %
+)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;<br>
+; Total
+PLLs&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+; 1 / 2 ( 50 %
+)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;<br>
++-------------------------+----------------------------------------+<br>
+</code><br>
+Fitting results for a Spartan3 1000 (XC3S1000FG456):<br>
+<font size="-1">Please note that this design contains additional logic
+for the AC97 controller and additional RAM for the scan doubler.</font><br>
+<br>
+<code>Logic Utilization:<br>
+&nbsp; Total Number Slice Registers:&nbsp;&nbsp;&nbsp;&nbsp; 2,015 out
+of&nbsp; 15,360&nbsp;&nbsp; 13%<br>
+&nbsp;&nbsp;&nbsp; Number used as Flip
+Flops:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+2,014<br>
+&nbsp;&nbsp;&nbsp; Number used as
+Latches:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+1<br>
+&nbsp; Number of 4 input
+LUTs:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 3,930
+out of&nbsp; 15,360&nbsp;&nbsp; 25%<br>
+Logic Distribution:<br>
+&nbsp; Number of occupied
+Slices:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+2,964 out of&nbsp;&nbsp; 7,680&nbsp;&nbsp; 38%<br>
+&nbsp;&nbsp;&nbsp; Number of Slices containing only related
+logic:&nbsp;&nbsp; 2,964 out of&nbsp;&nbsp; 2,964&nbsp; 100%<br>
+&nbsp;&nbsp;&nbsp; Number of Slices containing unrelated
+logic:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0 out
+of&nbsp;&nbsp; 2,964&nbsp;&nbsp;&nbsp; 0%<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; *See NOTES below for an explanation of
+the effects of unrelated logic<br>
+Total Number of 4 input
+LUTs:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4,079 out
+of&nbsp; 15,360&nbsp;&nbsp; 26%<br>
+&nbsp; Number used as
+logic:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+3,930<br>
+&nbsp; Number used as a
+route-thru:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 92<br>
+&nbsp; Number used for Dual Port
+RAMs:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 52<br>
+&nbsp;&nbsp;&nbsp; (Two LUTs used per Dual Port RAM)<br>
+&nbsp; Number used as Shift
+registers:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 5<br>
+&nbsp; Number of bonded
+IOBs:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+255 out of&nbsp;&nbsp;&nbsp;&nbsp; 333&nbsp;&nbsp; 76%<br>
+&nbsp;&nbsp;&nbsp; IOB Flip
+Flops:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+48<br>
+&nbsp; Number of Block
+RAMs:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+6 out of&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 24&nbsp;&nbsp; 25%<br>
+&nbsp; Number of
+GCLKs:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+3 out of&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 8&nbsp;&nbsp; 37%<br>
+&nbsp; Number of
+DCMs:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+1 out of&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4&nbsp;&nbsp; 25%<br>
+<br>
+Total equivalent gate count for design:&nbsp; 446,903<br>
+<br>
+</code>
+<h2>Legal Issues</h2>
+Redistribution and use in source and synthesized forms, with or without
+modification, are permitted provided that the following conditions are
+met:<br>
+<br>
+Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimer.<br>
+<br>
+Redistributions in synthesized form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.<br>
+<br>
+Neither the name of the author nor the names of other contributors may
+be used to endorse or promote products derived from this software
+without specific prior written permission.<br>
+<br>
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.<br>
+<br>
+See also the file COPYING.<br>
+<br>
+<span style="font-weight: bold;">Please note:</span><br>
+The copyright of the ROM images is owned by third parties, thus the
+above does not apply to them. You have to be entitled separately to use
+the ROM images together with the FPGA Videopac design. Owning an
+original Videopac console and the cartridges might be ok, but I am
+not liable for any
+copyright
+violations that arise from your use of the FPGA Videopac design.<br>
+I will ignore any requests for a copy of the ROM images.<br>
+<h2>References</h2>
+Videopac G7000 / Odyssey<sup>2</sup>:<br>
+<ul>
+  <li>Rene's VIDEOPAC tech info<br>
+    <a href="http://www.geocities.com/rene_g7400/vp_info.html">http://www.geocities.com/rene_g7400/vp_info.html</a><br>
+  </li>
+  <li>S&ouml;ren's G7000 / Odyssey<sup>2</sup> BIOS document<br>
+    <a href="http://soeren.informationstheater.de/g7000/toc.html">http://soeren.informationstheater.de/g7000/toc.html</a><br>
+  </li>
+  <li>Dan Boris' Odyssey 2 Tech Page<br>
+    <a href="http://www.atarihq.com/danb/o2.shtml">http://www.atarihq.com/danb/o2.shtml</a><a
+ href="http://www.atarihq.com/danb/files/colecovision.pdf"><br>
+    </a></li>
+</ul>
+i8048 &amp; i8244:<br>
+<ul>
+  <li>Grokking the MCS-48 System<br>
+    <a href="http://home.mnet-online.de/al/mcs-48/mcs-48.pdf">http://home.mnet-online.de/al/mcs-48/mcs-48.pdf</a><a
+ href="http://www.bitsavers.org/pdf/ti/_dataBooks/TMS9918.pdf"><br>
+    </a></li>
+</ul>
+<br>
+<br>
+-- <br>
+Arnim L&auml;uger<br>
+&lt;arnim.laeuger at gmx.net&gt;<br>
+<br>
+</div>
+</body>
+</html>
