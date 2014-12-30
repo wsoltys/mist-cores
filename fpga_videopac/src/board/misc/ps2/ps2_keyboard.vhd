@@ -127,8 +127,8 @@ entity ps2_keyboard_interface is
   port(
   clk             : in    std_logic;
   reset           : in    std_logic;
-  ps2_clk         : inout std_logic;
-  ps2_data        : inout std_logic;
+  ps2_clk         : in    std_logic;
+  ps2_data        : in    std_logic;
   rx_extended     : out   std_logic;
   rx_released     : out   std_logic;
   rx_shift_key_on : out   std_logic;
@@ -289,19 +289,19 @@ my_key_map : key_slice
 -- assign ps2_clk = ps2_clk_hi_z?1'bZ:1'b0;
 -- assign ps2_data = ps2_data_hi_z?1'bZ:1'b0;
 --
-ps2_direction : process( ps2_clk_hi_z, ps2_data_hi_z )
-begin
-  if( ps2_clk_hi_z = '1' ) then
-     ps2_clk <= 'Z';
-  else
-     ps2_clk <= '0';
-  end if;
-  if( ps2_data_hi_z = '1' ) then
-     ps2_data <= 'Z';
-  else
-     ps2_data <= '0';
-  end if;
-end process;
+--ps2_direction : process( ps2_clk_hi_z, ps2_data_hi_z )
+--begin
+--  if( ps2_clk_hi_z = '1' ) then
+--     ps2_clk <= 'Z';
+--  else
+--     ps2_clk <= '0';
+--  end if;
+--  if( ps2_data_hi_z = '1' ) then
+--     ps2_data <= 'Z';
+--  else
+--     ps2_data <= '0';
+--  end if;
+--end process;
    
 -- Input "synchronizing" logic -- synchronizes the inputs to the state
 -- machine clock, thus avoiding errors related to
