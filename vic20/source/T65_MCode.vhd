@@ -671,7 +671,7 @@ begin
 					Set_Addr_To <= "11"; -- BA
 				when 5 =>
 					--SaveP <= '0'; -- MIKEJ was 1
-					SaveP <= '1'; -- WSOLTYS set it back to 0 which makes digit 2 work again on output.
+					SaveP <= '1'; -- WSOLTYS set it back to 1 which makes digit 2 work again on output.
 				when others =>
 				end case;
 			else
