@@ -110,7 +110,6 @@ architecture rtl of vic20_mist is
   signal io_addr: std_logic_vector(25 downto 0);
   signal io_we: std_logic := '0';
   signal vic_joy: std_logic_vector(4 downto 0);
-  signal io_is_prg : std_logic := '1';
   
   signal vic_audio : std_logic_vector( 3 downto 0);
   signal audio_pwm : std_logic;
@@ -182,9 +181,6 @@ begin
 
   SDRAM_nCAS <= '1'; -- disable sdram
   reset <= status(0) or buttons(1) or forceReset or not pll_locked;
-  
---  io_is_prg <= status(1);
-  
   
   vic20_inst : entity work.VIC20
     port map (I_PS2_CLK     => ps2Clk,
