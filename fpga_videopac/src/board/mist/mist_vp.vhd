@@ -125,7 +125,7 @@ architecture struct of mist_vp is
     );
   end component;
   
-  constant CONF_STR : string := "VIDEOPAC;BIN;";
+  constant CONF_STR : string := "VIDEOPAC;BIN;O1,Enable Scanlines,off,on;";
 
   function to_slv(s: string) return std_logic_vector is 
     constant ss: string(1 to s'length) := s; 
@@ -635,7 +635,7 @@ begin
       blue_in => b_s(7 downto 2),
       hs_in => not hsync_n_s,
       vs_in => not vsync_n_s,
-      scanline_ena_h => status(3),
+      scanline_ena_h => status(1),
       red_out => VGA_R,
       green_out => VGA_G,
       blue_out => VGA_B,
