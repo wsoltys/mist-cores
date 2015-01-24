@@ -468,14 +468,16 @@ begin
           r_s <= std_logic_vector(to_unsigned(full_rgb_table_c(col_v)(r_c), 8));
           g_s <= std_logic_vector(to_unsigned(full_rgb_table_c(col_v)(g_c), 8));
           b_s <= std_logic_vector(to_unsigned(full_rgb_table_c(col_v)(b_c), 8));
+          hsync_n_s <= not vga_hsync_s;
+          vsync_n_s <= not vga_vsync_s;
         else
           col_v := to_integer(unsigned'(rgb_l_s & rgb_r_s & rgb_g_s & rgb_b_s));
           r_s <= std_logic_vector(to_unsigned(full_rgb_table_c(col_v)(r_c), 8));
           g_s <= std_logic_vector(to_unsigned(full_rgb_table_c(col_v)(g_c), 8));
           b_s <= std_logic_vector(to_unsigned(full_rgb_table_c(col_v)(b_c), 8));
+          hsync_n_s <= not rgb_hsync_s;
+          vsync_n_s <= not rgb_vsync_s;
         end if;
-        hsync_n_s <= not vga_hsync_s;
-        vsync_n_s <= not vga_vsync_s;
       end if;
     end if;
   end process vga_rgb;
