@@ -125,7 +125,7 @@ architecture struct of mist_vp is
     );
   end component;
   
-  constant CONF_STR : string := "VIDEOPAC;BIN;O1,Enable Scanlines,off,on;";
+  constant CONF_STR : string := "VIDEOPAC;BIN;O1,Enable Scanlines,off,on;O2,Enable Doublescan,on,off;O3,Swap Joysticks,off,on;T4,Reset;";
 
   function to_slv(s: string) return std_logic_vector is 
     constant ss: string(1 to s'length) := s; 
@@ -250,12 +250,12 @@ architecture struct of mist_vp is
   -- user_io
   signal switches   : std_logic_vector(1 downto 0);
   signal buttons    : std_logic_vector(1 downto 0);
-  signal joy        : std_logic_vector(5 downto 0);
+  signal joya       : std_logic_vector(5 downto 0);
+  signal joyb       : std_logic_vector(5 downto 0);
   signal joy0       : std_logic_vector(5 downto 0);
   signal joy1       : std_logic_vector(5 downto 0);
   signal joy_an0    : std_logic_vector(15 downto 0);
   signal joy_an1    : std_logic_vector(15 downto 0);
-  signal joy_an     : std_logic_vector(15 downto 0);
   signal status     : std_logic_vector(7 downto 0);
   signal ps2Clk     : std_logic;
   signal ps2Data    : std_logic;
@@ -310,7 +310,7 @@ begin
     );
 
 
-  reset_n_s <= not buttons(1) and pll_locked_s and por_n_s and forceReset;
+  reset_n_s <= not buttons(1) and pll_locked_s and por_n_s and not forceReset and not status(0) and not status(4);
 
 
   -----------------------------------------------------------------------------
@@ -451,7 +451,7 @@ begin
       RESET_N_I  => reset_n_s
     );
   --
-  --vid_clk   <= clk_vga_en_q;
+ 
   vga_rgb: process (clk_43m_s, reset_n_s)
     variable col_v : natural range 0 to 15;
   begin
@@ -461,17 +461,21 @@ begin
       b_s <= (others => '0');
       hsync_n_s <= '1';
       vsync_n_s <= '1';
-      --vid_blank <= '1';
     elsif rising_edge(clk_43m_s) then
       if clk_vga_en_q = '1' then
-        col_v := to_integer(unsigned'(vga_l_s & vga_r_s & vga_g_s & vga_b_s));
-        r_s <= std_logic_vector(to_unsigned(full_rgb_table_c(col_v)(r_c), 8));
-        g_s <= std_logic_vector(to_unsigned(full_rgb_table_c(col_v)(g_c), 8));
-        b_s <= std_logic_vector(to_unsigned(full_rgb_table_c(col_v)(b_c), 8));
-
+        if status(2) = '0' then
+          col_v := to_integer(unsigned'(vga_l_s & vga_r_s & vga_g_s & vga_b_s));
+          r_s <= std_logic_vector(to_unsigned(full_rgb_table_c(col_v)(r_c), 8));
+          g_s <= std_logic_vector(to_unsigned(full_rgb_table_c(col_v)(g_c), 8));
+          b_s <= std_logic_vector(to_unsigned(full_rgb_table_c(col_v)(b_c), 8));
+        else
+          col_v := to_integer(unsigned'(rgb_l_s & rgb_r_s & rgb_g_s & rgb_b_s));
+          r_s <= std_logic_vector(to_unsigned(full_rgb_table_c(col_v)(r_c), 8));
+          g_s <= std_logic_vector(to_unsigned(full_rgb_table_c(col_v)(g_c), 8));
+          b_s <= std_logic_vector(to_unsigned(full_rgb_table_c(col_v)(b_c), 8));
+        end if;
         hsync_n_s <= not vga_hsync_s;
         vsync_n_s <= not vga_vsync_s;
-        --vid_blank <= not blank_s;
       end if;
     end if;
   end process vga_rgb;
@@ -480,20 +484,6 @@ begin
   -----------------------------------------------------------------------------
   -- The cartridge ROM
   -----------------------------------------------------------------------------
---  rom_a_s <= ( 0 => cart_a_s( 0),
---               1 => cart_a_s( 1),
---               2 => cart_a_s( 2),
---               3 => cart_a_s( 3),
---               4 => cart_a_s( 4),
---               5 => cart_a_s( 5),
---               6 => cart_a_s( 6),
---               7 => cart_a_s( 7),
---               8 => cart_a_s( 8),
---               9 => cart_a_s( 9),
---              10 => cart_a_s(11),
---              11 => cart_bs0_s,
---              12 => cart_bs1_s);
-
 
   process(downl, cart_psen_n_s)
   begin
@@ -502,10 +492,10 @@ begin
         cart_d_s <= rom_d_s;
       end if;
       
-      forceReset <= '1';
+      forceReset <= '0';
     else
       cart_d_s <= (others => '1');
-      forceReset <= '0';
+      forceReset <= '1';
     end if;
   end process;
   
@@ -612,8 +602,8 @@ begin
       SPI_MOSI => SPI_DI,       
       conf_str => to_slv(CONF_STR),
       status => status,   
-      joystick_0 => joy0,   
-      joystick_1 => joy1,
+      joystick_0 => joya,   
+      joystick_1 => joyb,
       joystick_analog_0 => joy_an0,
       joystick_analog_1 => joy_an1,
       SWITCHES => switches,   
@@ -623,6 +613,9 @@ begin
       ps2_kbd_clk => ps2Clk,
       ps2_kbd_data => ps2Data
     );
+    
+  joy0 <= joya when status(3) = '0' else joyb;
+  joy1 <= joyb when status(3) = '0' else joya;
     
   osd_inst : osd
     port map (
