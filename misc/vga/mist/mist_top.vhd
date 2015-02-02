@@ -136,7 +136,7 @@ architecture rtl of mist_top is
          );
   end component osd;
 
-  signal clk27m, pixel_clk, clk12k  : std_logic;
+  signal clk25m, clk12m, clk12k  : std_logic;
 
   signal flash_clk : unsigned(22 downto 0) := (others => '0');
   signal power_on_reset : std_logic := '1';
@@ -157,32 +157,46 @@ architecture rtl of mist_top is
   signal audio      : std_logic;
   
   signal pll_locked : std_logic;
+  
+  signal VGA_R_O  : std_logic_vector(5 downto 0);
+  signal VGA_G_O  : std_logic_vector(5 downto 0);
+  signal VGA_B_O  : std_logic_vector(5 downto 0);
+  signal VGA_HS_O : std_logic;
+  signal VGA_VS_O : std_logic;
 
 begin
 
-  reset <= status(0) or buttons(1) or power_on_reset or force_reset;
-
-  power_on : process(CLK)
-  begin
-    if rising_edge(CLK) then
-      if flash_clk(22) = '1' then
-        power_on_reset <= '0';
-      else
-        flash_clk <= flash_clk + 1;
-      end if;
-    end if;
-  end process;
-  
-  clk27m <= CLOCK_27(0);
 
   pll : entity work.mist_pll
     port map (
-      areset => buttons(1),
-      inclk0 => clk27m,
-      c0     => pixel_clk,
+      inclk0 => CLOCK_27(0),
+      c0     => clk25m,
       c1     => clk12k,
       locked => pll_locked
       );
+      
+  divosd : entity work.clk_div
+    generic map (
+      DIVISOR => 2
+    )
+    port map (
+      clk    => clk25m,
+      reset  => '0',
+      clk_en => clk12m
+    );
+      
+      
+-- VGA Output
+
+  vga : entity work.VGASYNC
+    port map (
+      CLK   => clk25m,
+      HSYNC => VGA_HS_O,
+      VSYNC => VGA_VS_O,
+      R     => VGA_R_O,
+      G     => VGA_G_O,
+      B     => VGA_B_O
+    );
     
     
 -- MiST interfaces
@@ -204,22 +218,22 @@ begin
       SWITCHES => switches,   
       BUTTONS => buttons,
       sd_sdhc => '1',
-      ps2_clk => CLK_12k,
+      ps2_clk => clk12k,
       ps2_kbd_clk => ps2Clk,
       ps2_kbd_data => ps2Data
     );
     
   osd_inst : osd
     port map (
-      pclk => CLK_14M,
+      pclk => clk12m,
       sdi => SPI_DI,
       sck => SPI_SCK,
       ss => SPI_SS3,
-      red_in => ,
-      green_in => ,
-      blue_in => ,
-      hs_in => not hsync,
-      vs_in => not vsync,
+      red_in => VGA_R_O,
+      green_in => VGA_G_O,
+      blue_in => VGA_B_O,
+      hs_in => not VGA_HS_O,
+      vs_in => not VGA_VS_O,
       scanline_ena_h => '0',
       red_out => VGA_R,
       green_out => VGA_G,
