@@ -200,7 +200,9 @@ architecture rtl of mist_top is
   
   signal audio_pwm              : std_logic := '0';
   
-  signal downl    : std_logic := '1';
+  signal downl    : std_logic := '0';
+  signal downlr   : std_logic := '0';
+  signal go       : std_logic := '0';
   signal size     : std_logic_vector(15 downto 0) := (others=>'0');
   signal ram_do   : std_logic_vector(7 downto 0);
   signal ram_ao   : std_logic_vector(14 downto 0);
@@ -292,8 +294,14 @@ begin
         if falling_edge(clk32m) then
             if reset = '1' then
                 stSIDnow <= stInit;
+                go       <= '0';
             else
+                downlr   <= downl;
                 stSIDnow <= stSIDnext;
+                if downl = '0' and downlr = '1' then
+                  stSIDnow <= stInit;
+                  go     <= '1';
+                end if;
             end if;
         end if;
     end process;
@@ -306,12 +314,13 @@ begin
             ram_ao <= (others => '1');
             stSIDnext   <= stInit;
         elsif rising_edge(clk4m) then
-            if downl = '0' then
+            if go = '1' then
                 case stSIDnow is
                     when stInit     =>
                         sid_we          <= '0';
                         ram_ao          <= (others => '0');
                         cycle_cnt       <= (others => '0');
+                        sid_ver         <= (others => '0');
                         stSIDnext       <= stVersion;
                     when stVersion =>
                         sid_we          <= '0';
@@ -327,7 +336,7 @@ begin
                         stSIDnext       <= stDelay0;
                     when stDelay0   =>
                         sid_we          <= '0';
-                        if ((ram_ao = x"0076" and (sid_ver = 1)) or ((ram_ao = x"007C") and (sid_ver = 2))) then
+                        if ((ram_ao = x"0076" and (sid_ver(1 downto 0) = "01")) or ((ram_ao = x"007C") and (sid_ver(1 downto 0) = "10"))) then
                           stSIDnext     <= stDelay1;
                         else
                           ram_ao        <= ram_ao + 1;
@@ -414,7 +423,7 @@ begin
     
   SDRAM_nCAS  <= '1'; -- disable sdram
   AUDIO_L   <= audio_pwm;
-    AUDIO_R <= audio_pwm;
+  AUDIO_R   <= audio_pwm;
   
   reset <= not pll_locked or buttons(1) or status(0);
 
