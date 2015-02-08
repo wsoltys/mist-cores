@@ -22,18 +22,19 @@
 
 module data_io (
 	// io controller spi interface
-	input         sck,
-	input         ss,
-	input         sdi,
+	input             sck,
+	input             ss,
+	input             sdi,
 
-	output        downloading,   // signal indicating an active download
-	output [24:0] size,          // number of bytes in input buffer
+	output            downloading,   // signal indicating an active download
+	output [24:0]     size,          // number of bytes in input buffer
+	output reg [4:0]  index,         // menu index used to upload the file
 	 
 	// external ram interface
-	input 			clk,
-	output reg     wr,
+	input 			   clk,
+	output reg        wr,
 	output reg [24:0] a,
-	output [7:0]   d
+	output [7:0]      d
 );
 
 assign d = data;
@@ -46,18 +47,17 @@ assign size = addr;
 // spi client
 // *********************************************************************************
 
-// this core supports only the display related OSD commands
-// of the minimig
 reg [6:0]      sbuf;
-reg [7:0]      cmd /* synthesis noprune */;
-reg [7:0]      data /* synthesis noprune */;
-reg [4:0]      cnt /* synthesis noprune */;
+reg [7:0]      cmd;
+reg [7:0]      data;
+reg [4:0]      cnt;
 
-reg [24:0]     addr /* synthesis noprune */;
-reg rclk /* synthesis noprune */;
+reg [24:0]     addr;
+reg rclk;
 
 localparam UIO_FILE_TX      = 8'h53;
 localparam UIO_FILE_TX_DAT  = 8'h54;
+localparam UIO_FILE_INDEX   = 8'h55;
 
 assign downloading = downloading_reg;
 reg downloading_reg = 1'b0;
@@ -102,6 +102,10 @@ always@(posedge sck, posedge ss) begin
 			rclk <= 1'b1;
 			a <= addr;
 		end
+
+		// expose file (menu) index
+		if((cmd == UIO_FILE_INDEX) && (cnt == 15))
+			index <= {sbuf[3:0], sdi};
 	end
 end
 

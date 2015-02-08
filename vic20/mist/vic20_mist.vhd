@@ -1,10 +1,10 @@
 --
--- MA2601.vhd
+-- vic20_mist.vhd
 --
--- Atari VCS 2600 toplevel for the MiST board
--- https://github.com/wsoltys/tca2601
+-- vic20 toplevel for the MiST board
+-- https://github.com/wsoltys/mist-cores/tree/master/vic20
 --
--- Copyright (c) 2014 W. Soltys <wsoltys@gmail.com>
+-- Copyright (c) 2015 W. Soltys <wsoltys@gmail.com>
 --
 -- This source file is free software: you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published
@@ -114,8 +114,13 @@ architecture rtl of vic20_mist is
   signal vic_audio : std_logic_vector( 3 downto 0);
   signal audio_pwm : std_logic;
 
+  signal osd_pclk : std_logic;
+  signal io_index : std_logic_vector(4 downto 0);
+  signal scandoubler_disable : std_logic;
+  signal download_is_prg : std_logic;
+  
   -- config string used by the io controller to fill the OSD
-  constant CONF_STR : string := "VIC20;PRG;O1,Program type,prg,rom;O2,Enable Scanlines,off,on;O3,Enable Scandoubler,on,off;O4,Enable 8K+ Expansion,on,off;O5,Enable 3K Expansion,off,on;";
+  constant CONF_STR : string := "VIC20;PRG;F1,A0;O2,Enable Scanlines,off,on;O3,Enable 8K+ Expansion,on,off;O4,Enable 3K Expansion,off,on;";
 
   function to_slv(s: string) return std_logic_vector is
     constant ss: string(1 to s'length) := s;
@@ -141,6 +146,7 @@ architecture rtl of vic20_mist is
       conf_str : in std_logic_vector(8*STRLEN-1 downto 0);
       switches : out std_logic_vector(1 downto 0);
       buttons : out std_logic_vector(1 downto 0);
+      scandoubler_disable : out std_logic;
       joystick_0 : out std_logic_vector(7 downto 0);
       joystick_1 : out std_logic_vector(7 downto 0);
       joystick_analog_0 : out std_logic_vector(15 downto 0);
@@ -157,6 +163,7 @@ architecture rtl of vic20_mist is
            ss: in std_logic;
            sdi: in std_logic;
            downloading: out std_logic;
+           index: out std_logic_vector(4 downto 0);
            size: out std_logic_vector(25 downto 0);
            clk: in std_logic;
            wr: out std_logic;
@@ -181,7 +188,8 @@ begin
 
   SDRAM_nCAS <= '1'; -- disable sdram
   reset <= status(0) or buttons(1) or forceReset or not pll_locked;
-  
+  download_is_prg <= '1' when unsigned(io_index) = 1 else '0';
+    
   vic20_inst : entity work.VIC20
     port map (I_PS2_CLK     => ps2Clk,
               I_PS2_DATA    => ps2Data,
@@ -198,10 +206,10 @@ begin
               IO_DOUT    => io_dout,
               IO_DOWNL   => downl,
               FORCERESET => ForceReset,
-              IO_IS_PRG  => not status(1),
-              SCANDOUBLER=> not status(3),
-              EXP8KP     => not status(4),
-              EXP3K      => status(5),
+              IO_IS_PRG  => download_is_prg,
+              SCANDOUBLER=> not scandoubler_disable,
+              EXP8KP     => not status(3),
+              EXP3K      => status(4),
               RESET_B    => buttons(1),
               
               JOYSTICK    => vic_joy,
@@ -211,9 +219,11 @@ begin
     );
 
   --  OSD
+  osd_pclk <= clk16m when scandoubler_disable='0' else clk8m;
+  
   osd_inst : osd
     port map (
-      pclk => clk16m,
+      pclk => osd_pclk,
       sdi => SPI_DI,
       sck => SPI_SCK,
       ss => SPI_SS3,
@@ -231,7 +241,7 @@ begin
     );
     
   data_io_inst: data_io
-    port map(SPI_SCK, SPI_SS2, SPI_DI, downl, size, clk8m, io_we, io_addr, io_dout);
+    port map(SPI_SCK, SPI_SS2, SPI_DI, downl, io_index, size, clk8m, io_we, io_addr, io_dout);
   
  
 
@@ -270,6 +280,7 @@ begin
       conf_str => to_slv(CONF_STR),
       switches => switches,
       buttons  => buttons,
+      scandoubler_disable  => scandoubler_disable,
       joystick_1 => joy1,
       joystick_0 => joy0,
       joystick_analog_1 => joy_a_0,
