@@ -118,9 +118,12 @@ architecture rtl of vic20_mist is
   signal io_index : std_logic_vector(4 downto 0);
   signal scandoubler_disable : std_logic;
   signal download_is_prg : std_logic;
+  signal hsync_out : std_logic;
+  signal vsync_out : std_logic;
+  signal csync_out : std_logic;
   
   -- config string used by the io controller to fill the OSD
-  constant CONF_STR : string := "VIC20;PRG;F1,A0;O2,Enable Scanlines,off,on;O3,Enable 8K+ Expansion,on,off;O4,Enable 3K Expansion,off,on;";
+  constant CONF_STR : string := "VIC20;PRG;F1,CRT;O2,Enable Scanlines,off,on;O3,Enable 8K+ Expansion,on,off;O4,Enable 3K Expansion,off,on;T5,Reset";
 
   function to_slv(s: string) return std_logic_vector is
     constant ss: string(1 to s'length) := s;
@@ -187,9 +190,9 @@ begin
 -- -----------------------------------------------------------------------
 
   SDRAM_nCAS <= '1'; -- disable sdram
-  reset <= status(0) or buttons(1) or forceReset or not pll_locked;
+  reset <= status(0) or status(5) or buttons(1) or forceReset or not pll_locked;
   download_is_prg <= '1' when unsigned(io_index) = 1 else '0';
-    
+
   vic20_inst : entity work.VIC20
     port map (I_PS2_CLK     => ps2Clk,
               I_PS2_DATA    => ps2Data,
@@ -220,6 +223,12 @@ begin
 
   --  OSD
   osd_pclk <= clk16m when scandoubler_disable='0' else clk8m;
+
+  -- a minimig vga->scart cable expects a composite sync signal on the VGA_HS output 
+  -- and VCC on VGA_VS (to switch into rgb mode)
+  csync_out <= '1' when (hsync_out = vsync_out) else '0';
+  VGA_HS <= hsync_out when scandoubler_disable='0' else csync_out;
+  VGA_VS <= vsync_out when scandoubler_disable='0' else '1';
   
   osd_inst : osd
     port map (
@@ -236,8 +245,8 @@ begin
       red_out => VGA_R,
       green_out => VGA_G,
       blue_out => VGA_B,
-      hs_out => VGA_HS,
-      vs_out => VGA_VS
+      hs_out => hsync_out,
+      vs_out => vsync_out
     );
     
   data_io_inst: data_io
