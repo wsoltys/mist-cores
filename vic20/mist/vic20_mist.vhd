@@ -123,7 +123,7 @@ architecture rtl of vic20_mist is
   signal csync_out : std_logic;
   
   -- config string used by the io controller to fill the OSD
-  constant CONF_STR : string := "VIC20;PRG;F1,CRT;O2,Enable Scanlines,off,on;O3,Enable 8K+ Expansion,on,off;O4,Enable 3K Expansion,off,on;T5,Reset";
+  constant CONF_STR : string := "VIC20;PRG;F1,CRT;O2,CRT with load address,no,yes;O3,Enable Scanlines,off,on;O4,Enable 8K+ Expansion,on,off;O5,Enable 3K Expansion,off,on;T6,Reset";
 
   function to_slv(s: string) return std_logic_vector is
     constant ss: string(1 to s'length) := s;
@@ -190,7 +190,7 @@ begin
 -- -----------------------------------------------------------------------
 
   SDRAM_nCAS <= '1'; -- disable sdram
-  reset <= status(0) or status(5) or buttons(1) or forceReset or not pll_locked;
+  reset <= status(0) or status(6) or buttons(1) or forceReset or not pll_locked;
   download_is_prg <= '1' when unsigned(io_index) = 1 else '0';
 
   vic20_inst : entity work.VIC20
@@ -210,10 +210,11 @@ begin
               IO_DOWNL   => downl,
               FORCERESET => ForceReset,
               IO_IS_PRG  => download_is_prg,
+              HAS_LA     => status(2),
               SCANDOUBLER=> not scandoubler_disable,
-              EXP8KP     => not status(3),
-              EXP3K      => status(4),
-              RESET_B    => buttons(1),
+              EXP8KP     => not status(4),
+              EXP3K      => status(5),
+              RESET_B    => buttons(1) or status(6),
               
               JOYSTICK    => vic_joy,
               
@@ -241,7 +242,7 @@ begin
       blue_in => VGA_B_O & "00",
       hs_in => VGA_HS_O,
       vs_in => VGA_VS_O,
-      scanline_ena_h => status(2),
+      scanline_ena_h => status(3),
       red_out => VGA_R,
       green_out => VGA_G,
       blue_out => VGA_B,

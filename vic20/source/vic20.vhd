@@ -70,6 +70,7 @@ entity VIC20 is
     IO_DOWNL          : in    std_logic;
     FORCERESET        : out   std_logic;
     IO_IS_PRG         : in    std_logic;
+    HAS_LA            : in    std_logic;
     SCANDOUBLER       : in    std_logic := '1';
     EXP8KP            : in    std_logic := '1';
     EXP3K             : in    std_logic := '0';
@@ -709,7 +710,7 @@ begin
         end if;
       else
         
-        if IO_IS_PRG = '1' then
+        if IO_IS_PRG = '1' or HAS_LA = '1' then
           if (io_addr = "0000000000000000") then
             io_load_addr(7 downto 0) <= io_dout;
           elsif (io_addr = "0000000000000001") then

@@ -11,7 +11,8 @@ Features:
 
 Limitations:
 There're no safety checks for games for the unexpanded vic20 so they usual overwrite the screen ram.
-The prg upload expects the start address in the first two bytes as usual. the .crt upload
-via osd expects cartridge roms with the auto start sequence.
+The prg upload expects the load address in the first two bytes as usual. the .crt upload
+via osd expects cartridge roms with the auto start sequence. Since the TOSEC archive contains .crt
+files with and without load address you can choose that via OSD. 
 A few glitches are visible. I don't know if its due to my changes or were already in the original
 core.
