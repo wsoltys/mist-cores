@@ -23,7 +23,7 @@ constant hbp : integer :=  48; -- Back porch
 -- Vertical timing (frame)
 constant vva : integer := 480; -- Visible area
 constant vfp : integer :=  10; -- Front porch
-constant vsp : integer :=   2;  -- Sync pulse
+constant vsp : integer :=   2; -- Sync pulse
 constant vbp : integer :=  32; -- Back porch
 
 
@@ -49,19 +49,19 @@ if rising_edge(CLK) then
     end if;
   end if;
   
-  if HPOS > hfp and HPOS < (hfp+hsp) then
+  if HPOS > (hva+hfp) and HPOS < (hva+hfp+hsp) then
     HSYNC <= '0';
   else
     HSYNC <= '1';
   end if;
   
-  if VPOS > vfp and VPOS < (vfp+vsp) then
+  if VPOS > (vva+vfp) and VPOS < (vva+vfp+vsp) then
     VSYNC <= '0';
   else
     VSYNC <= '1';
   end if;
   
-  if (HPOS > hfp and HPOS < (hfp+hsp+hbp)) or (VPOS > vfp and VPOS < (vfp+vsp+vbp)) then
+  if (HPOS > hva and HPOS < (hva+hfp+hsp+hbp)) or (VPOS > vva and VPOS < (vva+vfp+vsp+vbp)) then
     R<=(OTHERS=>'0');
     G<=(OTHERS=>'0');
     B<=(OTHERS=>'0');
@@ -73,7 +73,7 @@ if rising_edge(CLK) then
     B<=(OTHERS=>'1');
     
     -- White cross-hair
-    if(HPOS > 475 and HPOS < 485) or (VPOS > 280 and VPOS < 290) then
+    if(HPOS > 315 and HPOS < 325) or (VPOS > 235 and VPOS < 245) then
       R<=(OTHERS=>'1');
       G<=(OTHERS=>'1');
       B<=(OTHERS=>'1');
@@ -84,10 +84,6 @@ if rising_edge(CLK) then
 
 end if;
 end process;
-
-
-
-
 
 
 END MAIN;
