@@ -75,7 +75,7 @@ end mist_top;
 
 architecture datapath of mist_top is
 
-  constant CONF_STR : string := "AppleII+;NIB;O1,Video mode,Color,B&W;O2,Joysticks,Normal,Swapped;O3,Enable Scanlines,off,on;";
+  constant CONF_STR : string := "AppleII+;NIB;F1,NIB;O2,Video mode,Color,B&W;O3,Joysticks,Normal,Swapped;O4,Enable Scanlines,off,on;";
 
   function to_slv(s: string) return std_logic_vector is 
     constant ss: string(1 to s'length) := s; 
@@ -121,6 +121,7 @@ architecture datapath of mist_top is
            ss: in std_logic;
            sdi: in std_logic;
            downloading: out std_logic;
+           index: out std_logic_vector(4 downto 0);
            size: out std_logic_vector(24 downto 0);
            clk: in std_logic;
            wr: out std_logic;
@@ -180,7 +181,7 @@ architecture datapath of mist_top is
 
   signal D1_ACTIVE, D2_ACTIVE : std_logic;
   signal track_addr : unsigned(13 downto 0);
-  signal TRACK_RAM_ADDR : unsigned(17 downto 0);
+  signal TRACK_RAM_ADDR : unsigned(18 downto 0);
   signal tra : unsigned(15 downto 0);
   signal TRACK_RAM_DI : unsigned(7 downto 0);
   signal TRACK_RAM_OE : std_logic;
@@ -188,6 +189,7 @@ architecture datapath of mist_top is
   signal CS_N, MOSI, MISO, SCLK : std_logic;
   
   signal downl : std_logic := '0';
+  signal io_index : std_logic_vector(4 downto 0);
   signal size : std_logic_vector(24 downto 0) := (others=>'0');
   signal a_ram: unsigned(15 downto 0);
   signal r : unsigned(9 downto 0);
@@ -197,7 +199,7 @@ architecture datapath of mist_top is
   signal vsync : std_logic;
   signal sd_we : std_logic;
   signal sd_oe : std_logic;
-  signal sd_addr : std_logic_vector(17 downto 0);
+  signal sd_addr : std_logic_vector(18 downto 0);
   signal sd_di : std_logic_vector(7 downto 0);
   signal sd_do : std_logic_vector(7 downto 0);
   signal io_we : std_logic;
@@ -205,7 +207,7 @@ architecture datapath of mist_top is
   signal io_do : std_logic_vector(7 downto 0);
   signal io_ram_we : std_logic;
   signal io_ram_d : std_logic_vector(7 downto 0);
-  signal io_ram_addr : std_logic_vector(17 downto 0);
+  signal io_ram_addr : std_logic_vector(18 downto 0);
   
   signal switches   : std_logic_vector(1 downto 0);
   signal buttons    : std_logic_vector(1 downto 0);
@@ -282,8 +284,8 @@ begin
   -- pdl3 pdl2 pdl1 pdl0 pb3 pb2 pb1 casette
   GAMEPORT <=  "00" & joyy & joyx & "0" & joy(5) & joy(4) & "0";
   
-  joy_an <= joy_an0 when status(2)='0' else joy_an1;
-  joy <= joy0 when status(2)='0' else joy1;
+  joy_an <= joy_an0 when status(3)='0' else joy_an1;
+  joy <= joy0 when status(3)='0' else joy1;
   
   process(CLK_2M, pdl_strobe)
     variable cx, cy : integer range -100 to 5800 := 0;
@@ -318,7 +320,7 @@ begin
     end if;
   end process;
 
-  COLOR_LINE_CONTROL <= COLOR_LINE and not status(1);  -- Color or B&W mode
+  COLOR_LINE_CONTROL <= COLOR_LINE and not status(2);  -- Color or B&W mode
   
   -- sdram interface
   SDRAM_CKE <= '1';
@@ -338,14 +340,14 @@ begin
               clkref => CLK_14M,
               init => not pll_locked,
               din => sd_di,
-              addr => "0000000" & sd_addr,
+              addr => "000000" & sd_addr,
               we => sd_we,
               oe => sd_oe,
               dout => sd_do
     );
   
   data_io_inst: data_io
-    port map(SPI_SCK, SPI_SS2, SPI_DI, downl, size, CLK_14M, io_we, io_addr, io_do);
+    port map(SPI_SCK, SPI_SS2, SPI_DI, downl, io_index, size, CLK_14M, io_we, io_addr, io_do);
     
   sd_addr <= io_ram_addr when downl = '1' else std_logic_vector(TRACK_RAM_ADDR);
   sd_di <= io_ram_d;
@@ -357,7 +359,11 @@ begin
     if falling_edge(CLK_14M) then
       if io_we = '1' then
         io_ram_we <= '1';
-        io_ram_addr <= io_addr(17 downto 0);
+        if unsigned(io_index) = 1 then
+          io_ram_addr <= '0' & io_addr(17 downto 0);
+        elsif unsigned(io_index) = 2 then
+          io_ram_addr <= '1' & io_addr(17 downto 0);
+        end if;
         io_ram_d <= io_do;
       else
         io_ram_we <= '0';
@@ -489,7 +495,7 @@ begin
       blue_in => std_logic_vector(b(9 downto 4)),
       hs_in => not hsync,
       vs_in => not vsync,
-      scanline_ena_h => status(3),
+      scanline_ena_h => status(4),
       red_out => VGA_R,
       green_out => VGA_G,
       blue_out => VGA_B,
