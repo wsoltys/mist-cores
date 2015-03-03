@@ -83,7 +83,9 @@ entity disk_ii is
     D2_ACTIVE      : out std_logic;     -- Disk 2 motor on
     ram_write_addr : out unsigned(18 downto 0);  -- Address for track RAM
     ram_di         : in unsigned(7 downto 0);  -- Data from track RAM
-    ram_oe         : out std_logic              -- RAM read enable
+    ram_do         : out unsigned(7 downto 0);  -- Data to track RAM
+    ram_oe         : out std_logic;              -- RAM read enable
+    ram_we         : out std_logic              -- RAM write enable
     );
 end disk_ii;
 
@@ -106,7 +108,8 @@ architecture rtl of disk_ii is
   type track_ram is array(0 to 6655) of unsigned(7 downto 0);
   -- Double-ported RAM for holding a track
   signal track_memory : track_ram;
-  signal ram_do : unsigned(7 downto 0);
+  signal floppy_do : unsigned(7 downto 0);
+  signal floppy_di : unsigned(7 downto 0);
 
   -- Lower bit indicates whether disk data is "valid" or not
   -- RAM address is track_byte_addr(14 downto 1)
@@ -116,6 +119,7 @@ architecture rtl of disk_ii is
   signal track_byte_addr : unsigned(14 downto 0);
   signal track_byte_addr2 : unsigned(14 downto 0);
   signal read_disk : std_logic;         -- When C08C accessed
+  signal write_disk : std_logic;
   
   signal requested_track : unsigned(5 downto 0) := (others => '0');
   signal requested_track2 : unsigned(5 downto 0) := (others => '0');
@@ -145,6 +149,9 @@ begin
               when others => null;
             end case;
           end if;
+        end if;
+        if q6 = '1' or q7 = '1' then
+          floppy_di <= D_IN;
         end if;
       end if;
     end if;
@@ -262,14 +269,29 @@ begin
   track_storage : process (CLK_14M)
   begin
     if rising_edge(CLK_14M) then
-      if D1EN = '1' then 
-        ram_write_addr <= '0' & resize((requested_track * X"1A00") + track_byte_addr(14 downto 1), ram_write_addr'length-1);
-        ram_oe <= read_disk and not track_byte_addr(0);
+      if D1EN = '1' then
+        if write_disk = '0' then
+          ram_write_addr <= '0' & resize((requested_track * X"1A00") + track_byte_addr(14 downto 1), ram_write_addr'length-1);
+          ram_oe <= read_disk and not track_byte_addr(0);
+          ram_we <= '0';
+        else
+          ram_write_addr <= '0' & resize((requested_track * X"1A00") + track_byte_addr(14 downto 1), ram_write_addr'length-1);
+          ram_oe <= '0';
+          ram_we <= '1';
+        end if;
       else
-        ram_write_addr <= '1' & resize((requested_track2 * X"1A00") + track_byte_addr2(14 downto 1), ram_write_addr'length-1);
-        ram_oe <= read_disk and not track_byte_addr2(0);
-      end if;
-      ram_do <= ram_di;
+        if write_disk = '0' then
+          ram_write_addr <= '1' & resize((requested_track2 * X"1A00") + track_byte_addr2(14 downto 1), ram_write_addr'length-1);
+          ram_oe <= read_disk and not track_byte_addr2(0);
+          ram_we <= '0';
+        else
+          ram_write_addr <= '1' & resize((requested_track2 * X"1A00") + track_byte_addr2(14 downto 1), ram_write_addr'length-1);
+          ram_oe <= '0';
+          ram_we <= '1';   
+        end if;
+      end if; 
+      floppy_do <= ram_di;
+      ram_do <= floppy_di;
     end if;
   end process;
 
@@ -317,10 +339,13 @@ begin
 
   read_disk <= '1' when DEVICE_SELECT = '1' and A(3 downto 0) = x"C" else
                '0';  -- C08C
+               
+  write_disk <= '1' when q7 = '1' and DEVICE_SELECT = '1' and A(3 downto 0) = x"C" else
+                '0';
 
   D_OUT <= rom_dout when IO_SELECT = '1' else
-           ram_do when read_disk = '1' and track_byte_addr(0) = '0' and D1EN='1' else
-           ram_do when read_disk = '1' and track_byte_addr2(0) = '0' and D1EN='0' else
+           floppy_do when read_disk = '1' and track_byte_addr(0) = '0' and D1EN='1' else
+           floppy_do when read_disk = '1' and track_byte_addr2(0) = '0' and D1EN='0' else
            (others => '0');
 
   track_addr <= track_byte_addr(14 downto 1);
