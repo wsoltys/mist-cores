@@ -61,7 +61,7 @@ if rising_edge(CLK) then
     VSYNC <= '1';
   end if;
   
-  if (HPOS > hva and HPOS < (hva+hfp+hsp+hbp)) or (VPOS > vva and VPOS < (vva+vfp+vsp+vbp)) then
+  if (HPOS > hva) or (VPOS > vva) then
     R<=(OTHERS=>'0');
     G<=(OTHERS=>'0');
     B<=(OTHERS=>'0');
