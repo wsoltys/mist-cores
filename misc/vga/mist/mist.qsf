@@ -313,6 +313,7 @@ set_global_assignment -name OPTIMIZE_MULTI_CORNER_TIMING ON
 set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
 set_global_assignment -name PARTITION_COLOR 2147039 -section_id Top
 
+set_global_assignment -name VHDL_FILE ../src/list_ch13_01_font_rom.vhd
 set_global_assignment -name VHDL_FILE clk_div.vhd
 set_global_assignment -name VHDL_FILE ../src/vga_640x480.vhd
 set_global_assignment -name VERILOG_FILE osd.v
