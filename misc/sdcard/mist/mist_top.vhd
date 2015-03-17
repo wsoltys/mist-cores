@@ -75,7 +75,7 @@ end mist_top;
 
 architecture rtl of mist_top is
 
-  constant CONF_STR : string := "VGA;;";
+  constant CONF_STR : string := "VGA;;T1,next step;";
 
   function to_slv(s: string) return std_logic_vector is 
     constant ss: string(1 to s'length) := s; 
@@ -163,7 +163,7 @@ architecture rtl of mist_top is
     );
   end component sd_card;
 
-  signal clk100m, clk25m, clk12m, clk12k  : std_logic;
+  signal clk50m, clk25m, clk12m, clk12k  : std_logic;
 
   signal power_on_reset : std_logic := '1';
   signal force_reset : std_logic := '0';
@@ -213,23 +213,23 @@ architecture rtl of mist_top is
 
 begin
 
-  reset <= status(0) or buttons(1) or not pll_locked;
+  reset <= buttons(1) or not pll_locked;
 
 
   pll : entity work.mist_pll
     port map (
       inclk0 => CLOCK_27(0),
-      c0     => clk100m,
+      c0     => clk50m,
       c1     => clk12k,
       locked => pll_locked
       );
       
   divvga : entity work.clk_div
     generic map (
-      DIVISOR => 4
+      DIVISOR => 2
     )
     port map (
-      clk    => clk100m,
+      clk    => clk50m,
       reset  => '0',
       clk_en => clk25m
     );
@@ -338,7 +338,7 @@ begin
     
   sdfat : entity work.sdfat32
     port map(
-      clk100  => clk100m,
+      clk50  => clk50m,
       reset   => reset,
       
       sd_cs   => sd_cs,
@@ -347,7 +347,9 @@ begin
       mosi_o  => sd_sdi,
       
       filename_i => x"414D53444F532020524F4D",
-      file_ram_a => x"004000"
+      file_ram_a => x"004000",
+      
+      next_step  => status(1)
     );
     
     
