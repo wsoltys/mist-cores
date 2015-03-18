@@ -34,7 +34,7 @@ END sdfat32;
 
 ARCHITECTURE MAIN of sdfat32 IS
 
-  type states is (INIT, READ_BLOCK1, READ_BLOCK2, FAT_CHECK, PARTITION_TYPE, CHECK_LBA, CHECK_PARTITION, READ_DIR1, COMPARE1, READ_FILE1, READ_FILE2, READ_FILE3, IDLE, ERROR);
+  type states is (INIT, READ_BLOCK1, READ_BLOCK2, FAT_CHECK, PARTITION_TYPE, CHECK_LBA, CHECK_PARTITION, READ_DIR1, COMPARE1, READ_FAT1, READ_FAT2, READ_FILE1, READ_FILE2, READ_FILE3, IDLE, ERROR);
   
   signal state : states := INIT;
   signal return_state : states;
@@ -65,6 +65,7 @@ ARCHITECTURE MAIN of sdfat32 IS
   
   
   -- FAT constants and signals
+  constant card_type : CardType_t := SDHC_CARD_E;
   constant SIGNATURE_POSITION : integer :=  510;
   constant PARTITION1_TYPECODE_LOCATION : integer :=  450;
   constant PARTITION1_LBA_BEGIN_LOCATION: integer := 454;
@@ -77,6 +78,8 @@ ARCHITECTURE MAIN of sdfat32 IS
   signal cluster_begin_lba: unsigned(31 downto 0) := (others=>'0');
   signal root_dir_first_cluster: unsigned(31 downto 0) := (others=>'0');
   signal sectors_per_cluster: unsigned(7 downto 0) := (others=>'0');
+  signal current_cluster: unsigned(31 downto 0) := (others=>'0');
+  signal next_cluster: unsigned(31 downto 0) := (others=>'0');
   
   signal c_byte1 : unsigned(7 downto 0);
   signal c_byte2 : unsigned(7 downto 0);
@@ -84,9 +87,9 @@ ARCHITECTURE MAIN of sdfat32 IS
   signal file_size: unsigned(31 downto 0) := (others=>'0');
   signal dir_offset: unsigned(31 downto 0) := (others=>'0');
   signal file_cluster: unsigned(31 downto 0) := (others=>'0');
-  signal sector_cnt: integer;
-  signal char_addr: integer;
-  signal entry_cnt: integer;
+  signal sector_cnt: integer range 0 to 16384;
+  signal entry_cnt: integer range 0 to 10;
+  signal sd_factor: integer range 0 to FAT_SECTOR_SIZE := 1;
   
   signal ram_addr_o  : unsigned(23 downto 0);
   
@@ -118,10 +121,15 @@ BEGIN
 
   b1 <= byte1;
   b2 <= byte2;
-  lba <= std_logic_vector(file_size);
+  --lba <= std_logic_vector(next_cluster);
   
   filename <= unsigned(filename_i);
   ram_addr <= std_logic_vector(ram_addr_o);
+  
+  -- SDHC cards use block-addressing, SD cards use byte-addressing
+  sd_factor <= 1 when card_type = SDHC_CARD_E else FAT_SECTOR_SIZE;
+  
+  
 
   fsm : process(clk50)
   begin
@@ -178,9 +186,11 @@ BEGIN
               hndShk_is <= '0';
             end if;
             if counter = FAT_SECTOR_SIZE then
+              hndShk_is <= '0';
               state <= ERROR;
             end if;
             if busy_os_r = '1' and busy_os = '0' then
+              hndShk_is <= '0';
               state <= return_state;     
             end if;
           
@@ -211,7 +221,7 @@ BEGIN
           when CHECK_LBA =>
             if valid_partition = '1' then
               lba_begin <= block_mem(PARTITION1_LBA_BEGIN_LOCATION+3) & block_mem(PARTITION1_LBA_BEGIN_LOCATION+2) & block_mem(PARTITION1_LBA_BEGIN_LOCATION+1) & block_mem(PARTITION1_LBA_BEGIN_LOCATION+0);
-              block_addr <= resize((block_mem(PARTITION1_LBA_BEGIN_LOCATION+3) & block_mem(PARTITION1_LBA_BEGIN_LOCATION+2) & block_mem(PARTITION1_LBA_BEGIN_LOCATION+1) & block_mem(PARTITION1_LBA_BEGIN_LOCATION+0)) * FAT_SECTOR_SIZE, block_addr'length);
+              block_addr <= resize((block_mem(PARTITION1_LBA_BEGIN_LOCATION+3) & block_mem(PARTITION1_LBA_BEGIN_LOCATION+2) & block_mem(PARTITION1_LBA_BEGIN_LOCATION+1) & block_mem(PARTITION1_LBA_BEGIN_LOCATION+0)) * sd_factor, block_addr'length);
             else
               lba_begin <= (others=>'0');
               block_addr <= (others=>'0');
@@ -231,7 +241,7 @@ BEGIN
               -- compute block address: addr = (cluster_begin_lba + (root_dir_first_cluster-2)*sectors_per_cluster)*FAT_SECTOR_SIZE
               block_addr <= resize((lba_begin + (block_mem(15) & block_mem(14)) + (block_mem(16)*(block_mem(39) & block_mem(38) & block_mem(37) & block_mem(36)))
                                  + ((block_mem(47) & block_mem(46) & block_mem(45) & block_mem(44))-2)
-                                 * block_mem(13))*FAT_SECTOR_SIZE, block_addr'length);
+                                 * block_mem(13))*sd_factor, block_addr'length);
               state <= READ_BLOCK1;
               return_state <= READ_DIR1;
             else
@@ -240,7 +250,7 @@ BEGIN
           when READ_DIR1 => 
             if sector_cnt = FAT_SECTOR_SIZE then
             byte1 <= x"05";
-              block_addr <= block_addr + FAT_SECTOR_SIZE;
+              block_addr <= block_addr + sd_factor;
               return_state <= READ_DIR1;
               state <= READ_BLOCK1;
               sector_cnt <= 0;
@@ -278,13 +288,21 @@ BEGIN
                 end if;
               end if;
       --      end if;
+--          when READ_FAT1 =>
+--            block_addr <= resize((fat_begin_lba + (current_cluster/128))*sd_factor, block_addr'length);
+--            next_cluster <= (others=>'0');
+--            return_state <= READ_FAT2;
+--            state <= READ_BLOCK1;
+--          when READ_FAT2 =>
+            --next_cluster <= block_mem((to_integer(current_cluster) mod 128)*4+3) & block_mem((to_integer(current_cluster) mod 128)*4+2) & block_mem((to_integer(current_cluster) mod 128)*4+1) & block_mem((to_integer(current_cluster) mod 128)*4);
           when READ_FILE1 =>
-            block_addr <= resize((cluster_begin_lba + (file_cluster - 2)*sectors_per_cluster)*512, block_addr'length);
+            block_addr <= resize((cluster_begin_lba + (file_cluster - 2)*sectors_per_cluster)*sd_factor, block_addr'length);
+            current_cluster <= file_cluster;
+            ram_addr_o <= unsigned(file_ram_a);
             state <= READ_FILE2;
             sector_cnt <= 0;
           when READ_FILE2 =>
-            addr_is <= std_logic_vector(block_addr);
-            ram_addr_o <= unsigned(file_ram_a);
+            addr_is <= std_logic_vector(block_addr);           
             counter <= (others=>'0');
             rd_is   <= '1';
             if busy_os_r = '0' and busy_os = '1' then
@@ -312,7 +330,7 @@ BEGIN
             if busy_os_r = '1' and busy_os = '0' then
               if sector_cnt < ((FAT_SECTOR_SIZE*to_integer(sectors_per_cluster))-1) then
                 byte1 <= x"07";
-                block_addr <= block_addr + FAT_SECTOR_SIZE;
+                block_addr <= block_addr + sd_factor;
                 state <= READ_FILE2;
               else
                 byte2 <= x"07";
@@ -338,7 +356,7 @@ BEGIN
   u3 : entity work.SdCardCtrl
     generic map (
       FREQ_G => 50.35,
-      CARD_TYPE_G => SD_CARD_E,
+      CARD_TYPE_G => card_type,
       --INIT_SPI_FREQ_G => 24.0,
       SPI_FREQ_G  => 24.0
     )
