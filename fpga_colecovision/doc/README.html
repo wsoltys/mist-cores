@@ -1,0 +1,438 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html; charset=ISO-8859-1"
+ http-equiv="content-type">
+  <title>The FPGA Colecovision Project</title>
+  <meta content="Arnim L&auml;uger &lt;arnim.laeuger at gmx.net&gt;" name="author">
+  <meta content="Readme for the FPGA Colecovision Project"
+ name="description">
+  <meta
+ content="Colecovision,arcade,FPGA,TMS9918,TMS9928,TMS9929,SN76489"
+ name="Keywords">
+</head>
+<body>
+<h1 style="text-align: center;">The FPGA
+Colecovision Project</h1>
+<div style="text-align: center;"><br>
+04-Mar-2006<br>
+</div>
+<br>
+<br>
+<br>
+<div style="text-align: left;">
+"The Colecovision is Coleco's third
+generation video game console, released in August 1982. It offered
+arcade-like graphics and controllers, and an initial catalog of 12
+titles, with 10 more promised titles on the way. All told,
+approximately 170 titles were released on plug-in cartridges during its
+lifetime. The controller was a flat joystick, two side buttons, and a
+number-pad, which allowed the user to put inserts for customized
+buttons. The majority of titles in its catalog were conversions from
+coin-operated arcade games."<br>
+<div style="text-align: center;">
+<div style="text-align: left;"><span style="font-style: italic;">Quote
+from <a href="http://www.wikipedia.org/">Wikipedia</a> <a
+ href="http://en.wikipedia.org/wiki/Colecovision">article on the
+Colecovision console</a></span><br>
+<span style="font-style: italic;"></span></div>
+<div style="text-align: left;"><span style="font-style: italic;"></span><br>
+<br>
+<span style="font-style: italic;"></span></div>
+</div>
+<h2>Content</h2>
+This project recreates most of the circuits found on the
+original console PCB including CPU, RAM, video and sound
+generation.<br>
+Here is a detailed list of internal components of these
+components:<br>
+<ul>
+  <li><a href="http://en.wikipedia.org/wiki/Z80">Z80</a> CPU - T80
+core from <a
+ href="http://www.opencores.org/projects.cgi/web/t80/overview">opencores.org</a>
+/ <a href="http://www.fpgaarcade.com/">fpgaarcade.com</a><br>
+Copyright (c) 2001-2002 Daniel Wallner (jesus at opencores.org)<br>
+Ver 300 started tidyup, MikeJ March 2005<br>
+Latest version from www.fpgaarcade.com (original www.opencores.org)</li>
+  <li><a href="http://en.wikipedia.org/wiki/Texas_Instruments_TMS9918">TMS992xA</a>
+Video Display Processor</li>
+  <li><a href="http://en.wikipedia.org/wiki/Texas_Instruments_SN76489">SN76489AN</a>
+sound generator<br>
+  </li>
+  <li>General purpose I/O for controller</li>
+  <li>Clock generator - operates with main 10.7 MHz clock (external
+or PLL)</li>
+  <li>Reset generator - requires power-on reset capability of FPGA<br>
+  </li>
+</ul>
+External components are:<br>
+<ul>
+  <li>BIOS RAM - 8 kByte<br>
+  </li>
+  <li>CPU RAM - 1 kByte<br>
+  </li>
+  <li>Video RAM - 16 kByte</li>
+  <li>Cartridge ROM - up to 32 kByte<br>
+  </li>
+  <li>RGB DACs</li>
+  <li>Audio DAC</li>
+</ul>
+<h2>Console Interfaces<br>
+</h2>
+The external components are attached via several interfaces to the
+Colecovision console:<br>
+<ul>
+  <li>Clock Input: Base clock of 10.7 MHz or an integer multiple.<br>
+  </li>
+  <li>Reset Input: Active low external reset input.<br>
+  </li>
+  <li>Controller Interface:
+    <ul>
+      <li>Player 1 - 4-way joystick, two action buttons and keypad
+support<br>
+      </li>
+      <li>Player 2 - 4-way joystick, two action buttons and keypad
+support<br>
+      </li>
+    </ul>
+  </li>
+  <li>RGB Video Interface:
+    <ul>
+      <li>3 bit wide channels for red, green and blue video
+information</li>
+      <li>Composite synchronization output</li>
+      <li>VGA output with separate horizontal and vertical
+synchronization outputs<br>
+      </li>
+    </ul>
+  </li>
+  <li>Audio Interface</li>
+  <ul>
+    <li>8 bit digital audio sound output</li>
+    <li>1 bit Delta-Sigma DAC sound output</li>
+    <li>AC97 audio stream output<br>
+    </li>
+  </ul>
+  <li>BIOS ROM Interface: Address and data buses for 8&nbsp;kByte of
+CPU BIOS ROM</li>
+  <li>CPU RAM Interface: Address and data buses for 1&nbsp;kByte of CPU
+RAM</li>
+  <li>Cartridge ROM Interface: Address and data buses for up to
+32&nbsp;kByte of cartridge ROM<br>
+  </li>
+  <li>Video RAM Interface: Address and data buses for 16&nbsp;kByte of
+VRAM<br>
+  </li>
+</ul>
+<h3>Control<br>
+</h3>
+The Colecovision console uses a multiplexing mechanism to read out the
+joystick and keypad information. Because of this, the joystick
+connection requires additional glue logic.<br>
+Refer to <a
+ href="http://www.atarihq.com/danb/files/ColecoController.pdf">http://www.atarihq.com/danb/files/ColecoController.pdf</a>
+and the <a href="http://www.simple-solutions.de/">Simple Solutions</a>
+<a href="http://www.simple-solutions.de/en/products/index.php">Zefant
+XS3</a> and <a href="http://www.jopdesign.com/">JOP.design</a> <a
+ href="http://www.jopdesign.com/cyclone/index.jsp">Cyclone FPGA Board</a>
+implementations. The pins of both controller
+interfaces are named after the index numbers at the connector.
+<h3>External Memory<br>
+</h3>
+There are two groups of external memory components. First are the CPU
+related memories for BIOS, RAM and the game cartridge. Although there
+are three separate interfaces for them, the CPU can access only one at
+a time, thus
+multiplexing is straight forward in case a single memory has to be
+used. Second is the video RAM which is operated independently from the
+CPU.<br>
+The toplevels included in this release integrate CPU BIOS and RAM plus
+video RAM inside the FPGA while the cartridge ROM is located on the
+board. Both designs use external RAM chips for storing cartridge
+information for the sake of flexibility. On the JOP.design Board, the
+onboard RAMA chip is used. With Zefant XS3, SRAM1 of the optional
+SRAM-SODIMM holds the cartridge data.<br>
+<h3>RGB Video<br>
+</h3>
+In the simplest approach, the digital information for the three RGB
+channels have to be converted
+to analog voltages by three DAC circuits, each of them consists of
+simple resitors. Such DACs were built for the <a
+ href="http://www.jopdesign.com/">JOP.design</a> board. See the
+following figure for a proposal on how to build them.<br>
+<br>
+<div style="text-align: center;"><img title="RGB DACs"
+ alt="RGB DACs implemented with resistors" src="rgb_dac.png"
+ style="width: 304px; height: 305px;">
+<br>
+<div style="text-align: left;"><br>
+The better approach is to use a professional DAC circuit like found on
+the <a href="http://www.zefant.de/">Zefant Mini-ITX board</a>. This
+one offers a VGA interface to a
+standard PC monitor. Three video DAC channels can be fed with 8-bit
+wide color information each. The drawback is that the simple RGB video
+information has to be brushed up to suit the VGA standard. A scan
+doubler is used here to double the pixel rate towards the VGA monitor
+although the VDP inside the console core still outputs RGB video
+signals.<br>
+</div>
+</div>
+<div style="text-align: left;"><br>
+<h3>Digital Audio<br>
+</h3>
+The digital audio information is supplied via an 8 bit wide signed
+vector ranging from -128 to 127 (as defined in numeric_std package). It
+depends on the DAC implementation on your board whether this value can
+be used as it is or some post processing is needed. On the JOP board, I
+use two DAC implementations in parallel. First is a DAC built with
+resistors. This requires to add an offset of 128
+to the signed value to obtain positive audio data. Refer to the
+following
+picture for the discrete DAC.<br>
+<br>
+</div>
+<div style="text-align: center;"><img title="Audio DAC"
+ alt="Audio DAC implemented with resistors" src="audio_dac.png"
+ style="width: 336px; height: 270px;"><br>
+<div style="text-align: left;"><br>
+Next is a delta-sigma DAC implementation. This one requires a minimum
+number of external components but adds some logic in the FPGA. For a
+detailed discussion of delta-sigma DACs refer to Xilinx' application
+note <a href="http://direct.xilinx.com/bvdocs/appnotes/xapp154.pdf">XAPP154</a>.
+The external circuit is shown in the next figure.<br>
+<br>
+<div style="text-align: center;"><img
+ alt="Low-Pass Filter for Delta-Sigma Audio DAC Implementation"
+ title="Low-Pass Filter" src="audio_sigma_delta_dac.png"
+ style="width: 292px; height: 80px;"><br>
+<div style="text-align: left;"><br>
+</div>
+</div>
+</div>
+</div>
+Please keep in mind that the output of these circuits can reach the
+full VCCIO level of the FPGA device. Make sure to match the level to
+the requirements of the following input.<br>
+<br>
+Again, the <a href="http://www.zefant.de/">Zefant Mini-ITX board</a>
+provides a professional solution here
+as well. It contains an AC97 compatible codec chip that handles all the
+audio stuff. You "simply" have to supply an AC97 audio
+stream. Fortunately, the <a
+ href="http://www.opencores.org/projects.cgi/web/ac97/overview">AC97
+controller core</a> from <a href="http://opencores.org/">opencores.org</a>
+has proven to be versatile enough to allow ad-hoc generation of such a
+stream.
+All required design instances are included in the project release.<br>
+<h3>Clock Generation</h3>
+All clocks in the system are derived from a single 10.738635&nbsp;MHz
+clock.
+In general, the frequency has not to be fully accurate - approximately
+10.7&nbsp;MHz is sufficient. In case the on board PLL cannot generate
+this frequency, the clk_en_10m7_i input can be used to gate clk_i.
+clk_en_10m7_i qualifies the rising edges of clk_i that form the
+10.7&nbsp;MHz clock.<br>
+<h3>Power-on Reset Module</h3>
+The power-on reset module in <code>cv_por.vhd</code>
+uses device specific features to generate a reset signal upon power-on
+(or start of operation after device configuration). Consult the
+documentation of the FPGA device family on how to implement such
+functionality.<br>
+<h2>Resource Usage</h2>
+Following is the flow summary for an Altera Cyclone device:<br>
+<br>
+<code>+------------------------------------------------------------------------+<br>
+; Flow
+Summary&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;<br>
++-------------------------+----------------------------------------------+<br>
+</code><code>; Flow
+Status&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+; Successful - Wed Mar 01 22:33:20
+2006&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ;<br>
+; Quartus II Version&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ; 5.0 Build 168
+06/22/2005 SP 1 SJ Web Edition ;<br>
+; Revision
+Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ;
+jop_cv&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;<br>
+; Top-level Entity Name&nbsp;&nbsp; ;
+jop_cv&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;<br>
+;
+Family&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;
+Cyclone&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;<br>
+;
+Device&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;
+EP1C12Q240C8&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;<br>
+; Timing
+Models&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ;
+Final&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;<br>
+; Met timing requirements ;
+Yes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;<br>
+; Total logic elements&nbsp;&nbsp;&nbsp; ; 3,217 / 12,060 ( 26 %
+)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;<br>
+; Total
+pins&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+; 139 / 173 ( 80 %
+)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;<br>
+; Total virtual pins&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ;
+0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;<br>
+; Total memory bits&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ; 204,800 /
+239,616 ( 85 %
+)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;<br>
+; Total
+PLLs&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+; 1 / 2 ( 50 %
+)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+;<br>
+</code><code>+-------------------------+----------------------------------------------+<br>
+</code><br>
+Fitting results for a Spartan3 1000 (XC3S1000FG456):<br>
+<font size="-1">Please note that this design contains additional logic
+for the AC97 controller and additional RAM for the scan doubler.</font><br>
+<br>
+<code>Logic Utilization:<br>
+&nbsp; Total Number Slice Registers:&nbsp;&nbsp;&nbsp;&nbsp; 1,055 out
+of&nbsp; 15,360&nbsp;&nbsp;&nbsp; 6%<br>
+&nbsp;&nbsp;&nbsp; Number used as Flip
+Flops:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+1,054<br>
+&nbsp;&nbsp;&nbsp; Number used as
+Latches:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+1<br>
+&nbsp; Number of 4 input
+LUTs:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 3,478
+out of&nbsp; 15,360&nbsp;&nbsp; 22%<br>
+Logic Distribution:<br>
+&nbsp; Number of occupied
+Slices:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+2,149 out of&nbsp;&nbsp; 7,680&nbsp;&nbsp; 27%<br>
+&nbsp;&nbsp;&nbsp; Number of Slices containing only related
+logic:&nbsp;&nbsp; 2,149 out of&nbsp;&nbsp; 2,149&nbsp; 100%<br>
+&nbsp;&nbsp;&nbsp; Number of Slices containing unrelated
+logic:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0 out
+of&nbsp;&nbsp; 2,149&nbsp;&nbsp;&nbsp; 0%<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; *See NOTES below for an explanation of
+the effects of unrelated logic<br>
+Total Number 4 input
+LUTs:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 3,684 out
+of&nbsp; 15,360&nbsp;&nbsp; 23%<br>
+&nbsp; Number used as
+logic:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+3,478<br>
+&nbsp; Number used as a
+route-thru:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 76<br>
+&nbsp; Number used for Dual Port RAMs:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 128<br>
+&nbsp;&nbsp;&nbsp; (Two LUTs used per Dual Port RAM)<br>
+&nbsp; Number used as Shift
+registers:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2<br>
+&nbsp; Number of bonded
+IOBs:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+255 out of&nbsp;&nbsp;&nbsp;&nbsp; 333&nbsp;&nbsp; 76%<br>
+&nbsp;&nbsp;&nbsp; IOB Flip
+Flops:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+50<br>
+&nbsp; Number of Block
+RAMs:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+15 out of&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 24&nbsp;&nbsp; 62%<br>
+&nbsp; Number of
+GCLKs:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+3 out of&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 8&nbsp;&nbsp; 37%<br>
+&nbsp; Number of
+DCMs:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+1 out of&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4&nbsp;&nbsp; 25%<br>
+<br>
+Total equivalent gate count for design:&nbsp; 1,030,301</code><br>
+<h2>Legal Issues</h2>
+Redistribution and use in source and synthesized forms, with or without
+modification, are permitted provided that the following conditions are
+met:<br>
+<br>
+Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimer.<br>
+<br>
+Redistributions in synthesized form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.<br>
+<br>
+Neither the name of the author nor the names of other contributors may
+be used to endorse or promote products derived from this software
+without specific prior written permission.<br>
+<br>
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.<br>
+<br>
+See also the file COPYING.<br>
+<br>
+<span style="font-weight: bold;">Please note:</span><br>
+The copyright of the ROM images is owned by third parties, thus the
+above does not apply to them. You have to be entitled separately to use
+the ROM images together with the FPGA Colecovision design. Owning an
+original Colecovision console and the cartridges might be ok, but I am
+not liable for any
+copyright
+violations that arise from your use of the FPGA Colecovision design.<br>
+I will ignore any requests for a copy of the ROM images.<br>
+<h2>References</h2>
+Colecovision:<br>
+<ul>
+  <li>Dan Boris' schematics of the Colecovision board<br>
+    <a href="http://www.atarihq.com/danb/files/colecovision.pdf">http://www.atarihq.com/danb/files/colecovision.pdf</a></li>
+  <li>Schematics of the Colecovision controller, same source<br>
+    <a href="http://www.atarihq.com/danb/files/ColecoController.pdf">http://www.atarihq.com/danb/files/ColecoController.pdf</a></li>
+  <li>Technical information, same source<br>
+    <a href="http://www.atarihq.com/danb/files/CV-Tech.txt">http://www.atarihq.com/danb/files/CV-Tech.txt</a></li>
+</ul>
+TMS9928:<br>
+<ul>
+  <li>TI Data book TMS9918.pdf<br>
+    <a href="http://www.bitsavers.org/pdf/ti/_dataBooks/TMS9918.pdf">http://www.bitsavers.org/pdf/ti/_dataBooks/TMS9918.pdf</a></li>
+  <li>Sean Young's tech article<br>
+    <a href="http://bifi.msxnet.org/msxnet/tech/tms9918a.txt">http://bifi.msxnet.org/msxnet/tech/tms9918a.txt</a></li>
+  <li>Paul Urbanus' discussion of the timing details<br>
+    <a href="http://bifi.msxnet.org/msxnet/tech/tmsposting.txt">http://bifi.msxnet.org/msxnet/tech/tmsposting.txt</a></li>
+  <li>Richard F. Drushel's article series<br>
+"This Week With My Coleco ADAM"<br>
+    <a
+ href="http://junior.apk.net/%7Edrushel/pub/coleco/twwmca/index.html">http://junior.apk.net/~drushel/pub/coleco/twwmca/index.html</a></li>
+</ul>
+SN76489:<br>
+<ul>
+  <li>TI Data sheet SN76489.pdf<br>
+    <a href="ftp://ftp.whtech.com/datasheets%20&amp;%20manuals/SN76489.pdf">ftp://ftp.whtech.com/datasheets%20&amp;%20manuals/SN76489.pdf</a></li>
+  <li>John Kortink's article on the SN76489<br>
+    <a
+ href="http://web.inter.nl.net/users/J.Kortink/home/articles/sn76489/">http://web.inter.nl.net/users/J.Kortink/home/articles/sn76489/</a></li>
+  <li>Maxim's "SN76489 notes" in<br>
+    <a href="http://www.smspower.org/maxim/docs/SN76489.txt">http://www.smspower.org/maxim/docs/SN76489.txt</a><br>
+  </li>
+</ul>
+<br>
+<br>
+-- <br>
+Arnim L&auml;uger<br>
+&lt;arnim.laeuger at gmx.net&gt;<br>
+<br>
+</div>
+</body>
+</html>
