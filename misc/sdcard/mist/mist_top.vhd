@@ -210,6 +210,11 @@ architecture rtl of mist_top is
   signal sd_sck:	std_logic;
   signal sd_sdi:	std_logic;
   signal sd_sdo:	std_logic;
+  
+  -- ram
+  signal ram_ad: std_logic_vector(23 downto 0);
+  signal ram_d: std_logic_vector(7 downto 0);
+  signal ram_wr: std_logic;
 
 begin
 
@@ -347,9 +352,22 @@ begin
       mosi_o  => sd_sdi,
       
       filename_i => x"414D53444F532020524F4D",
-      file_ram_a => x"004000",
+      file_ram_a => x"000000",
+      
+      ram_addr => ram_ad,
+      ram_d    => ram_d,
+      ram_wr   => ram_wr,
       
       next_step  => status(1)
+    );
+    
+  ram: entity work.RAM16k
+    port map (
+      address => ram_ad(13 downto 0),
+      clock   => clk50m,
+      data    => ram_d,
+      wren    => ram_wr,
+      q       => open
     );
     
     
