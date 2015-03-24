@@ -26,9 +26,7 @@ ENTITY sdfat32 IS
     file_ram_a: in std_logic_vector(23 downto 0);
     next_step : in std_logic;
     
-    b1        : out std_logic_vector(7 downto 0);
-    b2        : out std_logic_vector(7 downto 0);
-    lba       : out std_logic_vector(31 downto 0)
+    error_o   : out std_logic_vector(7 downto 0)
   );
 END sdfat32;
 
@@ -57,12 +55,7 @@ ARCHITECTURE MAIN of sdfat32 IS
   type block_ram is array(0 to 511) of unsigned(7 downto 0);
   signal block_mem : block_ram;
   
---  attribute ramstyle : string;
---  attribute ramstyle of block_mem : signal is "M9K,no_rw_check";
-  
-  signal byte1 : std_logic_vector(7 downto 0);
-  signal byte2 : std_logic_vector(7 downto 0);
-  
+   
   signal search_end : std_logic;
   signal next_step_r: std_logic;
   
@@ -85,9 +78,6 @@ ARCHITECTURE MAIN of sdfat32 IS
   signal current_pos: integer range 0 to 512;
   signal next_cluster: unsigned(31 downto 0) := (others=>'0');
   
-  signal c_byte1 : unsigned(7 downto 0);
-  signal c_byte2 : unsigned(7 downto 0);
-  
   signal file_size: unsigned(31 downto 0) := (others=>'0');
   signal dir_offset: unsigned(31 downto 0) := (others=>'0');
   signal file_cluster: unsigned(31 downto 0) := (others=>'0');
@@ -100,41 +90,26 @@ ARCHITECTURE MAIN of sdfat32 IS
   
   signal filename : unsigned(11*8-1 downto 0);
   
-  -- Files to load
-  constant ROM_COUNT : integer := 2;
-  subtype name_type is unsigned(11*8-1 downto 0);
-  type file_rom_name_type is array(ROM_COUNT-1 downto 0) of name_type;
-  constant file_rom_name: file_rom_name_type:=
-        (x"414D53444F532020524F4D",  -- AMSDOS.ROM
-         x"4D4158414D202020524F4D"); -- MAXAM.ROM
-         
-  subtype address_type is std_logic_vector(31 downto 0);
-	type file_rom_address_type is array(ROM_COUNT-1 downto 0) of address_type;
-	constant file_rom_address: file_rom_address_type:=
-        (x"00008000",
-         x"0000C000");
+  -- error states
+  -- 01: Error in READ_BLOCK2. Read more than 512 bytes
+  -- 02: MBR didn't passed FAT magic byte check
+  -- 03: no FAT32 partition found
+  -- 04: partition didn't passed FAT magic byte or 2 FAT or 512 bytes per sector check
+  -- 05: file not found
+  signal error_i : std_logic_vector(7 downto 0);
   
-  attribute keep: boolean;
-  attribute keep of byte1: signal is true;
-  attribute keep of byte2: signal is true;
-  attribute keep of state: signal is true;
-  attribute keep of data_os: signal is true;
-  attribute keep of counter: signal is true;
+--  attribute keep: boolean;
+--  attribute keep of byte1: signal is true;
+
  
 
 BEGIN
-
-  b1 <= byte1;
-  b2 <= byte2;
-  lba <= std_logic_vector(next_cluster);
   
-  filename <= unsigned(filename_i);
   ram_addr <= std_logic_vector(ram_addr_o);
+  error_o  <= error_i;
   
   -- SDHC cards use block-addressing, SD cards use byte-addressing
   sd_factor <= 1 when card_type = SDHC_CARD_E else FAT_SECTOR_SIZE;
-  
-  
 
   fsm : process(clk50, reset)
   begin
@@ -145,8 +120,7 @@ BEGIN
         rd_is   <= '0';
         counter <= (others=>'0');
         block_addr <= (others=>'0');
-        byte1   <= (others=>'0');
-        byte2   <= (others=>'0');
+        error_i   <= (others=>'0');
       else
         next_step_r <= next_step;
         busy_os_r <= busy_os;
@@ -167,10 +141,9 @@ BEGIN
             entry_cnt <= 0;
             search_end <= '0';
             file_cluster <= (others=>'0');
-            c_byte1 <= (others=>'0');
-            c_byte2 <= (others=>'0');
+            error_i   <= (others=>'0');
             if busy_os = '0' then
-              state <= READ_BLOCK1;
+              state <= IDLE;
             end if;
         
           when READ_BLOCK1 =>
@@ -192,6 +165,7 @@ BEGIN
             end if;
             if counter = FAT_SECTOR_SIZE then
               hndShk_is <= '0';
+              error_i <= x"01";
               state <= ERROR;
             end if;
             if busy_os_r = '1' and busy_os = '0' then
@@ -202,6 +176,9 @@ BEGIN
           when FAT_CHECK =>
             if block_mem(SIGNATURE_POSITION) = x"55" and block_mem(SIGNATURE_POSITION+1) = x"AA" then
               state <= PARTITION_TYPE;
+            else
+              error_i <= x"02";
+              state <= ERROR;
             end if;
            
           when PARTITION_TYPE =>
@@ -213,14 +190,9 @@ BEGIN
                             state <= CHECK_LBA;
               when x"00" => valid_partition <= '0';
                             state <= CHECK_LBA;
-              when others => state <= ERROR;
- --             when x"06" => valid_partition <= '1';
- --             when x"0E" => valid_partition <= '1';
- --             when x"0F" => valid_partition <= '1';
- --             when x"05" => valid_partition <= '1';
-              
- --             when others => block_mem(PARTITION1_TYPECODE_LOCATION) <= x"06";
- --                            valid_partition <= '1';
+              when others => error_i <= x"03"; 
+                             state <= ERROR;
+
             end case;
             
           when CHECK_LBA =>
@@ -235,8 +207,6 @@ BEGIN
             return_state <= CHECK_PARTITION;
             state <= READ_BLOCK1;
           when CHECK_PARTITION =>
-          byte1 <= x"04";
-          byte2 <= std_logic_vector(block_mem(12));
             -- check for a valid partition
             if block_mem(11) = x"00" and block_mem(12) = x"02" and block_mem(16) = x"02" and block_mem(SIGNATURE_POSITION) = x"55" and block_mem(SIGNATURE_POSITION+1) = x"AA" then
               sectors_per_cluster <= block_mem(13);
@@ -249,12 +219,13 @@ BEGIN
                                  * block_mem(13))*sd_factor, block_addr'length);
               state <= READ_BLOCK1;
               return_state <= READ_DIR1;
+              filename <= unsigned(filename_i);
             else
+              error_i <= x"04";
               state <= ERROR;
             end if;
           when READ_DIR1 => 
             if sector_cnt = FAT_SECTOR_SIZE then
-            byte1 <= x"05";
               block_addr <= block_addr + sd_factor;
               return_state <= READ_DIR1;
               state <= READ_BLOCK1;
@@ -264,13 +235,7 @@ BEGIN
               state <= COMPARE1;
             end if;
             
-          when COMPARE1 =>
---            c_byte1 <= block_mem(sector_cnt + entry_cnt);
---            c_byte2 <= filename(87-(entry_cnt*8) downto 80-(entry_cnt*8));
---            byte1 <= std_logic_vector(c_byte1);
---            byte2 <= std_logic_vector(c_byte2);
-       --     if next_step_r = '1' and next_step = '0' then
-              
+          when COMPARE1 =>            
               if block_mem(sector_cnt + entry_cnt) = filename(87-(entry_cnt*8) downto 80-(entry_cnt*8)) then
                 if entry_cnt = 10 then
                   -- filename found
@@ -287,13 +252,12 @@ BEGIN
                 sector_cnt <= sector_cnt + 32;
                 entry_cnt <= 0;
                 if block_mem(sector_cnt) = x"00" then
-                  byte1 <= x"06";
+                  error_i <= x"05";
                   state <= ERROR;
                 else
                   state <= READ_DIR1;
                 end if;
               end if;
-      --      end if;
           when READ_FAT1 =>
             block_addr <= resize((fat_begin_lba + (current_cluster/128))*sd_factor, block_addr'length);
             current_pos <= (current_cluster mod 128)*4;
@@ -306,9 +270,9 @@ BEGIN
           when READ_FILE1 =>
             block_addr <= resize((cluster_begin_lba + (next_cluster - 2)*sectors_per_cluster)*sd_factor, block_addr'length);
             current_cluster <= to_integer(next_cluster);        
-            if next_step_r = '1' and next_step = '0' then
+--            if next_step_r = '1' and next_step = '0' then
               state <= READ_FILE2;
-            end if;
+ --           end if;
             cluster_cnt <= 0;
           when READ_FILE2 =>
             addr_is <= std_logic_vector(block_addr);
@@ -319,7 +283,6 @@ BEGIN
           when READ_FILE3 =>
             rd_is   <= '0';
             if file_size = x"00" then
-              byte2 <= x"08";
               hndShk_is <= '0';
               ram_wr <= '0';
               state <= IDLE;
@@ -338,16 +301,16 @@ BEGIN
             end if;
             if busy_os_r = '1' and busy_os = '0' then
               if cluster_cnt < ((FAT_SECTOR_SIZE*to_integer(sectors_per_cluster))-1) then
-                byte1 <= x"07";
                 block_addr <= block_addr + sd_factor;
                 state <= READ_FILE2;
               else
-                byte2 <= x"07";
                 state <= READ_FAT1;
               end if;
             end if;
-          when IDLE => null;
-            
+          when IDLE => 
+            if next_step = '1' then
+              state <= READ_BLOCK1;
+            end if;
           when ERROR => null;
           
           when others => null;
