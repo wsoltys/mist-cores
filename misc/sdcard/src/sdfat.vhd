@@ -23,8 +23,15 @@ ENTITY sdfat32 IS
     
     -- file to load
     filename_i: in std_logic_vector(11*8-1 downto 0);
-    file_ram_a: in std_logic_vector(23 downto 0);
+    file_addr : in std_logic_vector(23 downto 0);
+    
     next_step : in std_logic;
+    
+    -- Modus
+    -- 00: idle
+    -- 01: copy file at once into ram at addr file_addr
+    -- 10: return one sector of the file requested by file_addr
+    modus_i   : in std_logic_vector(1 downto 0);
     
     error_o   : out std_logic_vector(7 downto 0)
   );
@@ -32,11 +39,12 @@ END sdfat32;
 
 ARCHITECTURE MAIN of sdfat32 IS
 
-  type states is (INIT, READ_BLOCK1, READ_BLOCK2, FAT_CHECK, PARTITION_TYPE, CHECK_LBA, CHECK_PARTITION, READ_DIR1, COMPARE1, READ_FAT1, READ_FAT2, READ_FILE1, READ_FILE2, READ_FILE3, IDLE, ERROR);
+  type states is (INIT, READ_BLOCK1, READ_BLOCK2, FAT_CHECK, PARTITION_TYPE, CHECK_LBA, CHECK_PARTITION, READ_DIR1, READ_DIR2, COMPARE1, READ_FAT1, READ_FAT2, READ_FILE1, READ_FILE2, READ_FILE3, IDLE, ERROR);
   
-  signal state : states := INIT;
-  signal return_state : states;
+  signal state : states := IDLE;
+  signal return_state, return_from_fat : states;
   signal counter : unsigned(8 downto 0) := (others=>'0');
+  signal sd_reset : std_logic;
 
   signal clk_s : std_logic;
   signal rd_is : std_logic := '0';
@@ -116,7 +124,8 @@ BEGIN
   
     if rising_edge(clk50) then
       if reset = '1' then
-        state   <= INIT;
+        state   <= IDLE;
+        sd_reset <= '0';
         rd_is   <= '0';
         counter <= (others=>'0');
         block_addr <= (others=>'0');
@@ -142,8 +151,11 @@ BEGIN
             search_end <= '0';
             file_cluster <= (others=>'0');
             error_i   <= (others=>'0');
-            if busy_os = '0' then
-              state <= IDLE;
+            sd_reset <= '0';
+            if busy_os_r = '1' and busy_os = '0' then
+              state <= READ_BLOCK1;
+            elsif busy_os = '0' then
+              sd_reset <= '1';
             end if;
         
           when READ_BLOCK1 =>
@@ -214,50 +226,62 @@ BEGIN
               cluster_begin_lba <= resize(lba_begin + (block_mem(15) & block_mem(14)) + (block_mem(16)*(block_mem(39) & block_mem(38) & block_mem(37) & block_mem(36))), cluster_begin_lba'length);
               root_dir_first_cluster <= block_mem(47) & block_mem(46) & block_mem(45) & block_mem(44);
               -- compute block address: addr = (cluster_begin_lba + (root_dir_first_cluster-2)*sectors_per_cluster)*FAT_SECTOR_SIZE
-              block_addr <= resize((lba_begin + (block_mem(15) & block_mem(14)) + (block_mem(16)*(block_mem(39) & block_mem(38) & block_mem(37) & block_mem(36)))
-                                 + ((block_mem(47) & block_mem(46) & block_mem(45) & block_mem(44))-2)
-                                 * block_mem(13))*sd_factor, block_addr'length);
-              state <= READ_BLOCK1;
-              return_state <= READ_DIR1;
+--              block_addr <= resize((lba_begin + (block_mem(15) & block_mem(14)) + (block_mem(16)*(block_mem(39) & block_mem(38) & block_mem(37) & block_mem(36)))
+--                                 + ((block_mem(47) & block_mem(46) & block_mem(45) & block_mem(44))-2)
+--                                 * block_mem(13))*sd_factor, block_addr'length);
+              state <= READ_DIR1;
+              --return_state <= READ_DIR1;
               filename <= unsigned(filename_i);
+              next_cluster <= block_mem(47) & block_mem(46) & block_mem(45) & block_mem(44);
+              cluster_cnt <= 0;
+              sector_cnt <= 0;
             else
               error_i <= x"04";
               state <= ERROR;
             end if;
-          when READ_DIR1 => 
+            
+          when READ_DIR1 =>
             if sector_cnt = FAT_SECTOR_SIZE then
               block_addr <= block_addr + sd_factor;
-              return_state <= READ_DIR1;
-              state <= READ_BLOCK1;
-              sector_cnt <= 0;
-              entry_cnt <= 0;
+              cluster_cnt <= cluster_cnt + FAT_SECTOR_SIZE;
             else
-              state <= COMPARE1;
+              block_addr <= resize((cluster_begin_lba + (next_cluster - 2)*sectors_per_cluster)*sd_factor, block_addr'length);
+            end if;
+            current_cluster <= to_integer(next_cluster);          
+            sector_cnt <= 0;
+            
+            if cluster_cnt + FAT_SECTOR_SIZE = (FAT_SECTOR_SIZE*to_integer(sectors_per_cluster)) then
+              state <= READ_FAT1;
+              return_from_fat <= READ_DIR1;
+              cluster_cnt <= 0;
+            else
+              return_state <= COMPARE1;
+              state <= READ_BLOCK1;
             end if;
             
-          when COMPARE1 =>            
-              if block_mem(sector_cnt + entry_cnt) = filename(87-(entry_cnt*8) downto 80-(entry_cnt*8)) then
-                if entry_cnt = 10 then
-                  -- filename found
-                  file_size <= block_mem(sector_cnt+31) & block_mem(sector_cnt+30) & block_mem(sector_cnt+29) & block_mem(sector_cnt+28);
-                  next_cluster <= block_mem(sector_cnt+21) & block_mem(sector_cnt+20) & block_mem(sector_cnt+27) & block_mem(sector_cnt+26);
-                  ram_addr_o <= unsigned(file_ram_a);
-                  state <= READ_FILE1;
-                else
-                  entry_cnt <= entry_cnt + 1;
-                  state <= READ_DIR1;
-                end if;
+          when COMPARE1 =>
+            if block_mem(sector_cnt) = x"00" then
+              error_i <= x"05";
+              state <= ERROR;
+            elsif block_mem(sector_cnt + entry_cnt) = filename(87-(entry_cnt*8) downto 80-(entry_cnt*8)) then
+              if entry_cnt = 10 then
+                -- filename found
+                file_size <= block_mem(sector_cnt+31) & block_mem(sector_cnt+30) & block_mem(sector_cnt+29) & block_mem(sector_cnt+28);
+                next_cluster <= block_mem(sector_cnt+21) & block_mem(sector_cnt+20) & block_mem(sector_cnt+27) & block_mem(sector_cnt+26);
+                ram_addr_o <= unsigned(file_addr);
+                state <= READ_FILE1;
               else
-                -- next entry
-                sector_cnt <= sector_cnt + 32;
-                entry_cnt <= 0;
-                if block_mem(sector_cnt) = x"00" then
-                  error_i <= x"05";
-                  state <= ERROR;
-                else
-                  state <= READ_DIR1;
-                end if;
+                entry_cnt <= entry_cnt + 1;
+                state <= COMPARE1;
               end if;
+            elsif sector_cnt + 32 = FAT_SECTOR_SIZE then
+              state <= READ_DIR1;
+            else
+              -- next entry
+              sector_cnt <= sector_cnt + 32;
+              entry_cnt <= 0;
+              state <= COMPARE1;
+            end if;
           when READ_FAT1 =>
             block_addr <= resize((fat_begin_lba + (current_cluster/128))*sd_factor, block_addr'length);
             current_pos <= (current_cluster mod 128)*4;
@@ -266,7 +290,7 @@ BEGIN
             state <= READ_BLOCK1;
           when READ_FAT2 =>
             next_cluster <= block_mem(current_pos+3) & block_mem(current_pos+2) & block_mem(current_pos+1) & block_mem(current_pos);
-            state <= READ_FILE1;
+            state <= return_from_fat;
           when READ_FILE1 =>
             block_addr <= resize((cluster_begin_lba + (next_cluster - 2)*sectors_per_cluster)*sd_factor, block_addr'length);
             current_cluster <= to_integer(next_cluster);        
@@ -304,12 +328,13 @@ BEGIN
                 block_addr <= block_addr + sd_factor;
                 state <= READ_FILE2;
               else
+                return_from_fat <= READ_FILE1;
                 state <= READ_FAT1;
               end if;
             end if;
           when IDLE => 
-            if next_step = '1' then
-              state <= READ_BLOCK1;
+            if next_step = '1' or (modus_i = "10" and file_addr = x"000000") then
+              state <= INIT;
             end if;
           when ERROR => null;
           
@@ -335,7 +360,7 @@ BEGIN
     port map (
       clk_i       => clk50,
       -- Host interface.
-      reset_i     => reset,
+      reset_i     => sd_reset or reset,
       rd_i        => rd_is,
       wr_i        => wr_is,
       continue_i  => continue_is,

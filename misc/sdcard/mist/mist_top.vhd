@@ -352,7 +352,8 @@ begin
       mosi_o  => sd_sdi,
       
       filename_i => x"414D53444F532020524F4D",
-      file_ram_a => x"000000",
+      file_addr  => x"000000",
+      modus_i    => "00",
       
       ram_addr => ram_ad,
       ram_d    => ram_d,
