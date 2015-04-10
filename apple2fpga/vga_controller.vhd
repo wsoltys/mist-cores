@@ -59,6 +59,7 @@ entity vga_controller is
 
     VIDEO      : in std_logic;         -- from the Apple video generator
     COLOR_LINE : in std_logic;
+	 SCREEN_MODE: in std_logic_vector(1 downto 0); -- 00: Color, 01: B&W, 10: Green, 11: Amber
     HBL        : in std_logic;
     VBL        : in std_logic;
     LD194      : in std_logic;
@@ -217,16 +218,40 @@ begin
     variable r, g, b : unsigned(7 downto 0); 
   begin
     if rising_edge(CLK_28M) then
+	 
       r := X"00";
       g := X"00"; 
       b := X"00"; 
+		
+		-- alternate background for monochrome modes
+		case SCREEN_MODE is 
+			when "00" =>
+				r := X"00"; g := X"00"; b := X"00"; -- color mode background
+			when "01" => 
+				r := X"00"; g := X"00"; b := X"00"; -- B&W mode background
+			when "10" =>
+				r := X"00"; g := X"0F"; b := X"01"; -- green mode background color
+			when "11" =>
+				r := X"20"; g := X"08"; b := X"01"; -- amber mode background color
+		end case;
+		
       if video_active = '1' then
         
         if color_line_delayed_2 = '0' then  -- Monochrome mode
           
-          if shift_reg(2) = '1' then
-            r := X"FF"; g := X"FF"; b := X"FF";
-          end if;
+			 if shift_reg(2) = '1' then
+				-- handle green/amber color modes
+				case SCREEN_MODE is 
+					when "00" => 
+						r := X"FF"; g := X"FF"; b := X"FF"; -- white (color mode)
+					when "01" => 
+						r := X"FF"; g := X"FF"; b := X"FF"; -- white (B&W mode)
+					when "10" =>
+						r := X"00"; g := X"C0"; b := X"01"; -- green
+					when "11" =>
+						r := X"FF"; g := X"80"; b := X"01"; -- amber 
+				end case;
+			 end if;
           
         elsif shift_reg(0) = shift_reg(4) and shift_reg(5) = shift_reg(1) then
           

@@ -75,7 +75,7 @@ end mist_top;
 
 architecture datapath of mist_top is
 
-  constant CONF_STR : string := "AppleII+;NIB;F1,NIB;O2,Video mode,Color,B&W;O3,Joysticks,Normal,Swapped;O4,Enable Scanlines,off,on;";
+  constant CONF_STR : string := "AppleII+;NIB;F1,NIB;O2,Monitor Type,Color,Monochrome;O3,Monitor Mode,Main,Alt;O4,Enable Scanlines,off,on;O5,Joysticks,Normal,Swapped;";
 
   function to_slv(s: string) return std_logic_vector is 
     constant ss: string(1 to s'length) := s; 
@@ -168,6 +168,7 @@ architecture datapath of mist_top is
   signal VIDEO, HBL, VBL, LD194 : std_logic;
   signal COLOR_LINE : std_logic;
   signal COLOR_LINE_CONTROL : std_logic;
+  signal SCREEN_MODE : std_logic_vector(1 downto 0);
   signal GAMEPORT : std_logic_vector(7 downto 0);
   signal cpu_pc : unsigned(15 downto 0);
 
@@ -286,8 +287,8 @@ begin
   -- pdl3 pdl2 pdl1 pdl0 pb3 pb2 pb1 casette
   GAMEPORT <=  "00" & joyy & joyx & "0" & joy(5) & joy(4) & "0";
   
-  joy_an <= joy_an0 when status(3)='0' else joy_an1;
-  joy <= joy0 when status(3)='0' else joy1;
+  joy_an <= joy_an0 when status(5)='0' else joy_an1;
+  joy <= joy0 when status(5)='0' else joy1;
   
   process(CLK_2M, pdl_strobe)
     variable cx, cy : integer range -100 to 5800 := 0;
@@ -322,7 +323,8 @@ begin
     end if;
   end process;
 
-  COLOR_LINE_CONTROL <= COLOR_LINE and not status(2);  -- Color or B&W mode
+  COLOR_LINE_CONTROL <= COLOR_LINE and not (status(2) or status(3));  -- Color or B&W mode
+  SCREEN_MODE <= status(2) & status(3); -- 00: Color, 01: B&W, 10:Green, 11: Amber
   
   -- sdram interface
   SDRAM_CKE <= '1';
@@ -422,6 +424,7 @@ begin
     CLK_28M    => CLK_28M,
     VIDEO      => VIDEO,
     COLOR_LINE => COLOR_LINE_CONTROL,
+	 SCREEN_MODE => SCREEN_MODE,
     HBL        => HBL,
     VBL        => VBL,
     LD194      => LD194,
