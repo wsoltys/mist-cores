@@ -39,7 +39,8 @@ END sdfat32;
 
 ARCHITECTURE MAIN of sdfat32 IS
 
-  type states is (INIT, READ_BLOCK1, READ_BLOCK2, FAT_CHECK, PARTITION_TYPE, CHECK_LBA, CHECK_PARTITION, READ_DIR1, READ_DIR2, COMPARE1, READ_FAT1, READ_FAT2, READ_FILE1, READ_FILE2, READ_FILE3, IDLE, ERROR);
+  type states is (INIT, READ_BLOCK1, READ_BLOCK2, FAT_CHECK, PARTITION_TYPE, CHECK_LBA, CHECK_PARTITION, READ_DIR1, READ_DIR2, 
+                  COMPARE1, READ_FAT1, READ_FAT2, READ_FILE1, READ_FILE2, READ_FILE3, READ_FILE_PARTIAL, IDLE, ERROR);
   
   signal state : states := IDLE;
   signal return_state, return_from_fat : states;
@@ -85,6 +86,8 @@ ARCHITECTURE MAIN of sdfat32 IS
   signal current_cluster: integer;
   signal current_pos: integer range 0 to 512;
   signal next_cluster: unsigned(31 downto 0) := (others=>'0');
+  signal file_start_cluster: unsigned(31 downto 0) := (others=>'0');
+  signal file_open: std_logic;
   
   signal file_size: unsigned(31 downto 0) := (others=>'0');
   signal dir_offset: unsigned(31 downto 0) := (others=>'0');
@@ -92,7 +95,9 @@ ARCHITECTURE MAIN of sdfat32 IS
   signal sector_cnt: integer range 0 to 512;
   signal cluster_cnt: integer range 0 to 16384;
   signal entry_cnt: integer range 0 to 10;
+  signal fs_cnt: unsigned(31 downto 0) := (others=>'0');
   signal sd_factor: integer range 0 to FAT_SECTOR_SIZE := 1;
+  signal cluster_read_start: integer;
   
   signal ram_addr_o  : unsigned(23 downto 0);
   
@@ -152,6 +157,7 @@ BEGIN
             file_cluster <= (others=>'0');
             error_i   <= (others=>'0');
             sd_reset <= '0';
+            file_open <= '0';
             if busy_os_r = '1' and busy_os = '0' then
               state <= READ_BLOCK1;
             elsif busy_os = '0' then
@@ -268,7 +274,10 @@ BEGIN
                 -- filename found
                 file_size <= block_mem(sector_cnt+31) & block_mem(sector_cnt+30) & block_mem(sector_cnt+29) & block_mem(sector_cnt+28);
                 next_cluster <= block_mem(sector_cnt+21) & block_mem(sector_cnt+20) & block_mem(sector_cnt+27) & block_mem(sector_cnt+26);
+                file_start_cluster <= block_mem(sector_cnt+21) & block_mem(sector_cnt+20) & block_mem(sector_cnt+27) & block_mem(sector_cnt+26);
                 ram_addr_o <= unsigned(file_addr);
+                fs_cnt <= (others=>'0');
+                file_open <= '1';
                 state <= READ_FILE1;
               else
                 entry_cnt <= entry_cnt + 1;
@@ -294,9 +303,11 @@ BEGIN
           when READ_FILE1 =>
             block_addr <= resize((cluster_begin_lba + (next_cluster - 2)*sectors_per_cluster)*sd_factor, block_addr'length);
             current_cluster <= to_integer(next_cluster);        
---            if next_step_r = '1' and next_step = '0' then
+            if modus_i = "10" then
+              state <= IDLE;
+            else
               state <= READ_FILE2;
- --           end if;
+            end if;
             cluster_cnt <= 0;
           when READ_FILE2 =>
             addr_is <= std_logic_vector(block_addr);
@@ -306,7 +317,7 @@ BEGIN
             end if;
           when READ_FILE3 =>
             rd_is   <= '0';
-            if file_size = x"00" then
+            if file_size = fs_cnt then
               hndShk_is <= '0';
               ram_wr <= '0';
               state <= IDLE;
@@ -315,7 +326,7 @@ BEGIN
               ram_d <= data_os;
               ram_wr <= '1';
               cluster_cnt <= cluster_cnt + 1;
-              file_size <= file_size - 1;
+              fs_cnt <= fs_cnt + 1;
               hndShk_is <= '1';
             elsif hndShk_os = '0' then
               hndShk_is <= '0';
@@ -324,17 +335,36 @@ BEGIN
               ram_wr <= '0';
             end if;
             if busy_os_r = '1' and busy_os = '0' then
-              if cluster_cnt < ((FAT_SECTOR_SIZE*to_integer(sectors_per_cluster))-1) then
-                block_addr <= block_addr + sd_factor;
-                state <= READ_FILE2;
+              if modus_i = "10" then
+                state <= IDLE;
               else
-                return_from_fat <= READ_FILE1;
-                state <= READ_FAT1;
+                if cluster_cnt < ((FAT_SECTOR_SIZE*to_integer(sectors_per_cluster))-1) then
+                  block_addr <= block_addr + sd_factor;
+                  state <= READ_FILE2;
+                else
+                  return_from_fat <= READ_FILE1;
+                  state <= READ_FAT1;
+                end if;
               end if;
             end if;
+           
+          when READ_FILE_PARTIAL =>
+            if cluster_read_start > 0 then
+              cluster_read_start <= cluster_read_start - 1;
+              state <= READ_FAT1;
+              return_from_fat <= READ_FILE_PARTIAL;
+              current_cluster <= to_integer(next_cluster);
+            else
+              block_addr <= resize((cluster_begin_lba + (next_cluster - 2)*sectors_per_cluster)*sd_factor, block_addr'length);
+              state <= READ_FILE2;
+            end if;
+            
           when IDLE => 
-            if next_step = '1' or (modus_i = "10" and file_addr = x"000000") then
+            if next_step = '1' or modus_i = "01" or (modus_i = "10" and file_open = '0') then
               state <= INIT;
+            elsif modus_i = "10" and file_open = '1' then
+              state <= READ_FILE_PARTIAL;
+              cluster_read_start <= to_integer(unsigned(file_addr)) / ((FAT_SECTOR_SIZE*to_integer(sectors_per_cluster))-1);
             end if;
           when ERROR => null;
           
