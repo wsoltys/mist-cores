@@ -185,9 +185,7 @@ architecture datapath of mist_top is
   signal TRACK_RAM_ADDR : unsigned(18 downto 0);
   signal tra : unsigned(15 downto 0);
   signal TRACK_RAM_DI : unsigned(7 downto 0);
-  signal TRACK_RAM_DO : unsigned(7 downto 0);
   signal TRACK_RAM_OE : std_logic;
-  signal TRACK_RAM_WE : std_logic;
 
   signal CS_N, MOSI, MISO, SCLK : std_logic;
   
@@ -354,9 +352,9 @@ begin
     port map(SPI_SCK, SPI_SS2, SPI_DI, downl, io_index, size, CLK_14M, io_we, io_addr, io_do);
     
   sd_addr <= io_ram_addr when downl = '1' else std_logic_vector(TRACK_RAM_ADDR);
-  sd_di <= io_ram_d when downl = '1' else std_logic_vector(TRACK_RAM_DO);
+  sd_di <= io_ram_d;
   sd_oe <= '0' when downl = '1' else TRACK_RAM_OE;
-  sd_we <= io_ram_we when downl = '1' else TRACK_RAM_WE;
+  sd_we <= '1' when io_ram_we = '1' else '0';
     
   process (CLK_14M)
   begin
@@ -462,9 +460,7 @@ begin
     D2_ACTIVE      => D2_ACTIVE,
     ram_write_addr => TRACK_RAM_ADDR,
     ram_di         => unsigned(sd_do),
-    ram_oe         => TRACK_RAM_OE,
-    ram_we         => TRACK_RAM_WE,
-    ram_do         => TRACK_RAM_DO
+    ram_oe         => TRACK_RAM_OE
     );
     
   LED <= not D1_ACTIVE;
