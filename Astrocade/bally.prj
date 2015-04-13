@@ -1,0 +1,23 @@
+vhdl work t80_pack.vhd
+vhdl work t80_regx.vhd
+vhdl work t80_mcode.vhd
+vhdl work t80_alu.vhd
+vhdl work t80.vhd
+vhdl work t80sed.vhd
+vhdl work dac.vhd
+vhdl work bally_check.vhd
+vhdl work bally_check_cart.vhd
+vhdl work bally_rams.vhd
+vhdl work bally_bios_0.vhd
+vhdl work bally_bios_1.vhd
+vhdl work bally_clocks_xilinx.vhd
+vhdl work bally_dblscan.vhd
+vhdl work bally_col_pal.vhd
+vhdl work bally_addr.vhd
+vhdl work bally_data.vhd
+vhdl work bally_io.vhd
+vhdl work bally.vhd
+vhdl work ps2kbd.vhd
+vhdl work bally_ps2_if.vhd
+vhdl work bally_top.vhd
+
