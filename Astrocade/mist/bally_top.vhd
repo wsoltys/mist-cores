@@ -158,7 +158,7 @@ architecture rtl of mist_cv is
          size: out std_logic_vector(15 downto 0);
          clk: in std_logic;
          we: in std_logic;
-         a: in std_logic_vector(14 downto 0);
+         a: in std_logic_vector(12 downto 0);
          din: in std_logic_vector(7 downto 0);
          dout: out std_logic_vector(7 downto 0));
   end component;
@@ -202,7 +202,7 @@ architecture rtl of mist_cv is
   
   signal downl          : std_logic := '0';
   signal size           : std_logic_vector(15 downto 0) := (others=>'0');
-  signal cart_a         : std_logic_vector(14 downto 0);
+  signal cart_a         : std_logic_vector(12 downto 0);
   signal cart_d         : std_logic_vector(7 downto 0);
   
   ---
@@ -437,22 +437,7 @@ begin
   VGA_HS <= hsync_out when scandoubler_disable='0' else csync_out;
   VGA_VS <= vsync_out when scandoubler_disable='0' else '1';
   
-  -----------------------------------------------------------------------------
-
-  -----------------------------------------------------------------------------
-  -- Convert signed audio data of the console (range 127 to -128) to
-  -- simple unsigned value.
-  -----------------------------------------------------------------------------
---  dac_audio_s <= std_logic_vector(unsigned(signed_audio_s + 128));
---  
---  dac : entity work.dac
---    port map (
---      clk_i     => CLOCK_27(0),
---      res_n_i   => reset_n_s,
---      dac_i     => dac_audio_s,
---      dac_o     => audio_s
---    ); 
-    
+-----------------------------------------------------------------------------
 -- MiST interfaces
   
   user_io_d : user_io
@@ -489,7 +474,7 @@ begin
       blue_in => VGA_B_O,
       hs_in => VGA_HS_O,
       vs_in => VGA_VS_O,
-      scanline_ena_h => status(2),
+      scanline_ena_h => status(1),
       red_out => VGA_R,
       green_out => VGA_G,
       blue_out => VGA_B,
@@ -497,21 +482,21 @@ begin
       vs_out => vsync_out
     );
     
---  data_io_inst: data_io
---    port map(SPI_SCK, SPI_SS2, SPI_DI, downl, size, clk_21m3_s, '0', cart_a, (others=>'0'), cart_d);
---    
---  process(downl)
---  begin
---    if(downl = '0') then
---      cart_a <= cart_a_s;
---      cart_d_s <= cart_d;
---      force_reset <= '0';
---    else
---      cart_a <= cart_a_s;
---      cart_d_s <= x"FF";
---      force_reset <= '1';
---    end if;
---  end process;
+  data_io_inst: data_io
+    port map(SPI_SCK, SPI_SS2, SPI_DI, downl, size, clk_14, '0', cart_a, (others=>'0'), cart_d);
+    
+  process(downl)
+  begin
+    if(downl = '0') then
+      cart_a <= cas_addr;
+      cas_data <= cart_d;
+      force_reset <= '0';
+    else
+      cart_a <= cas_addr;
+      cas_data <= x"FF";
+      force_reset <= '1';
+    end if;
+  end process;
     
   SDRAM_nCAS  <= '1'; -- disable sdram
 

@@ -278,6 +278,8 @@ set_global_assignment -name LAST_QUARTUS_VERSION 13.1
 
 set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
 set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
+set_global_assignment -name VERILOG_FILE data_io_ram.v
+set_global_assignment -name VERILOG_FILE data_io.v
 set_global_assignment -name VHDL_FILE ../source/T80_Reg.vhd
 set_global_assignment -name VHDL_FILE sprom.vhd
 set_global_assignment -name VHDL_FILE bally_bios.vhd
