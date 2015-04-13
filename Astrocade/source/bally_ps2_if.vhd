@@ -88,8 +88,8 @@ architecture RTL of BALLY_PS2_IF is
   signal reset_cnt      : std_logic_vector(4 downto 0);
   signal io_ena         : std_logic;
   -- non-xilinx ram
-  --type slv_array8 is array (natural range <>) of std_logic_vector(7 downto 0);
-  --shared variable  ram  : slv_array8(7 downto 0) := (others => (others => '0'));
+  type slv_array8 is array (natural range <>) of std_logic_vector(7 downto 0);
+  shared variable  ram  : slv_array8(7 downto 0) := (others => (others => '0'));
 
 begin
 
@@ -263,42 +263,42 @@ begin
   end process;
 
   -- xilinx ram
-  keybd_ram : for i in 0 to 7 generate
-  begin
-    inst: RAM16X1D
-      port map (
-        a0    => ram_w_addr(0),
-        a1    => ram_w_addr(1),
-        a2    => ram_w_addr(2),
-        a3    => ram_w_addr(3),
-        dpra0 => ram_r_addr(0),
-        dpra1 => ram_r_addr(1),
-        dpra2 => ram_r_addr(2),
-        dpra3 => ram_r_addr(3),
-        wclk  => CLK,
-        we    => ram_we,
-        d     => ram_din(i),
-        dpo   => ram_dout(i)
-        );
-  end generate;
+--  keybd_ram : for i in 0 to 7 generate
+--  begin
+--    inst: RAM16X1D
+--      port map (
+--        a0    => ram_w_addr(0),
+--        a1    => ram_w_addr(1),
+--        a2    => ram_w_addr(2),
+--        a3    => ram_w_addr(3),
+--        dpra0 => ram_r_addr(0),
+--        dpra1 => ram_r_addr(1),
+--        dpra2 => ram_r_addr(2),
+--        dpra3 => ram_r_addr(3),
+--        wclk  => CLK,
+--        we    => ram_we,
+--        d     => ram_din(i),
+--        dpo   => ram_dout(i)
+--        );
+--  end generate;
 
   -- NON XILINX RAM
-  --p_ram_w : process
-    --variable ram_addr : integer := 0;
-  --begin
-    --wait until rising_edge(CLK);
-    --if (ram_we = '1') then
-      --ram_addr := to_integer(unsigned(ram_w_addr(2 downto 0)));
-      --ram(ram_addr) := ram_din;
-    --end if;
-  --end process;
+  p_ram_w : process
+    variable ram_addr : integer := 0;
+  begin
+    wait until rising_edge(CLK);
+    if (ram_we = '1') then
+      ram_addr := to_integer(unsigned(ram_w_addr(2 downto 0)));
+      ram(ram_addr) := ram_din;
+    end if;
+  end process;
 
-  --p_ram_r : process(CLK, ram_r_addr)
-    --variable ram_addr : integer := 0;
-  --begin
-    --ram_addr := to_integer(unsigned(ram_r_addr(2 downto 0)));
-    --ram_dout <= ram(ram_addr);
-  --end process;
+  p_ram_r : process(CLK, ram_r_addr)
+    variable ram_addr : integer := 0;
+  begin
+    ram_addr := to_integer(unsigned(ram_r_addr(2 downto 0)));
+    ram_dout <= ram(ram_addr);
+  end process;
   -- END OF NON XILINX RAM
 
   -- the io chip can access the ram when io_ena = '1'
