@@ -1,3 +1,9 @@
+-- This is a Bally Astrocade port for the MiST board
+-- This work is a *derivative* work of the source cited below and from pacedev.net
+-- The original source can be downloaded from <http://www.fpgaarcade.com>
+-- https://github.com/wsoltys/mist-cores
+--
+-------------------------------------------------------------------------------
 --
 -- A simulation model of Bally Astrocade hardware
 -- Copyright (c) MikeJ - Oct 2006
