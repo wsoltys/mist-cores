@@ -386,14 +386,13 @@ begin
       I_RESET           => reset,
       ENA_X2            => ena_x2,
       ENA               => ena,
-      CLK               => clk_14
+      CLK               => clk_14,
+      ENA_SCANLINES     => status(1)
     );
   --
   p_video_ouput : process
   begin
     wait until rising_edge(clk_14);
-    -- switch is on (up) use scan converter and light led
---    sw_reg <= I_SW;
 
     if (scandoubler_disable = '0') then
       VGA_R_O <= video_r_x2 & "00";
@@ -474,7 +473,7 @@ begin
       blue_in => VGA_B_O,
       hs_in => VGA_HS_O,
       vs_in => VGA_VS_O,
-      scanline_ena_h => status(1),
+      scanline_ena_h => '0',
       red_out => VGA_R,
       green_out => VGA_G,
       blue_out => VGA_B,

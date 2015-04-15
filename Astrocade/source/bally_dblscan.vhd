@@ -77,7 +77,8 @@ entity BALLY_DBLSCAN is
 	I_RESET           : in    std_logic;
 	ENA_X2            : in    std_logic;
 	ENA               : in    std_logic;
-	CLK               : in    std_logic
+	CLK               : in    std_logic;
+	ENA_SCANLINES     : in    std_logic
 	);
 end;
 
@@ -397,9 +398,15 @@ begin
 
 	  if (ENA_X2 = '1') then
 		if (active_video_t2 = '1') then
-		  O_R <= video_r;
-		  O_G <= video_g;
-		  O_B <= video_b;
+      if ENA_SCANLINES = '0' or line_count(0) = '1' then
+        O_R <= video_r;
+        O_G <= video_g;
+        O_B <= video_b;
+      else
+        O_R <= '0' & video_r(3 downto 1);
+        O_G <= '0' & video_g(3 downto 1);
+        O_B <= '0' & video_b(3 downto 1);
+      end if;
 		else
 		  O_R <= x"0";
 		  O_G <= x"0";
