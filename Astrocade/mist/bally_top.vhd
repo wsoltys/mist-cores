@@ -57,7 +57,7 @@ use ieee.numeric_std.all;
 use ieee.std_logic_arith.all;
 use ieee.std_logic_unsigned.all;
 
-entity mist_cv is
+entity mist_ba is
 
   port (
     -- Clocks
@@ -104,9 +104,9 @@ entity mist_cv is
 
     );
   
-end mist_cv;
+end mist_ba;
 
-architecture rtl of mist_cv is
+architecture rtl of mist_ba is
 
   constant CONF_STR : string := "ASTROCADE;BIN;O1,Enable Scanlines,no,yes;";
 
@@ -331,6 +331,8 @@ begin
 
       I_PS2_CLK         => ps2Clk,
       I_PS2_DATA        => ps2Data,
+--      I_JOY1            => joy1,
+--      I_JOY2            => joy0,
 
       I_COL             => switch_col,
       O_ROW             => switch_row,
