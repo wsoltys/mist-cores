@@ -219,6 +219,7 @@ architecture RTL of VIC20 is
     signal io_blk_dout        : std_logic_vector(7 downto 0);
     signal io_blk1_we          : std_logic := '0';
     signal io_blk2_we          : std_logic := '0';
+    signal io_blk3_we          : std_logic := '0';
     signal io_blk5_we          : std_logic := '0';
     signal io_ram_addr        : std_logic_vector(9 downto 0);
     signal io_ram_dout        : std_logic_vector(7 downto 0);
@@ -234,6 +235,7 @@ architecture RTL of VIC20 is
     
     signal blk1_dout: std_logic_vector(7 downto 0);
     signal blk2_dout: std_logic_vector(7 downto 0);
+    signal blk3_dout: std_logic_vector(7 downto 0);
     
     signal exp8_r             : std_logic;
     signal exp3_r             : std_logic;
@@ -667,6 +669,8 @@ begin
       c_din <= blk1_dout;
     elsif (blk_sel_l(2) = '0' and EXP8KP = '1') then
       c_din <= blk2_dout;
+    elsif (blk_sel_l(3) = '0' and EXP8KP = '1') then
+      c_din <= blk3_dout;
     elsif (blk_sel_l(5) = '0') then
       c_din <= expansion_din;
     elsif (blk_sel_l(6) = '0') then
@@ -747,6 +751,11 @@ begin
               io_blk_addr <= io_res_addr(12 downto 0);
               io_blk_dout <= io_dout;
               io_blk2_we  <= io_we;
+            elsif io_res_addr < "1000000000000000" then
+              -- blk3 $6000 to $7FFF
+              io_blk_addr <= io_res_addr(12 downto 0);
+              io_blk_dout <= io_dout;
+              io_blk3_we  <= io_we;
             elsif io_res_addr >= "1010000000000000" then
               -- Cartridge ROM blk5 $A000 to $BFFF
               io_blk5_we <= io_we;
@@ -757,13 +766,14 @@ begin
           end if;
         else
           -- ROM Cartridges without start bytes at $A000 (blk5)
+          io_res_addr(15 downto 13) <= "101";
           io_blk5_we <= io_we;
           io_blk_addr <= io_addr(12 downto 0);
           io_blk_dout <= io_dout;
         end if;
       end if;
       
-      if(IO_DOWNL = '0' and downlr = '1' and (IO_IS_PRG = '0' or io_res_addr(15 downto 13) = "101")) then
+      if(IO_DOWNL = '0' and downlr = '1' and (io_res_addr(15 downto 13) = "101")) then
         cart_switch <= '1';
         forceReset <= '1';
       end if;
@@ -977,6 +987,26 @@ begin
       clock_b => clk_8,
       address_b => io_blk_addr,
       wren_b => io_blk2_we,
+      data_b => io_blk_dout
+    );
+    
+  -- blk3 cartridge 8kb rom at $6000
+  blk3_inst : entity work.dpram
+    generic map
+    (
+      widthad_a	=> 13
+    )
+    port map
+    (
+      clock_a	=> ena_4,
+      address_a	=> c_addr(12 downto 0),
+      wren_a	=> not (blk_sel_l(3) or v_rw_l) and EXP8KP,
+      data_a	=> v_data,
+      q_a	=> blk3_dout,
+      
+      clock_b => clk_8,
+      address_b => io_blk_addr,
+      wren_b => io_blk3_we,
       data_b => io_blk_dout
     );
     
