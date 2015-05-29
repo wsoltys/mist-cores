@@ -230,6 +230,8 @@ architecture RTL of VIC20 is
     signal io_ram5_we          : std_logic := '0';
     signal io_ram6_we          : std_logic := '0';
     signal io_ram7_we          : std_logic := '0';
+    signal blk2_we_ena         : std_logic := '1';
+    signal blk3_we_ena         : std_logic := '1';
     
     signal vic_cart_dout      : std_logic_vector(7 downto 0);
     
@@ -655,7 +657,7 @@ begin
   p_cpu_read_mux : process(p2_h, c_addr, io_sel_l, ram_sel_l, blk_sel_l,
                            v_data_read_mux, via1_dout, via2_dout, v_data_oe_l,
                            basic_rom_dout, kernal_rom_dout, expansion_din,
-                           blk1_dout, blk2_dout, EXP8KP)
+                           blk1_dout, blk2_dout, blk3_dout, EXP8KP)
   begin
 
     if (p2_h = '0') then -- vic is on the bus
@@ -711,6 +713,8 @@ begin
         forceReset <= '0';
         if(RESET_B = '1') then
           cart_switch <= '0';
+          blk2_we_ena <= '1';
+          blk3_we_ena <= '1';
         end if;
       else
         
@@ -751,11 +755,17 @@ begin
               io_blk_addr <= io_res_addr(12 downto 0);
               io_blk_dout <= io_dout;
               io_blk2_we  <= io_we;
+              if IO_IS_PRG = '0' then
+                blk2_we_ena <= '0';
+              end if;
             elsif io_res_addr < "1000000000000000" then
               -- blk3 $6000 to $7FFF
               io_blk_addr <= io_res_addr(12 downto 0);
               io_blk_dout <= io_dout;
               io_blk3_we  <= io_we;
+              if IO_IS_PRG = '0' then
+                blk3_we_ena <= '0';
+              end if;
             elsif io_res_addr >= "1010000000000000" then
               -- Cartridge ROM blk5 $A000 to $BFFF
               io_blk5_we <= io_we;
@@ -980,7 +990,7 @@ begin
     (
       clock_a	=> ena_4,
       address_a	=> c_addr(12 downto 0),
-      wren_a	=> not (blk_sel_l(2) or v_rw_l) and EXP8KP,
+      wren_a	=> not (blk_sel_l(2) or v_rw_l) and EXP8KP and blk2_we_ena,
       data_a	=> v_data,
       q_a	=> blk2_dout,
       
@@ -1000,7 +1010,7 @@ begin
     (
       clock_a	=> ena_4,
       address_a	=> c_addr(12 downto 0),
-      wren_a	=> not (blk_sel_l(3) or v_rw_l) and EXP8KP,
+      wren_a	=> not (blk_sel_l(3) or v_rw_l) and EXP8KP and blk3_we_ena,
       data_a	=> v_data,
       q_a	=> blk3_dout,
       
