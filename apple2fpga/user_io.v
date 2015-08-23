@@ -30,12 +30,13 @@ module user_io #(parameter STRLEN=0) (
 	output     		reg SPI_MISO,
 	input      		SPI_MOSI,
 	
-	output reg [5:0] 	joystick_0,
-	output reg [5:0] 	joystick_1,
+	output reg [7:0] 	joystick_0,
+	output reg [7:0] 	joystick_1,
 	output reg [15:0] joystick_analog_0,
 	output reg [15:0] joystick_analog_1,
 	output [1:0] 		buttons,
 	output [1:0] 		switches,
+	output  				scandoubler_disable,
 
 	output reg [7:0]   status,
 
@@ -46,16 +47,18 @@ module user_io #(parameter STRLEN=0) (
 	output reg	  sd_ack,
 	input         sd_conf,
 	input         sd_sdhc,
-	output reg [7:0]  sd_dout,
+	output [7:0]  sd_dout,  // valid on rising edge of sd_dout_strobe
 	output reg	  sd_dout_strobe,
 	input [7:0]   sd_din,
 	output reg 	  sd_din_strobe,
-	
+	output reg    sd_change,
 
 	// ps2 keyboard emulation
 	input 	  		ps2_clk,				// 12-16khz provided by core
 	output	 		ps2_kbd_clk,
 	output reg 		ps2_kbd_data,
+	output	 		ps2_mouse_clk,
+	output reg 		ps2_mouse_data,
 
 	// serial com port 
 	input [7:0]		serial_data,
@@ -68,11 +71,13 @@ reg [2:0] 	      bit_cnt;    // counts bits 0-7 0-7 ...
 reg [7:0]         byte_cnt;   // counts bytes
 reg [5:0]         joystick0;
 reg [5:0]         joystick1;
-reg [3:0] 	      but_sw;
+reg [7:0] 	      but_sw;
 reg [2:0]         stick_idx;
 
 assign buttons = but_sw[1:0];
 assign switches = but_sw[3:2];
+assign scandoubler_disable = but_sw[4];
+assign sd_dout = { sbuf, SPI_MOSI};
 
 // this variant of user_io is for 8 bit cores (type == a4) only
 wire [7:0] core_type = 8'ha4;
@@ -132,41 +137,45 @@ always@(negedge spi_sck or posedge SPI_SS_IO) begin
    end
 end
 
-// 8 byte fifo to store ps2 bytes
+// ---------------- PS2 ---------------------
+
+// 8 byte fifos to store ps2 bytes
 localparam PS2_FIFO_BITS = 3;
-reg [7:0] ps2_fifo [(2**PS2_FIFO_BITS)-1:0];
-reg [PS2_FIFO_BITS-1:0] ps2_wptr;
-reg [PS2_FIFO_BITS-1:0] ps2_rptr;
+
+// keyboard
+reg [7:0] ps2_kbd_fifo [(2**PS2_FIFO_BITS)-1:0];
+reg [PS2_FIFO_BITS-1:0] ps2_kbd_wptr;
+reg [PS2_FIFO_BITS-1:0] ps2_kbd_rptr;
 
 // ps2 transmitter state machine
-reg [3:0] ps2_tx_state;
-reg [7:0] ps2_tx_byte;
-reg ps2_parity;
+reg [3:0] ps2_kbd_tx_state;
+reg [7:0] ps2_kbd_tx_byte;
+reg ps2_kbd_parity;
 
-assign ps2_kbd_clk = ps2_clk || (ps2_tx_state == 0);
+assign ps2_kbd_clk = ps2_clk || (ps2_kbd_tx_state == 0);
 
 // ps2 transmitter
 // Takes a byte from the FIFO and sends it in a ps2 compliant serial format.
-reg ps2_r_inc;
+reg ps2_kbd_r_inc;
 always@(posedge ps2_clk) begin
-	ps2_r_inc <= 1'b0;
+	ps2_kbd_r_inc <= 1'b0;
 	
-	if(ps2_r_inc)
-		ps2_rptr <= ps2_rptr + 1;
+	if(ps2_kbd_r_inc)
+		ps2_kbd_rptr <= ps2_kbd_rptr + 1;
 
 	// transmitter is idle?
-	if(ps2_tx_state == 0) begin
+	if(ps2_kbd_tx_state == 0) begin
 		// data in fifo present?
-		if(ps2_wptr != ps2_rptr) begin
+		if(ps2_kbd_wptr != ps2_kbd_rptr) begin
 			// load tx register from fifo
-			ps2_tx_byte <= ps2_fifo[ps2_rptr];
-			ps2_r_inc <= 1'b1;
+			ps2_kbd_tx_byte <= ps2_kbd_fifo[ps2_kbd_rptr];
+			ps2_kbd_r_inc <= 1'b1;
 			
 			// reset parity
-			ps2_parity <= 1'b1;
+			ps2_kbd_parity <= 1'b1;
 			
 			// start transmitter
-			ps2_tx_state <= 4'd1;
+			ps2_kbd_tx_state <= 4'd1;
 
 			// put start bit on data line
 			ps2_kbd_data <= 1'b0;			// start bit is 0
@@ -174,30 +183,95 @@ always@(posedge ps2_clk) begin
 	end else begin
 	
 		// transmission of 8 data bits
-		if((ps2_tx_state >= 1)&&(ps2_tx_state < 9)) begin
-			ps2_kbd_data <= ps2_tx_byte[0];			  // data bits
-			ps2_tx_byte[6:0] <= ps2_tx_byte[7:1]; // shift down
-			if(ps2_tx_byte[0]) 
-				ps2_parity <= !ps2_parity;
+		if((ps2_kbd_tx_state >= 1)&&(ps2_kbd_tx_state < 9)) begin
+			ps2_kbd_data <= ps2_kbd_tx_byte[0];			  // data bits
+			ps2_kbd_tx_byte[6:0] <= ps2_kbd_tx_byte[7:1]; // shift down
+			if(ps2_kbd_tx_byte[0]) 
+				ps2_kbd_parity <= !ps2_kbd_parity;
 		end
 
 		// transmission of parity
-		if(ps2_tx_state == 9)
-			ps2_kbd_data <= ps2_parity;
+		if(ps2_kbd_tx_state == 9)
+			ps2_kbd_data <= ps2_kbd_parity;
 			
 		// transmission of stop bit
-		if(ps2_tx_state == 10)
+		if(ps2_kbd_tx_state == 10)
 			ps2_kbd_data <= 1'b1;			// stop bit is 1
 
 		// advance state machine
-		if(ps2_tx_state < 11)
-			ps2_tx_state <= ps2_tx_state + 4'd1;
+		if(ps2_kbd_tx_state < 11)
+			ps2_kbd_tx_state <= ps2_kbd_tx_state + 4'd1;
 		else	
-			ps2_tx_state <= 4'd0;
+			ps2_kbd_tx_state <= 4'd0;
 	
 	end
 end
   
+// mouse
+reg [7:0] ps2_mouse_fifo [(2**PS2_FIFO_BITS)-1:0];
+reg [PS2_FIFO_BITS-1:0] ps2_mouse_wptr;
+reg [PS2_FIFO_BITS-1:0] ps2_mouse_rptr;
+
+// ps2 transmitter state machine
+reg [3:0] ps2_mouse_tx_state;
+reg [7:0] ps2_mouse_tx_byte;
+reg ps2_mouse_parity;
+
+assign ps2_mouse_clk = ps2_clk || (ps2_mouse_tx_state == 0);
+
+// ps2 transmitter
+// Takes a byte from the FIFO and sends it in a ps2 compliant serial format.
+reg ps2_mouse_r_inc;
+always@(posedge ps2_clk) begin
+	ps2_mouse_r_inc <= 1'b0;
+	
+	if(ps2_mouse_r_inc)
+		ps2_mouse_rptr <= ps2_mouse_rptr + 1;
+
+	// transmitter is idle?
+	if(ps2_mouse_tx_state == 0) begin
+		// data in fifo present?
+		if(ps2_mouse_wptr != ps2_mouse_rptr) begin
+			// load tx register from fifo
+			ps2_mouse_tx_byte <= ps2_mouse_fifo[ps2_mouse_rptr];
+			ps2_mouse_r_inc <= 1'b1;
+			
+			// reset parity
+			ps2_mouse_parity <= 1'b1;
+			
+			// start transmitter
+			ps2_mouse_tx_state <= 4'd1;
+
+			// put start bit on data line
+			ps2_mouse_data <= 1'b0;			// start bit is 0
+		end
+	end else begin
+	
+		// transmission of 8 data bits
+		if((ps2_mouse_tx_state >= 1)&&(ps2_mouse_tx_state < 9)) begin
+			ps2_mouse_data <= ps2_mouse_tx_byte[0];			  // data bits
+			ps2_mouse_tx_byte[6:0] <= ps2_mouse_tx_byte[7:1]; // shift down
+			if(ps2_mouse_tx_byte[0]) 
+				ps2_mouse_parity <= !ps2_mouse_parity;
+		end
+
+		// transmission of parity
+		if(ps2_mouse_tx_state == 9)
+			ps2_mouse_data <= ps2_mouse_parity;
+			
+		// transmission of stop bit
+		if(ps2_mouse_tx_state == 10)
+			ps2_mouse_data <= 1'b1;			// stop bit is 1
+
+		// advance state machine
+		if(ps2_mouse_tx_state < 11)
+			ps2_mouse_tx_state <= ps2_mouse_tx_state + 4'd1;
+		else	
+			ps2_mouse_tx_state <= 4'd0;
+	
+	end
+end
+
 // fifo to receive serial data from core to be forwarded to io controller
 
 // 16 byte fifo to store serial bytes
@@ -242,11 +316,14 @@ always@(posedge spi_sck or posedge SPI_SS_IO) begin
 		sd_ack <= 1'b0;
 		sd_dout_strobe <= 1'b0;
 		sd_din_strobe <= 1'b0;
+		sd_change <= 1'b0;
 	end else begin
 		sd_dout_strobe <= 1'b0;
 		sd_din_strobe <= 1'b0;
 		
-		sbuf[6:0] <= { sbuf[5:0], SPI_MOSI };
+		if(bit_cnt != 7)
+			sbuf[6:0] <= { sbuf[5:0], SPI_MOSI };
+			
 		bit_cnt <= bit_cnt + 3'd1;
 		if((bit_cnt == 7)&&(byte_cnt != 8'd255)) 
 			byte_cnt <= byte_cnt + 8'd1;
@@ -267,18 +344,24 @@ always@(posedge spi_sck or posedge SPI_SS_IO) begin
 			
 				// buttons and switches
 				if(cmd == 8'h01)
-					but_sw <= { sbuf[2:0], SPI_MOSI }; 
+					but_sw <= { sbuf, SPI_MOSI }; 
 
 				if(cmd == 8'h02)
-					joystick_0 <= { sbuf[4:0], SPI_MOSI };
+					joystick_0 <= { sbuf, SPI_MOSI };
 				 
 				if(cmd == 8'h03)
-					joystick_1 <= { sbuf[4:0], SPI_MOSI };
+					joystick_1 <= { sbuf, SPI_MOSI };
 				 
+				if(cmd == 8'h04) begin
+					// store incoming ps2 mouse bytes 
+					ps2_mouse_fifo[ps2_mouse_wptr] <= { sbuf, SPI_MOSI }; 
+					ps2_mouse_wptr <= ps2_mouse_wptr + 1;
+				end
+
 				if(cmd == 8'h05) begin
-					// store incoming keyboard bytes in 
-					ps2_fifo[ps2_wptr] <= { sbuf, SPI_MOSI }; 
-					ps2_wptr <= ps2_wptr + 1;
+					// store incoming ps2 keyboard bytes 
+					ps2_kbd_fifo[ps2_kbd_wptr] <= { sbuf, SPI_MOSI }; 
+					ps2_kbd_wptr <= ps2_kbd_wptr + 1;
 				end
 				
 				if(cmd == 8'h15)
@@ -287,7 +370,6 @@ always@(posedge spi_sck or posedge SPI_SS_IO) begin
 				// send sector IO -> FPGA
 				if(cmd == 8'h17) begin
 					// flag that download begins
-					sd_dout <= { sbuf, SPI_MOSI};
 					sd_dout_strobe <= 1'b1;
 				end
 				
@@ -298,7 +380,6 @@ always@(posedge spi_sck or posedge SPI_SS_IO) begin
 				// send SD config IO -> FPGA
 				if(cmd == 8'h19) begin
 					// flag that download begins
-					sd_dout <= { sbuf, SPI_MOSI};
 					// sd card knows data is config if sd_dout_strobe is asserted
 					// with sd_ack still being inactive (low)
 					sd_dout_strobe <= 1'b1;
@@ -323,6 +404,11 @@ always@(posedge spi_sck or posedge SPI_SS_IO) begin
 							joystick_analog_1[7:0] <= { sbuf, SPI_MOSI };
 					end
 				end
+				
+				// set sd card status. The fact that this register is being	
+				// set by the arm controller indicates a possible disk change
+				if(cmd == 8'h1c)
+					sd_change <= 1'b1;
 
 			end
 		end

@@ -142,7 +142,7 @@ begin
             end if;
 
           when RESET_SEND_SET_BLOCKLEN =>
-            command <= x"500000010001";  -- CMD16: SET_BLOCKLEN (256)
+            command <= x"500000020001";  -- CMD16: SET_BLOCKLEN (256)
             counter <= TO_UNSIGNED(47, 8);
             return_state <= IDLE;
             state <= SEND_CMD;

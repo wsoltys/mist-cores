@@ -75,7 +75,7 @@ end mist_top;
 
 architecture datapath of mist_top is
 
-  constant CONF_STR : string := "AppleII+;NIB;F1,NIB;O2,Monitor Type,Color,Monochrome;O3,Monitor Mode,Main,Alt;O4,Enable Scanlines,off,on;O5,Joysticks,Normal,Swapped;";
+  constant CONF_STR : string := "AppleII+;NIB;S1,NIB;O2,Monitor Type,Color,Monochrome;O3,Monitor Mode,Main,Alt;O4,Enable Scanlines,off,on;O5,Joysticks,Normal,Swapped;";
 
   function to_slv(s: string) return std_logic_vector is 
     constant ss: string(1 to s'length) := s; 
@@ -95,26 +95,54 @@ architecture datapath of mist_top is
 
 
 
-  component user_io
+  component user_io 
     generic ( STRLEN : integer := 0 );
-  
-    port ( SPI_CLK, SPI_SS_IO, SPI_MOSI :in std_logic;
-           SPI_MISO : out std_logic;
-           conf_str : in std_logic_vector(8*STRLEN-1 downto 0);
-           joystick_0 : out std_logic_vector(5 downto 0);
-           joystick_1 : out std_logic_vector(5 downto 0);
-           joystick_analog_0 : out std_logic_vector(15 downto 0);
-           joystick_analog_1 : out std_logic_vector(15 downto 0);
-           status:    out std_logic_vector(7 downto 0);
-           SWITCHES : out std_logic_vector(1 downto 0);
-           BUTTONS : out std_logic_vector(1 downto 0);
-           sd_sdhc : in std_logic;
-           ps2_clk : in std_logic;
-           ps2_kbd_clk : out std_logic;
-           ps2_kbd_data : out std_logic
-         );
-
+     port (
+            SPI_CLK, SPI_SS_IO, SPI_MOSI :in std_logic;
+            SPI_MISO : out std_logic;
+            conf_str : in std_logic_vector(8*STRLEN-1 downto 0);
+            joystick_0 : out std_logic_vector(5 downto 0);
+            joystick_1 : out std_logic_vector(5 downto 0);
+            joystick_analog_0 : out std_logic_vector(15 downto 0);
+            joystick_analog_1 : out std_logic_vector(15 downto 0);
+            status: out std_logic_vector(7 downto 0);
+            switches : out std_logic_vector(1 downto 0);
+            buttons : out std_logic_vector(1 downto 0);
+            sd_lba : in std_logic_vector(31 downto 0);
+            sd_rd : in std_logic;
+            sd_wr : in std_logic;
+            sd_ack : out std_logic;
+            sd_conf : in std_logic;
+            sd_sdhc : in std_logic;
+            sd_dout : out std_logic_vector(7 downto 0);
+            sd_dout_strobe : out std_logic;
+            sd_din : in std_logic_vector(7 downto 0);
+            sd_din_strobe : out std_logic;
+            sd_change : out std_logic;
+            ps2_clk : in std_logic;
+            ps2_kbd_clk : out std_logic;
+            ps2_kbd_data : out std_logic
+        );
   end component user_io;
+  
+  component sd_card
+    port (io_lba : out std_logic_vector(31 downto 0);
+          io_rd : out std_logic;
+          io_wr : out std_logic;
+          io_ack : in std_logic;
+          io_sdhc : out std_logic;
+          io_conf : out std_logic;
+          io_din : in std_logic_vector(7 downto 0);
+          io_din_strobe : in std_logic;
+          io_dout : out std_logic_vector(7 downto 0);
+          io_dout_strobe : in std_logic;
+          allow_sdhc : in std_logic;
+          sd_cs : in std_logic;
+          sd_sck : in std_logic;
+          sd_sdi : in std_logic;
+          sd_sdo : out std_logic
+    );
+  end component sd_card;
   
   component data_io is
     port ( sck: in std_logic;
@@ -182,10 +210,12 @@ architecture datapath of mist_top is
 
   signal D1_ACTIVE, D2_ACTIVE : std_logic;
   signal track_addr : unsigned(13 downto 0);
-  signal TRACK_RAM_ADDR : unsigned(18 downto 0);
+  signal TRACK_RAM_ADDR : unsigned(13 downto 0);
   signal tra : unsigned(15 downto 0);
   signal TRACK_RAM_DI : unsigned(7 downto 0);
-  signal TRACK_RAM_OE : std_logic;
+  signal TRACK_RAM_WE : std_logic;
+  signal track : unsigned(5 downto 0);
+  signal image : unsigned(9 downto 0);
 
   signal CS_N, MOSI, MISO, SCLK : std_logic;
   
@@ -222,6 +252,26 @@ architecture datapath of mist_top is
   signal ps2Clk     : std_logic;
   signal ps2Data    : std_logic;
   signal audio      : std_logic;
+  
+  -- signals to connect sd card emulation with io controller
+  signal sd_lba:  std_logic_vector(31 downto 0);
+  signal sd_rd:   std_logic;
+  signal sd_wr:   std_logic;
+  signal sd_ack:  std_logic;
+  signal sd_conf: std_logic;
+  signal sd_sdhc: std_logic;
+  
+  -- data from io controller to sd card emulation
+  signal sd_data_in: std_logic_vector(7 downto 0);
+  signal sd_data_in_strobe:  std_logic;
+  signal sd_data_out: std_logic_vector(7 downto 0);
+  signal sd_data_out_strobe:  std_logic;
+  
+  -- sd card emulation
+  signal sd_cs:	std_logic;
+  signal sd_sck:	std_logic;
+  signal sd_sdi:	std_logic;
+  signal sd_sdo:	std_logic;
   
   signal pll_locked : std_logic;
   signal sdram_dqm: std_logic_vector(1 downto 0);
@@ -348,30 +398,30 @@ begin
               dout => sd_do
     );
   
-  data_io_inst: data_io
-    port map(SPI_SCK, SPI_SS2, SPI_DI, downl, io_index, size, CLK_14M, io_we, io_addr, io_do);
-    
-  sd_addr <= io_ram_addr when downl = '1' else std_logic_vector(TRACK_RAM_ADDR);
-  sd_di <= io_ram_d;
-  sd_oe <= '0' when downl = '1' else TRACK_RAM_OE;
-  sd_we <= '1' when io_ram_we = '1' else '0';
-    
-  process (CLK_14M)
-  begin
-    if falling_edge(CLK_14M) then
-      if io_we = '1' then
-        io_ram_we <= '1';
-        if unsigned(io_index) = 1 then
-          io_ram_addr <= '0' & io_addr(17 downto 0);
-        elsif unsigned(io_index) = 2 then
-          io_ram_addr <= '1' & io_addr(17 downto 0);
-        end if;
-        io_ram_d <= io_do;
-      else
-        io_ram_we <= '0';
-      end if;
-    end if;
-  end process;
+--  data_io_inst: data_io
+--    port map(SPI_SCK, SPI_SS2, SPI_DI, downl, io_index, size, CLK_14M, io_we, io_addr, io_do);
+--    
+--  sd_addr <= io_ram_addr when downl = '1' else std_logic_vector(TRACK_RAM_ADDR);
+--  sd_di <= io_ram_d;
+--  sd_oe <= '0' when downl = '1' else TRACK_RAM_OE;
+--  sd_we <= '1' when io_ram_we = '1' else '0';
+--    
+--  process (CLK_14M)
+--  begin
+--    if falling_edge(CLK_14M) then
+--      if io_we = '1' then
+--        io_ram_we <= '1';
+--        if unsigned(io_index) = 1 then
+--          io_ram_addr <= '0' & io_addr(17 downto 0);
+--        elsif unsigned(io_index) = 2 then
+--          io_ram_addr <= '1' & io_addr(17 downto 0);
+--        end if;
+--        io_ram_d <= io_do;
+--      else
+--        io_ram_we <= '0';
+--      end if;
+--    end if;
+--  end process;
   
   ram_inst : entity work.spram
     generic map
@@ -454,13 +504,30 @@ begin
     A              => ADDR,
     D_IN           => D,
     D_OUT          => PD,
-    TRACK          => open,
+    TRACK          => TRACK,
     TRACK_ADDR     => TRACK_ADDR,
     D1_ACTIVE      => D1_ACTIVE,
     D2_ACTIVE      => D2_ACTIVE,
     ram_write_addr => TRACK_RAM_ADDR,
-    ram_di         => unsigned(sd_do),
-    ram_oe         => TRACK_RAM_OE
+    ram_di         => TRACK_RAM_DI,
+    ram_we         => TRACK_RAM_WE
+    );
+
+  sdcard_interface : entity work.spi_controller port map (
+    CLK_14M        => CLK_14M,
+    RESET          => RESET,
+
+    CS_N           => sd_cs,
+    MOSI           => sd_sdi,
+    MISO           => sd_sdo,
+    SCLK           => sd_sck,
+    
+    track          => TRACK,
+    image          => (others=>'0'),
+    
+    ram_write_addr => TRACK_RAM_ADDR,
+    ram_di         => TRACK_RAM_DI,
+    ram_we         => TRACK_RAM_WE
     );
     
   LED <= not D1_ACTIVE;
@@ -481,10 +548,44 @@ begin
       joystick_analog_1 => joy_an1,
       SWITCHES => switches,   
       BUTTONS => buttons,
-      sd_sdhc => '1',
+      -- connection to io controller
+      sd_lba  => sd_lba,
+      sd_rd   => sd_rd,
+      sd_wr   => sd_wr,
+      sd_ack  => sd_ack,
+      sd_sdhc => sd_sdhc,
+      sd_conf => sd_conf,
+      sd_dout => sd_data_in,
+      sd_dout_strobe => sd_data_in_strobe,
+      sd_din => sd_data_out,
+      sd_din_strobe => sd_data_out_strobe,
       ps2_clk => CLK_12k,
       ps2_kbd_clk => ps2Clk,
       ps2_kbd_data => ps2Data
+    );
+    
+  sd_card_d: component sd_card
+    port map
+    (
+      -- connection to io controller
+      io_lba => sd_lba,
+      io_rd  => sd_rd,
+      io_wr  => sd_wr,
+      io_ack => sd_ack,
+      io_conf => sd_conf,
+      io_sdhc => sd_sdhc,
+      io_din => sd_data_in,
+      io_din_strobe => sd_data_in_strobe,
+      io_dout => sd_data_out,
+      io_dout_strobe => sd_data_out_strobe,
+   
+      allow_sdhc  => '1',
+      
+      -- connection to host
+      sd_cs  => sd_cs,
+      sd_sck => sd_sck,
+      sd_sdi => sd_sdi,
+      sd_sdo => sd_sdo		
     );
     
   osd_inst : osd

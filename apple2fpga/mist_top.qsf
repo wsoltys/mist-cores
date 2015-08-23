@@ -314,6 +314,8 @@ set_global_assignment -name OPTIMIZE_MULTI_CORNER_TIMING ON
 set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
 set_global_assignment -name PARTITION_COLOR 2147039 -section_id Top
 
+set_global_assignment -name VHDL_FILE spi_controller.vhd
+set_global_assignment -name VERILOG_FILE sd_card.v
 set_global_assignment -name VERILOG_FILE osd.v
 set_global_assignment -name VHDL_FILE spram.vhd
 set_global_assignment -name VERILOG_FILE sdram.v

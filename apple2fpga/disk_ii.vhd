@@ -81,9 +81,9 @@ entity disk_ii is
     track_addr     : out unsigned(13 downto 0);
     D1_ACTIVE      : out std_logic;     -- Disk 1 motor on
     D2_ACTIVE      : out std_logic;     -- Disk 2 motor on
-    ram_write_addr : out unsigned(18 downto 0);  -- Address for track RAM
-    ram_di         : in unsigned(7 downto 0);  -- Data from track RAM
-    ram_oe         : out std_logic              -- RAM read enable
+    ram_write_addr : in unsigned(13 downto 0);  -- Address for track RAM
+    ram_di         : in unsigned(7 downto 0);  -- Data to track RAM
+    ram_we         : in std_logic              -- RAM write enable
     );
 end disk_ii;
 
@@ -100,7 +100,6 @@ architecture rtl of disk_ii is
   -- a unique position to the case, say, when both phase 0 and phase 1 are
   -- on simultaneously.  phase(7 downto 2) is the track number
   signal phase : unsigned(7 downto 0);  -- 0 - 139
-  signal phase2 : unsigned(7 downto 0);
 
   -- Storage for one track worth of data in "nibblized" form
   type track_ram is array(0 to 6655) of unsigned(7 downto 0);
@@ -114,12 +113,7 @@ architecture rtl of disk_ii is
   -- being read into the shift register, which indicates the data is
   -- not yet ready.
   signal track_byte_addr : unsigned(14 downto 0);
-  signal track_byte_addr2 : unsigned(14 downto 0);
   signal read_disk : std_logic;         -- When C08C accessed
-  
-  signal requested_track : unsigned(5 downto 0) := (others => '0');
-  signal requested_track2 : unsigned(5 downto 0) := (others => '0');
-  signal D1EN : std_logic;
 
 begin
 
@@ -175,23 +169,15 @@ begin
     variable phase_change : integer;
     variable new_phase : integer;
     variable rel_phase : std_logic_vector(3 downto 0);
-    variable temp_phase: unsigned(7 downto 0);
   begin
     if rising_edge(CLK_14M) then
       if reset = '1' then
         phase <= TO_UNSIGNED(70, 8);    -- Deliberately odd to test reset
-        phase2 <= TO_UNSIGNED(70, 8);
-      else
-        D1EN <= not drive2_select;
-        if D1EN = '1' then
-          temp_phase := phase;
-        else
-          temp_phase := phase2;
-        end if;
+      else        
         phase_change := 0;
-        new_phase := TO_INTEGER(temp_phase);
+        new_phase := TO_INTEGER(phase);
         rel_phase := motor_phase;
-        case temp_phase(2 downto 1) is
+        case phase(2 downto 1) is
           when "00" =>
             rel_phase := rel_phase(1 downto 0) & rel_phase(3 downto 2);
           when "01" =>
@@ -202,7 +188,7 @@ begin
           when others => null;
         end case;
         
-        if temp_phase(0) = '1' then            -- Phase is odd
+        if phase(0) = '1' then            -- Phase is odd
           case rel_phase is
             when "0000" => phase_change := 0;
             when "0001" => phase_change := -3;
@@ -245,65 +231,40 @@ begin
         else
           new_phase := new_phase + phase_change;
         end if;
-        if D1EN = '1' then
-          phase <= TO_UNSIGNED(new_phase, 8);
-        else
-          phase2 <= TO_UNSIGNED(new_phase, 8);
-        end if;
+        phase <= TO_UNSIGNED(new_phase, 8);
       end if;      
     end if;
   end process;
 
-  requested_track <= phase(7 downto 2);
-  requested_track2 <= phase2(7 downto 2);
   TRACK <= phase(7 downto 2);
 
   -- Dual-ported RAM holding the contents of the track
   track_storage : process (CLK_14M)
   begin
     if rising_edge(CLK_14M) then
-      if D1EN = '1' then 
-        ram_write_addr <= '0' & resize((requested_track * X"1A00") + track_byte_addr(14 downto 1), ram_write_addr'length-1);
-        ram_oe <= read_disk and not track_byte_addr(0);
-      else
-        ram_write_addr <= '1' & resize((requested_track2 * X"1A00") + track_byte_addr2(14 downto 1), ram_write_addr'length-1);
-        ram_oe <= read_disk and not track_byte_addr2(0);
+      if ram_we = '1' then
+        track_memory(to_integer(ram_write_addr)) <= ram_di;
       end if;
-      ram_do <= ram_di;
+      ram_do <= track_memory(to_integer(track_byte_addr(14 downto 1)));
     end if;
   end process;
 
   -- Go to the next byte when the disk is accessed or if the counter times out
   read_head : process (CLK_2M)
-    variable byte_delay : unsigned(5 downto 0);  -- Accounts for disk spin rate
-    variable byte_delay2 : unsigned(5 downto 0);
+  variable byte_delay : unsigned(5 downto 0);  -- Accounts for disk spin rate
   begin
     if rising_edge(CLK_2M) then
       if reset = '1' then
         track_byte_addr <= (others => '0');
         byte_delay := (others => '0');
-        track_byte_addr2 <= (others => '0');
-        byte_delay2 := (others => '0');
       else
-        if D1EN = '1' then
-          byte_delay := byte_delay - 1;
-          if (read_disk = '1' and PRE_PHASE_ZERO = '1') or byte_delay = 0 then
-            byte_delay := (others => '0');
-            if track_byte_addr = X"33FE" then
-              track_byte_addr <= (others => '0');
-            else
-              track_byte_addr <= track_byte_addr + 1;
-            end if;
-          end if;
-        else
-          byte_delay2 := byte_delay2 - 1;
-          if (read_disk = '1' and PRE_PHASE_ZERO = '1') or byte_delay2 = 0 then
-            byte_delay2 := (others => '0');
-            if track_byte_addr2 = X"33FE" then
-              track_byte_addr2 <= (others => '0');
-            else
-              track_byte_addr2 <= track_byte_addr2 + 1;
-            end if;
+        byte_delay := byte_delay - 1;
+        if (read_disk = '1' and PRE_PHASE_ZERO = '1') or byte_delay = 0 then
+          byte_delay := (others => '0');
+          if track_byte_addr = X"33FE" then
+            track_byte_addr <= (others => '0');
+          else
+            track_byte_addr <= track_byte_addr + 1;
           end if;
         end if;
       end if;
@@ -319,8 +280,7 @@ begin
                '0';  -- C08C
 
   D_OUT <= rom_dout when IO_SELECT = '1' else
-           ram_do when read_disk = '1' and track_byte_addr(0) = '0' and D1EN='1' else
-           ram_do when read_disk = '1' and track_byte_addr2(0) = '0' and D1EN='0' else
+           ram_do when read_disk = '1' and track_byte_addr(0) = '0' else
            (others => '0');
 
   track_addr <= track_byte_addr(14 downto 1);
