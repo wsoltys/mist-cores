@@ -210,12 +210,13 @@ architecture datapath of mist_top is
 
   signal D1_ACTIVE, D2_ACTIVE : std_logic;
   signal track_addr : unsigned(13 downto 0);
-  signal TRACK_RAM_ADDR : unsigned(13 downto 0);
+  signal TRACK_RAM_ADDR : unsigned(12 downto 0);
   signal tra : unsigned(15 downto 0);
   signal TRACK_RAM_DI : unsigned(7 downto 0);
   signal TRACK_RAM_WE : std_logic;
   signal track : unsigned(5 downto 0);
   signal image : unsigned(9 downto 0);
+  signal sd_change : std_logic;
 
   signal CS_N, MOSI, MISO, SCLK : std_logic;
   
@@ -522,15 +523,17 @@ begin
     MISO           => sd_sdo,
     SCLK           => sd_sck,
     
+    change         => sd_change,
     track          => TRACK,
     image          => (others=>'0'),
+    busy           => LED,
     
     ram_write_addr => TRACK_RAM_ADDR,
     ram_di         => TRACK_RAM_DI,
     ram_we         => TRACK_RAM_WE
     );
     
-  LED <= not D1_ACTIVE;
+  --LED <= not D1_ACTIVE;
   
   user_io_d : user_io
     generic map (STRLEN => CONF_STR'length)
@@ -559,6 +562,7 @@ begin
       sd_dout_strobe => sd_data_in_strobe,
       sd_din => sd_data_out,
       sd_din_strobe => sd_data_out_strobe,
+      sd_change => sd_change, 
       ps2_clk => CLK_12k,
       ps2_kbd_clk => ps2Clk,
       ps2_kbd_data => ps2Data

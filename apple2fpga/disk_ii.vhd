@@ -81,7 +81,7 @@ entity disk_ii is
     track_addr     : out unsigned(13 downto 0);
     D1_ACTIVE      : out std_logic;     -- Disk 1 motor on
     D2_ACTIVE      : out std_logic;     -- Disk 2 motor on
-    ram_write_addr : in unsigned(13 downto 0);  -- Address for track RAM
+    ram_write_addr : in unsigned(12 downto 0);  -- Address for track RAM
     ram_di         : in unsigned(7 downto 0);  -- Data to track RAM
     ram_we         : in std_logic              -- RAM write enable
     );
