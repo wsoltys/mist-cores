@@ -392,11 +392,11 @@ begin
               clk => CLK_114M,
               clkref => CLK_14M,
               init => not pll_locked,
-              din => sd_di,
-              addr => "000000" & sd_addr,
-              we => sd_we,
-              oe => sd_oe,
-              dout => sd_do
+              din => std_logic_vector(D),
+              addr => "000000000" & std_logic_vector(a_ram),
+              we => ram_we,
+              oe => not ram_we,
+              dout => DO
     );
   
 --  data_io_inst: data_io
@@ -424,19 +424,19 @@ begin
 --    end if;
 --  end process;
   
-  ram_inst : entity work.spram
-    generic map
-    (
-      widthad_a	=> 16
-    )
-    port map
-    (
-      clock	=> CLK_14M,
-      address	=> std_logic_vector(a_ram),
-      wren	=> ram_we,
-      data	=> std_logic_vector(D),
-      q	=> DO
-    );
+--  ram_inst : entity work.spram
+--    generic map
+--    (
+--      widthad_a	=> 16
+--    )
+--    port map
+--    (
+--      clock	=> CLK_14M,
+--      address	=> std_logic_vector(a_ram),
+--      wren	=> ram_we,
+--      data	=> std_logic_vector(D),
+--      q	=> DO
+--    );
   
   core : entity work.apple2 port map (
     CLK_14M        => CLK_14M,
