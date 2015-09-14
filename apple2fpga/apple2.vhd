@@ -46,6 +46,19 @@ end apple2;
 
 architecture rtl of apple2 is
 
+  component ramcard is
+    port ( mclk28: in std_logic;
+           reset_in: in std_logic;
+           strobe: in std_logic;
+           addr: in std_logic_vector(15 downto 0);
+           ram_addr: out std_logic_vector(15 downto 0);          
+           we: in std_logic;  
+           card_ram_we: out std_logic;
+           card_ram_rd: out std_logic;
+           bank1: out std_logic
+    );
+  end component;
+
   -- Clocks
   signal CLK_7M : std_logic;
   signal Q3, RAS_N, CAS_N, AX : std_logic;
@@ -89,14 +102,23 @@ architecture rtl of apple2 is
   signal speaker_sig : std_logic := '0';        
 
   signal DL : unsigned(7 downto 0);     -- Latched RAM data
+  
+  -- ramcard
+  signal card_addr : unsigned(15 downto 0);
+  signal card_ram_rd : std_logic;
+  signal card_ram_we : std_logic;
+  signal ram_card_read : std_logic;
+  signal ram_card_write : std_logic;
+  signal ram_we_0 : std_logic;
 
 begin
 
   CLK_2M <= Q3;
   PRE_PHASE_ZERO <= PRE_PHASE_ZERO_sig;
 
-  ram_addr <= A when PHASE_ZERO = '1' else VIDEO_ADDRESS;
-  ram_we <= we and not RAS_N when PHASE_ZERO = '1' else '0';
+  ram_addr <= card_addr when PHASE_ZERO = '1' else VIDEO_ADDRESS;
+  ram_we_0 <= we and not RAS_N when PHASE_ZERO = '1' else '0';
+  ram_we <= ram_we_0 and (RAM_SELECT or ram_card_write);
 
   -- Latch RAM data on the rising edge of RAS
   RAM_data_latch : process (CLK_14M)
@@ -198,7 +220,7 @@ begin
 
   speaker <= speaker_sig;
   
-  D_IN <= DL when RAM_SELECT = '1' else  -- RAM
+  D_IN <= DL when RAM_SELECT = '1' or ram_card_read = '1' else  -- RAM
           K when KEYBOARD_SELECT = '1' else  -- Keyboard
           GAMEPORT(TO_INTEGER(A(2 downto 0))) & "0000000"  -- Gameport
              when GAMEPORT_SELECT = '1' else
@@ -282,5 +304,24 @@ begin
     addr => rom_addr,
     clk  => CLK_14M,
     dout => rom_out);
+    
+    
+  -- ramcard  
+  ram_card_D: component ramcard
+    port map
+    (
+      mclk28 => CLK_14M,
+      reset_in => reset,
+      strobe => PRE_PHASE_ZERO_sig,
+      addr => std_logic_vector(A),
+      unsigned(ram_addr) => card_addr,
+      we => ram_we_0,
+      card_ram_we => card_ram_we,
+      card_ram_rd => card_ram_rd,
+      bank1 => open
+    );
+    
+    ram_card_read  <= ROM_SELECT and card_ram_rd;
+    ram_card_write <= ROM_SELECT and card_ram_we;
     
 end rtl;
