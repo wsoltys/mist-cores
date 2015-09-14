@@ -185,11 +185,11 @@ architecture datapath of mist_top is
          );
   end component osd;
 
-  signal CLK_114M, CLK_28M, CLK_14M, CLK_2M, PRE_PHASE_ZERO, CLK_12k : std_logic;
+  signal CLK_57M, CLK_28M, CLK_14M, CLK_2M, PRE_PHASE_ZERO, CLK_12k : std_logic;
   signal clk_div : unsigned(1 downto 0);
   signal IO_SELECT, DEVICE_SELECT : std_logic_vector(7 downto 0);
   signal ADDR : unsigned(15 downto 0);
-  signal D, PD, ram_do, ram_di : unsigned(7 downto 0);
+  signal D, PD, ram_di : unsigned(7 downto 0);
   signal DO : std_logic_vector(7 downto 0);
 
   signal ram_we : std_logic;
@@ -306,20 +306,18 @@ begin
   port map (
     areset => '0',
     inclk0 => CLOCK_27(0),
-    c0     => CLK_114M,
+    c0     => CLK_57M,
     c1     => SDRAM_CLK,
     c2     => CLK_12k,
     locked => pll_locked
     );
-    
-  -- generate 28.6MHz video clock from 114.4MHz main clock by dividing it by 4
-  process(CLK_114M)
+
+  -- generate 28.6MHz video clock from 57.2MHz main clock
+  process(CLK_57M)
   begin
-    if rising_edge(CLK_114M) then
-      clk_div <= clk_div + 1;
+    if rising_edge(CLK_57M) then
+      CLK_28M <= not CLK_28M;
     end if;
-     
-    CLK_28M <= clk_div(1);
   end process;
   
   -- generate 14.3MHz system clock from 28.6MHz video clock
@@ -389,7 +387,7 @@ begin
               sd_we => SDRAM_nWE,
               sd_ras => SDRAM_nRAS,
               sd_cas => SDRAM_nCAS,
-              clk => CLK_114M,
+              clk => CLK_57M,
               clkref => CLK_14M,
               init => not pll_locked,
               din => std_logic_vector(D),
@@ -398,6 +396,7 @@ begin
               oe => not ram_we,
               dout => DO
     );
+    
   
 --  data_io_inst: data_io
 --    port map(SPI_SCK, SPI_SS2, SPI_DI, downl, io_index, size, CLK_14M, io_we, io_addr, io_do);
