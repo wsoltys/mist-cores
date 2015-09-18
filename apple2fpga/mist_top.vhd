@@ -304,7 +304,7 @@ begin
 
   pll : entity work.mist_clk 
   port map (
-    areset => '0',
+    areset => buttons(1),
     inclk0 => CLOCK_27(0),
     c0     => CLK_57M,
     c1     => SDRAM_CLK,
