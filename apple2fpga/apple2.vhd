@@ -17,7 +17,7 @@ entity apple2 is
     FLASH_CLK      : in  std_logic;        -- approx. 2 Hz flashing char clock
     reset          : in  std_logic;
     ADDR           : out unsigned(15 downto 0);  -- CPU address
-    ram_addr       : out unsigned(15 downto 0);  -- RAM address
+    ram_addr       : out unsigned(17 downto 0);  -- RAM address
     D              : out unsigned(7 downto 0);   -- Data to RAM
     ram_do         : in unsigned(7 downto 0);    -- Data from RAM
     PD             : in unsigned(7 downto 0);    -- Data to CPU from peripherals
@@ -51,7 +51,7 @@ architecture rtl of apple2 is
            reset_in: in std_logic;
            strobe: in std_logic;
            addr: in std_logic_vector(15 downto 0);
-           ram_addr: out std_logic_vector(15 downto 0);          
+           ram_addr: out std_logic_vector(17 downto 0);          
            we: in std_logic;  
            card_ram_we: out std_logic;
            card_ram_rd: out std_logic;
@@ -104,7 +104,7 @@ architecture rtl of apple2 is
   signal DL : unsigned(7 downto 0);     -- Latched RAM data
   
   -- ramcard
-  signal card_addr : unsigned(15 downto 0);
+  signal card_addr : unsigned(17 downto 0);
   signal card_ram_rd : std_logic;
   signal card_ram_we : std_logic;
   signal ram_card_read : std_logic;
@@ -116,7 +116,7 @@ begin
   CLK_2M <= Q3;
   PRE_PHASE_ZERO <= PRE_PHASE_ZERO_sig;
 
-  ram_addr <= card_addr when PHASE_ZERO = '1' else VIDEO_ADDRESS;
+  ram_addr <= card_addr when PHASE_ZERO = '1' else "00" & VIDEO_ADDRESS;
   ram_we_0 <= we and not RAS_N when PHASE_ZERO = '1' else '0';
   ram_we <= ram_we_0 and (RAM_SELECT or ram_card_write);
 

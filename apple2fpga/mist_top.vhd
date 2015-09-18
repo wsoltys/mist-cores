@@ -223,7 +223,7 @@ architecture datapath of mist_top is
   signal downl : std_logic := '0';
   signal io_index : std_logic_vector(4 downto 0);
   signal size : std_logic_vector(24 downto 0) := (others=>'0');
-  signal a_ram: unsigned(15 downto 0);
+  signal a_ram: unsigned(17 downto 0);
   signal r : unsigned(9 downto 0);
   signal g : unsigned(9 downto 0);
   signal b : unsigned(9 downto 0);
@@ -391,7 +391,7 @@ begin
               clkref => CLK_14M,
               init => not pll_locked,
               din => std_logic_vector(D),
-              addr => "000000000" & std_logic_vector(a_ram),
+              addr => "0000000" & std_logic_vector(a_ram),
               we => ram_we,
               oe => not ram_we,
               dout => DO
