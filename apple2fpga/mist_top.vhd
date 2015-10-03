@@ -287,7 +287,9 @@ begin
   power_on : process(CLK_14M)
   begin
     if rising_edge(CLK_14M) then
-      if flash_clk(22) = '1' then
+      if buttons(1)='1' then
+        power_on_reset <= '1';
+      elsif flash_clk(22) = '1' then
         power_on_reset <= '0';
       end if;
     end if;
@@ -304,7 +306,7 @@ begin
 
   pll : entity work.mist_clk 
   port map (
-    areset => buttons(1),
+    areset => '0',
     inclk0 => CLOCK_27(0),
     c0     => CLK_57M,
     c1     => SDRAM_CLK,
