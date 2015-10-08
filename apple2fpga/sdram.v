@@ -1,10 +1,11 @@
 //
 // sdram.v
 //
-// sdram controller implementation for the MiST board
+// apple II version of the sdram controller implementation for the
+// MiST board
 // http://code.google.com/p/mist-board/
 // 
-// Copyright (c) 2013 Till Harbaum <till@harbaum.org> 
+// Copyright (c) 2015 Till Harbaum <till@harbaum.org> 
 // 
 // This source file is free software: you can redistribute it and/or modify 
 // it under the terms of the GNU General Public License as published 
@@ -40,14 +41,11 @@ module sdram (
 	input [7:0]  		din,			// data input from chipset/cpu
 	output [7:0]      dout,			// data output to chipset/cpu
 	input [24:0]   	addr,       // 25 bit byte address
-	input 		 		oe,         // cpu/chipset requests read
 	input 		 		we          // cpu/chipset requests write
 );
 
-// falling edge on oe/we/rfsh starts state machine
-
 // no burst configured
-localparam RASCAS_DELAY   = 3'd3;   // tRCD=20ns -> 3 cycles@128MHz
+localparam RASCAS_DELAY   = 3'd2;   // tRCD=20ns -> 3 cycles@128MHz
 localparam BURST_LENGTH   = 3'b000; // 000=1, 001=2, 010=4, 011=8
 localparam ACCESS_TYPE    = 1'b0;   // 0=sequential, 1=interleaved
 localparam CAS_LATENCY    = 3'd3;   // 2/3 allowed
@@ -69,15 +67,19 @@ localparam STATE_LAST      = 3'd7;   // last state in cycle
 
 assign dout = addr[0]?sd_data[7:0]:sd_data[15:8];
 
-reg [2:0] q /* synthesis noprune */;
+reg [3:0] q /* synthesis noprune */;
 always @(posedge clk) begin
 	// 112Mhz counter synchronous to 14 Mhz clock
    // force counter to pass state 5->6 exactly after the rising edge of clkref
 	// since clkref is two clocks early
-   if(((q == 7) && ( clkref == 0)) ||
-		((q == 0) && ( clkref == 1)) ||
-      ((q != 7) && (q != 0)))
-			q <= q + 3'd1;
+   if(((q == 13) && ( clkref == 0)) ||
+		((q ==  0) && ( clkref == 1)) ||
+      ((q != 13) && (q != 0))) begin
+			if( q != 13)
+				q <= q + 4'd1;
+			else
+				q <= 4'd0;
+		end
 end
 
 // ---------------------------------------------------------------------
@@ -122,8 +124,6 @@ assign sd_we  = sd_cmd[0];
 // at a time when writing
 assign sd_data = we?{din, din}:16'bZZZZZZZZZZZZZZZZ;
 
-// assign dout = addr[0]?sd_data[7:0]:sd_data[15:8];
-
 always @(posedge clk) begin
 	sd_cmd <= CMD_INHIBIT;  // default: idle
 	
@@ -146,39 +146,29 @@ always @(posedge clk) begin
 		// normal operation
 		
 		// -------------------  cpu/chipset read/write ----------------------
-		if(we || oe) begin
 		
-			// RAS phase
-			if(q == STATE_CMD_START) begin
-				sd_cmd <= CMD_ACTIVE;
-				sd_addr <= addr[21:9];
-				sd_ba <= addr[23:22];
+		// RAS phase
+		if(q == STATE_CMD_START) begin
+			sd_cmd <= CMD_ACTIVE;
+			sd_addr <= addr[21:9];
+			sd_ba <= addr[23:22];
 				
-				// always return both bytes in a read. Only the correct byte
-				// is being stored during read. On write only one of the two
-				// bytes is enabled
-				if(!we) sd_dqm <= 2'b00;
-				else    sd_dqm <= { addr[0], ~addr[0] };
-			end
+			// always return both bytes in a read. Only the correct byte
+			// is being stored during read. On write only one of the two
+			// bytes is enabled
+			if(!we) sd_dqm <= 2'b00;
+			else    sd_dqm <= { addr[0], ~addr[0] };
+		end
 				
-			// CAS phase 
-			if(q == STATE_CMD_CONT) begin
-				sd_cmd <= we?CMD_WRITE:CMD_READ;
-				sd_addr <= { 4'b0010, addr[24], addr[8:1] };  // auto precharge
-			end
+		// CAS phase 
+		if(q == STATE_CMD_CONT) begin
+			sd_cmd <= we?CMD_WRITE:CMD_READ;
+			sd_addr <= { 4'b0010, addr[24], addr[8:1] };  // auto precharge
 		end
 
-      // read phase
-//		if(oe) begin
-//			if(q == STATE_READ)
-//				dout <= addr[0]?sd_data[7:0]:sd_data[15:8];
-//		end
-		
-		// ------------------------ no access --------------------------
-		else begin
-			if(q == STATE_CMD_START)
-				sd_cmd <= CMD_AUTO_REFRESH;
-		end
+		// always add a refresh cycle
+		if(q == 8)
+			sd_cmd <= CMD_AUTO_REFRESH;
 	end
 end
 
