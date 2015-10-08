@@ -110,6 +110,7 @@ architecture rtl of apple2 is
   signal ram_card_read : std_logic;
   signal ram_card_write : std_logic;
   signal ram_pre_we : std_logic;
+  signal ramcard_strobe : std_logic;
 
 begin
 
@@ -117,7 +118,8 @@ begin
   PRE_PHASE_ZERO <= PRE_PHASE_ZERO_sig;
 
   ram_addr <= card_addr when PHASE_ZERO = '1' else "00" & VIDEO_ADDRESS;
-  ram_pre_we <= we;
+  -- ram_pre_we <= we;
+  ram_pre_we <= (we and RAM_SELECT) or (ram_card_write and we);
   ram_we <= ram_pre_we and not RAS_N when PHASE_ZERO = '1' else '0';
 
   -- Latch RAM data on the rising edge of RAS
@@ -211,6 +213,15 @@ begin
       end if;
     end if;
   end process softswitches;
+  
+  ramcard_ctrl: process (Q3)
+  begin
+    if rising_edge(Q3) then
+      if PRE_PHASE_ZERO_sig = '1' then
+        ramcard_strobe <= not ramcard_strobe;
+      end if;
+    end if;
+  end process ramcard_ctrl;
 
   TEXT_MODE <= soft_switches(0);
   MIXED_MODE <= soft_switches(1);
@@ -312,7 +323,7 @@ begin
     (
       mclk28 => CLK_14M,
       reset_in => reset,
-      strobe => PRE_PHASE_ZERO_sig,
+      strobe => ramcard_strobe,
       addr => std_logic_vector(A),
       unsigned(ram_addr) => card_addr,
       we => we,
