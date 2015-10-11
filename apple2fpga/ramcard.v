@@ -13,10 +13,12 @@ module ramcard(mclk28,reset_in,strobe,addr,ram_addr, we, card_ram_we,card_ram_rd
   
   reg bank1, read_en, write_en, pre_wr_en, bankB, sat_read_en, sat_write_en, sat_pre_wr_en, sat_en, strobe2;
   reg [2:0] bank16k;
+  reg [15:0] addr2;
   wire Dxxx,DEF;
   
   always @(posedge mclk28) begin
     strobe2 <= strobe;
+    addr2 <= addr;
     if(reset_in) begin
       bank1 <= 0;
       read_en <= 0;
@@ -30,14 +32,14 @@ module ramcard(mclk28,reset_in,strobe,addr,ram_addr, we, card_ram_we,card_ram_rd
     end 
     else 
     begin
-      if((addr[15:4] == 'hC08) & (strobe2 != strobe)) begin
+      if((addr[15:4] == 'hC08) & (addr2 != addr)) begin
         // Looks like a Language Card in slot 0
         bank1 <= addr[3];
         pre_wr_en <= addr[0] & ~we;
         write_en <= addr[0] & pre_wr_en & ~we;
         read_en <= ~(addr[0] ^ addr[1]);
       end
-      if((addr[15:4] == 'hC09) & (strobe2 != strobe)) begin
+      if((addr[15:4] == 'hC09) & (addr2 != addr)) begin
         // Looks like Saturn128 Card in slot 1
         if(addr[2] == 0) begin
           // State selection
