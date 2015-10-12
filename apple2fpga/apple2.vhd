@@ -49,7 +49,6 @@ architecture rtl of apple2 is
   component ramcard is
     port ( mclk28: in std_logic;
            reset_in: in std_logic;
-           strobe: in std_logic;
            addr: in std_logic_vector(15 downto 0);
            ram_addr: out std_logic_vector(17 downto 0);          
            we: in std_logic;  
@@ -117,8 +116,6 @@ begin
   PRE_PHASE_ZERO <= PRE_PHASE_ZERO_sig;
 
   ram_addr <= card_addr when PHASE_ZERO = '1' else "00" & VIDEO_ADDRESS;
---TH  ram_pre_we <= we;
---TH  ram_we <= ram_pre_we and not RAS_N when PHASE_ZERO = '1' else '0';
 	ram_we <= ((we and RAM_SELECT) or (we and ram_card_write)) when PHASE_ZERO = '1' else '0';
 
   -- Latch RAM data on the rising edge of RAS
@@ -301,12 +298,6 @@ begin
 
   -- Original Apple had asynchronous ROMs.  We use a synchronous ROM
   -- that needs its address earlier, hence the odd clock.
---TH  roms : entity work.main_roms port map (
---TH    addr => rom_addr,
---TH    clk  => CLK_14M,
---TH    dout => rom_out);
-
-  --TH instead
   roms : entity work.roms port map (
     address => std_logic_vector(rom_addr),
     clock  => CLK_14M,
@@ -318,7 +309,6 @@ begin
     (
       mclk28 => CLK_14M,
       reset_in => reset,
-      strobe => PRE_PHASE_ZERO_sig,
       addr => std_logic_vector(A),
       unsigned(ram_addr) => card_addr,
       we => we,
