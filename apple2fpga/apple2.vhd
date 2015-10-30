@@ -116,7 +116,7 @@ begin
   PRE_PHASE_ZERO <= PRE_PHASE_ZERO_sig;
 
   ram_addr <= card_addr when PHASE_ZERO = '1' else "00" & VIDEO_ADDRESS;
-	ram_we <= ((we and RAM_SELECT) or (we and ram_card_write)) when PHASE_ZERO = '1' else '0';
+  ram_we <= ((we and RAM_SELECT) or (we and ram_card_write)) when PHASE_ZERO = '1' else '0';
 
   -- Latch RAM data on the rising edge of RAS
   RAM_data_latch : process (CLK_14M)
