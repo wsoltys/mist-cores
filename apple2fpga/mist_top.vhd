@@ -252,6 +252,8 @@ architecture datapath of mist_top is
   signal ps2Clk     : std_logic;
   signal ps2Data    : std_logic;
   signal audio      : std_logic;
+  signal audiol     : std_logic;
+  signal audior     : std_logic;
   
   -- signals to connect sd card emulation with io controller
   signal sd_lba:  std_logic_vector(31 downto 0);
@@ -455,11 +457,13 @@ begin
     IO_SELECT      => IO_SELECT,
     DEVICE_SELECT  => DEVICE_SELECT,
     pcDebugOut     => cpu_pc,
-    speaker        => audio
+    speaker        => audio,
+    laudio         => audiol,
+    raudio         => audior
     );
     
-  AUDIO_L <= audio;
-  AUDIO_R <= audio;
+  AUDIO_L <= audiol;-- or audio;
+  AUDIO_R <= audior;-- or audio;
 
   vga : entity work.vga_controller port map (
     CLK_28M    => CLK_28M,
