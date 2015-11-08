@@ -9,17 +9,23 @@ entity MOCKINGBOARD is
   
     I_ADDR            : in std_logic_vector(7 downto 0);
     I_DATA            : in std_logic_vector(7 downto 0);
-    O_DATA            : in std_logic_vector(7 downto 0);
+    O_DATA            : out std_logic_vector(7 downto 0);
     
     I_RW_L            : in std_logic;
     O_IRQ_L           : out std_logic;
     O_NMI_L           : out std_logic;
     I_IOSEL_L         : in std_logic;
+    I_DEVSEL_L        : in std_logic;
     I_RESET_L         : in std_logic;
     
     O_AUDIO_L         : out std_logic;
     O_AUDIO_R         : out std_logic;
-    CLK               : in std_logic
+    CLK14M            : in std_logic;
+    CLK               : in std_logic;
+    CLK7M             : in std_logic;
+    CLK_PSG           : in std_logic;
+    I_P2_H            : in std_logic;
+    I_ENA             : in std_logic
     );
  end;
  
@@ -31,41 +37,61 @@ entity MOCKINGBOARD is
   
   signal i_psg_r          : std_logic_vector(7 downto 0);
   signal i_psg_l          : std_logic_vector(7 downto 0);
-  signal o_psg_r          : std_logic_vector(7 downto 0);
-  signal o_psg_l          : std_logic_vector(7 downto 0);
   signal o_psg_ar         : std_logic_vector(7 downto 0);
   signal o_psg_al         : std_logic_vector(7 downto 0);
   
   signal o_data_l          : std_logic_vector(7 downto 0);
   signal o_data_r          : std_logic_vector(7 downto 0);
   
-  signal data_oe_l        : std_logic;
+  signal lvia_read        : std_logic;
+  signal rvia_read        : std_logic;
+  
+  signal lirq_l           : std_logic;
+  signal rirq_l           : std_logic;
+  
+  signal clkp2_pre        : std_logic;
+  signal clkp2            : std_logic;
   
 begin
 
-  O_DATA <= o_data_l when data_oe_l = '0' else o_data_r;
+  O_DATA <= o_data_l when lvia_read = '1' else o_data_r when rvia_read = '1' else (others=>'Z');
+  
+  lvia_read <= I_RW_L and not I_ADDR(7) and not I_IOSEL_L;
+  rvia_read <= I_RW_L and I_ADDR(7) and not I_IOSEL_L;
+  
+  O_IRQ_L <= lirq_l and rirq_l;
+  
+  clkp2 <= I_P2_H;
+  
+--  delay: process (CLK7M)
+--  begin
+--    if rising_edge(CLK7M) then
+--      clkp2_pre <= not CLK_PSG;
+--      clkp2 <= clkp2_pre;
+--    end if;
+--  end process delay;
 
 -- Left Channel Combo
 
-  m6522_left : M6522
+  m6522_left : work.M6522
     port map (
-      I_RS        => I_ADDR(3 downto 0);
+      I_RS        => I_ADDR(3 downto 0),
       I_DATA      => I_DATA,
       O_DATA      => o_data_l,
-      O_DATA_OE_L => data_oe_l,
+      O_DATA_OE_L => open,
   
       I_RW_L      => I_RW_L,
       I_CS1       => not I_ADDR(7),
       I_CS2_L     => I_IOSEL_L,
   
-      O_IRQ_L     => O_IRQ_L,
+      O_IRQ_L     => lirq_l,
       -- port a
       I_CA1       => '0',
       I_CA2       => '0',
       O_CA2       => open,
       O_CA2_OE_L  => open,
   
-      I_PA        => o_psg_l,
+      I_PA        => (others => '0'),
       O_PA        => i_psg_l,
       O_PA_OE_L   => open,
   
@@ -82,18 +108,18 @@ begin
       O_PB        => o_pb_l,
       O_PB_OE_L   => open,
   
-      I_P2_H      =>
+      I_P2_H      => clkp2,
       RESET_L     => I_RESET_L,
-      ENA_4       =>
+      ENA_4       => I_ENA,
       CLK         => CLK
       );
       
       
-  psg_left : YM2149
+  psg_left : work.YM2149
     port map (
       -- data bus
       I_DA        => i_psg_l,
-      O_DA        => o_psg_l,
+      O_DA        => open,
       O_DA_OE_L   => open,
       -- control
       I_A9_L      => '0', -- /A9 pulled down internally
@@ -113,25 +139,25 @@ begin
       O_IOB       => open,
       O_IOB_OE_L  => open,
       --
-      ENA         => 
+      ENA         => '1',
       RESET_L     => o_pb_l(2),
-      CLK         => CLK
+      CLK         => CLK_PSG
       );
 
-  dac_l : sigma_delta_dac
+  dac_l : work.dac
     port map (
-      CLK		=> CLK,
-      RESET 	=> I_RESET_L,
-      DACin 	=> o_psg_al,
-      DACout	=> O_AUDIO_L
+      clk_i		=> CLK14M,
+      res_n_i	=> I_RESET_L,
+      dac_i 	=> o_psg_al,
+      dac_o 	=> O_AUDIO_L
       );
 
 
 -- Right Channel Combo
 
-  m6522_right : M6522
+  m6522_right : work.M6522
     port map (
-      I_RS        => I_ADDR(3 downto 0);
+      I_RS        => I_ADDR(3 downto 0),
       I_DATA      => I_DATA,
       O_DATA      => o_data_r,
       O_DATA_OE_L => open,
@@ -140,14 +166,14 @@ begin
       I_CS1       => I_ADDR(7),
       I_CS2_L     => I_IOSEL_L,
   
-      O_IRQ_L     => O_NMI_L,
+      O_IRQ_L     => rirq_l,
       -- port a
       I_CA1       => '0',
       I_CA2       => '0',
       O_CA2       => open,
       O_CA2_OE_L  => open,
   
-      I_PA        => o_psg_r,
+      I_PA        => (others => '0'),
       O_PA        => i_psg_r,
       O_PA_OE_L   => open,
   
@@ -164,18 +190,18 @@ begin
       O_PB        => o_pb_r,
       O_PB_OE_L   => open,
   
-      I_P2_H      =>
+      I_P2_H      => clkp2,
       RESET_L     => I_RESET_L,
-      ENA_4       =>
-      CLK         =>
+      ENA_4       => I_ENA,
+      CLK         => CLK
       );
       
       
-  psg_right : YM2149
+  psg_right : work.YM2149
     port map (
       -- data bus
       I_DA        => i_psg_r,
-      O_DA        => o_psg_r,
+      O_DA        => open,
       O_DA_OE_L   => open,
       -- control
       I_A9_L      => '0', -- /A9 pulled down internally
@@ -195,17 +221,17 @@ begin
       O_IOB       => open,
       O_IOB_OE_L  => open,
       --
-      ENA         => 
+      ENA         => '1',
       RESET_L     => o_pb_r(2),
-      CLK         =>
+      CLK         => CLK_PSG
       );
       
-  dac_r : sigma_delta_dac
+  dac_r : work.dac
     port map (
-      CLK		=> CLK,
-      RESET 	=> I_RESET_L,
-      DACin 	=> o_psg_ar,
-      DACout	=> O_AUDIO_R
+      clk_i		=> CLK14M,
+      res_n_i	=> I_RESET_L,
+      dac_i 	=> o_psg_ar,
+      dac_o 	=> O_AUDIO_R
       );
 
 end architecture RTL;

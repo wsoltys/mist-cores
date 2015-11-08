@@ -40,6 +40,8 @@ entity apple2 is
     DEVICE_SELECT  : out std_logic_vector(7 downto 0);
     pcDebugOut     : out unsigned(15 downto 0);
     opcodeDebugOut : out unsigned(7 downto 0);
+    laudio         : out std_logic;
+    raudio         : out std_logic;
     speaker        : out std_logic              -- One-bit speaker output
     );
 end apple2;
@@ -57,7 +59,7 @@ architecture rtl of apple2 is
            bank1: out std_logic
     );
   end component;
-
+  
   -- Clocks
   signal CLK_7M : std_logic;
   signal Q3, RAS_N, CAS_N, AX : std_logic;
@@ -81,6 +83,7 @@ architecture rtl of apple2 is
 
   -- CPU signals
   signal D_IN : unsigned(7 downto 0);
+  signal D_OUT: unsigned(7 downto 0);
   signal A : unsigned(15 downto 0);
   signal we : std_logic;
 
@@ -108,7 +111,15 @@ architecture rtl of apple2 is
   signal card_ram_we : std_logic;
   signal ram_card_read : std_logic;
   signal ram_card_write : std_logic;
---TH  signal ram_pre_we : std_logic;
+
+  signal psg_irq_n : std_logic;
+  signal psg_nmi_n : std_logic;
+  signal psg_do    : unsigned(7 downto 0);
+  
+  signal ioselect  : std_logic_vector(7 downto 0);
+  signal devselect : std_logic_vector(7 downto 0);
+  
+  signal R_W_n     : std_logic;
 
 begin
 
@@ -129,6 +140,10 @@ begin
   end process;
 
   ADDR <= A;
+  D <= D_OUT;
+  
+  IO_SELECT <= ioselect;
+  DEVICE_SELECT <= devselect;
   
   -- Address decoding
   rom_addr <= (A(13) and A(12)) & (not A(12)) & A(11 downto 0);
@@ -144,8 +159,8 @@ begin
     GAMEPORT_SELECT <= '0';
     PDL_STROBE <= '0';
     STB <= '0';
-    IO_SELECT <= (others => '0');
-    DEVICE_SELECT <= (others => '0');
+    ioselect <= (others => '0');
+    devselect <= (others => '0');
     IO_STROBE <= '0';
     case A(15 downto 14) is
       when "00" | "01" | "10" =>         -- 0000 - BFFF
@@ -172,12 +187,12 @@ begin
                     PDL_STROBE <= '1';
                   when x"8" | x"9" | x"A" |  -- C080 - C0FF
                        x"B" | x"C" | x"D" | x"E" | x"F" =>
-                    DEVICE_SELECT(TO_INTEGER(A(6 downto 4))) <= '1';
+                    devselect(TO_INTEGER(A(6 downto 4))) <= '1';
                   when others => null;                
                 end case;
               when x"1" | x"2" | x"3" |  -- C100 - C7FF
                    x"4" | x"5" | x"6" | x"7" =>
-                IO_SELECT(TO_INTEGER(A(10 downto 8))) <= '1';
+                ioselect(TO_INTEGER(A(10 downto 8))) <= '1';
               when x"8" | x"9" | x"A" |  -- C800 - CFFF
                    x"B" | x"C" | x"D" | x"E" | x"F" =>
                 IO_STROBE <= '1';
@@ -223,6 +238,7 @@ begin
           GAMEPORT(TO_INTEGER(A(2 downto 0))) & "0000000"  -- Gameport
              when GAMEPORT_SELECT = '1' else
           rom_out when ROM_SELECT = '1' else  -- ROMs
+          psg_do when devselect(4) = '1' or ioselect(4) = '1' else
           PD;                           -- Peripherals
 
   LD194 <= LD194_I;
@@ -287,14 +303,42 @@ begin
       enable         => not PRE_PHASE_ZERO_sig,
       reset          => reset,
       nmi_n          => '1',
-      irq_n          => '1',
+      irq_n          => '1', --psg_irq_n,
       di             => D_IN,
-      do             => D,
+      do             => D_OUT,
       addr           => A,
       we             => we,
       debugPc     => pcDebugOut,
       debugOpcode => opcodeDebugOut
     );
+    
+--  cpu2 : entity work.T65
+--    port map (
+--      Clk       => Q3,
+--      Abort_n   => '1',
+--      NMI_n     => '1',
+--      Rdy       => '1',
+--      Enable    => not PRE_PHASE_ZERO_sig,
+--      Res_n     => not reset,
+--      SO_n      => '1',
+--      IRQ_n     => psg_irq_n,
+--      EF        => open,
+--      R_W_n     => R_W_n,
+--      VDA       => open,
+--      MF        => open,
+--      VPA       => open,
+--      ML_n      => open,
+--      XF        => open,
+--      Sync      => open,
+--      VP_n      => open,
+--      DI        => std_logic_vector(D_IN),
+--      Mode      => "00",
+--      std_logic_vector(DO)        => D_OUT,
+--      std_logic_vector(A(15 downto 0)) => A
+--    );
+--    
+--    we <= not R_W_n;
+    
 
   -- Original Apple had asynchronous ROMs.  We use a synchronous ROM
   -- that needs its address earlier, hence the odd clock.
@@ -319,5 +363,29 @@ begin
     
     ram_card_read  <= ROM_SELECT and card_ram_rd;
     ram_card_write <= ROM_SELECT and card_ram_we;
+    
+    
+    
+  mb : work.mockingboard
+    port map (
+      CLK14M    => CLK_14M,
+      CLK7M     => CLK_7M,
+      CLK       => not Q3,
+      CLK_PSG   => not PHASE_ZERO,
+      I_P2_H    => not PHASE_ZERO,
+      I_ENA     => '1',
+      I_RESET_L => not reset,
+      
+      I_ADDR    => std_logic_vector(A)(7 downto 0),
+      I_DATA    => std_logic_vector(D_OUT),
+      unsigned(O_DATA)    => psg_do,
+      I_RW_L    => not we,
+      I_IOSEL_L => not ioselect(4),
+      I_DEVSEL_L => not devselect(4),
+      O_IRQ_L   => psg_irq_n,
+      O_NMI_L   => psg_nmi_n,
+      O_AUDIO_L => laudio,
+      O_AUDIO_R => raudio
+      );
     
 end rtl;
