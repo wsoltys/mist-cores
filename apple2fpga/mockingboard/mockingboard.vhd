@@ -48,28 +48,16 @@ entity MOCKINGBOARD is
   
   signal lirq_l           : std_logic;
   signal rirq_l           : std_logic;
-  
-  signal clkp2_pre        : std_logic;
-  signal clkp2            : std_logic;
+
   
 begin
 
   O_DATA <= o_data_l when lvia_read = '1' else o_data_r when rvia_read = '1' else (others=>'Z');
   
-  lvia_read <= I_RW_L and not I_ADDR(7) and not I_IOSEL_L;
-  rvia_read <= I_RW_L and I_ADDR(7) and not I_IOSEL_L;
+  lvia_read <= I_RW_L and not I_ADDR(7) and not (I_DEVSEL_L and I_IOSEL_L);
+  rvia_read <= I_RW_L and I_ADDR(7) and not (I_DEVSEL_L and I_IOSEL_L);
   
   O_IRQ_L <= lirq_l and rirq_l;
-  
-  clkp2 <= I_P2_H;
-  
---  delay: process (CLK7M)
---  begin
---    if rising_edge(CLK7M) then
---      clkp2_pre <= not CLK_PSG;
---      clkp2 <= clkp2_pre;
---    end if;
---  end process delay;
 
 -- Left Channel Combo
 
@@ -108,7 +96,7 @@ begin
       O_PB        => o_pb_l,
       O_PB_OE_L   => open,
   
-      I_P2_H      => clkp2,
+      I_P2_H      => I_P2_H,
       RESET_L     => I_RESET_L,
       ENA_4       => I_ENA,
       CLK         => CLK
@@ -190,7 +178,7 @@ begin
       O_PB        => o_pb_r,
       O_PB_OE_L   => open,
   
-      I_P2_H      => clkp2,
+      I_P2_H      => I_P2_H,
       RESET_L     => I_RESET_L,
       ENA_4       => I_ENA,
       CLK         => CLK
