@@ -391,46 +391,6 @@ begin
               we => ram_we,
               dout => DO
     );
-    
-  
---  data_io_inst: data_io
---    port map(SPI_SCK, SPI_SS2, SPI_DI, downl, io_index, size, CLK_14M, io_we, io_addr, io_do);
---    
---  sd_addr <= io_ram_addr when downl = '1' else std_logic_vector(TRACK_RAM_ADDR);
---  sd_di <= io_ram_d;
---  sd_oe <= '0' when downl = '1' else TRACK_RAM_OE;
---  sd_we <= '1' when io_ram_we = '1' else '0';
---    
---  process (CLK_14M)
---  begin
---    if falling_edge(CLK_14M) then
---      if io_we = '1' then
---        io_ram_we <= '1';
---        if unsigned(io_index) = 1 then
---          io_ram_addr <= '0' & io_addr(17 downto 0);
---        elsif unsigned(io_index) = 2 then
---          io_ram_addr <= '1' & io_addr(17 downto 0);
---        end if;
---        io_ram_d <= io_do;
---      else
---        io_ram_we <= '0';
---      end if;
---    end if;
---  end process;
-  
---  ram_inst : entity work.spram
---    generic map
---    (
---      widthad_a	=> 16
---    )
---    port map
---    (
---      clock	=> CLK_14M,
---      address	=> std_logic_vector(a_ram),
---      wren	=> ram_we,
---      data	=> std_logic_vector(D),
---      q	=> DO
---    );
   
   core : entity work.apple2 port map (
     CLK_14M        => CLK_14M,

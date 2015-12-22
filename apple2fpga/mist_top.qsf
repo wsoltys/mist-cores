@@ -339,10 +339,6 @@ set_instance_assignment -name CONNECT_TO_SLD_NODE_ENTITY_PORT acq_trigger_in[0] 
 set_instance_assignment -name CONNECT_TO_SLD_NODE_ENTITY_PORT acq_trigger_in[1] -to "apple2:core|MOCKINGBOARD:mb|CLK_PSG" -section_id auto_signaltap_0
 set_instance_assignment -name CONNECT_TO_SLD_NODE_ENTITY_PORT acq_data_in[0] -to "apple2:core|MOCKINGBOARD:mb|CLK" -section_id auto_signaltap_0
 set_instance_assignment -name CONNECT_TO_SLD_NODE_ENTITY_PORT acq_data_in[1] -to "apple2:core|MOCKINGBOARD:mb|CLK_PSG" -section_id auto_signaltap_0
-set_global_assignment -name VHDL_FILE t65/T65_Pack.vhd
-set_global_assignment -name VHDL_FILE t65/T65_MCode.vhd
-set_global_assignment -name VHDL_FILE t65/T65_ALU.vhd
-set_global_assignment -name VHDL_FILE t65/T65.vhd
 set_global_assignment -name VHDL_FILE mockingboard/dac.vhd
 set_global_assignment -name VHDL_FILE mockingboard/YM2149_volmix.vhd
 set_global_assignment -name VHDL_FILE mockingboard/vol_table_array.vhd

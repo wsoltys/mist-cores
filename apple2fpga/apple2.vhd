@@ -303,7 +303,7 @@ begin
       enable         => not PRE_PHASE_ZERO_sig,
       reset          => reset,
       nmi_n          => '1',
-      irq_n          => '1', --psg_irq_n,
+      irq_n          => psg_irq_n,
       di             => D_IN,
       do             => D_OUT,
       addr           => A,
@@ -312,34 +312,6 @@ begin
       debugOpcode => opcodeDebugOut
     );
     
---  cpu2 : entity work.T65
---    port map (
---      Clk       => Q3,
---      Abort_n   => '1',
---      NMI_n     => '1',
---      Rdy       => '1',
---      Enable    => not PRE_PHASE_ZERO_sig,
---      Res_n     => not reset,
---      SO_n      => '1',
---      IRQ_n     => psg_irq_n,
---      EF        => open,
---      R_W_n     => R_W_n,
---      VDA       => open,
---      MF        => open,
---      VPA       => open,
---      ML_n      => open,
---      XF        => open,
---      Sync      => open,
---      VP_n      => open,
---      DI        => std_logic_vector(D_IN),
---      Mode      => "00",
---      std_logic_vector(DO)        => D_OUT,
---      std_logic_vector(A(15 downto 0)) => A
---    );
---    
---    we <= not R_W_n;
-    
-
   -- Original Apple had asynchronous ROMs.  We use a synchronous ROM
   -- that needs its address earlier, hence the odd clock.
   roms : entity work.roms port map (
