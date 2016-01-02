@@ -42,6 +42,7 @@ entity apple2 is
     opcodeDebugOut : out unsigned(7 downto 0);
     laudio         : out std_logic;
     raudio         : out std_logic;
+    mb_enabled     : in std_logic;
     speaker        : out std_logic              -- One-bit speaker output
     );
 end apple2;
@@ -113,7 +114,6 @@ architecture rtl of apple2 is
   signal ram_card_write : std_logic;
 
   signal psg_irq_n : std_logic;
-  signal psg_nmi_n : std_logic;
   signal psg_do    : unsigned(7 downto 0);
   
   signal ioselect  : std_logic_vector(7 downto 0);
@@ -238,7 +238,7 @@ begin
           GAMEPORT(TO_INTEGER(A(2 downto 0))) & "0000000"  -- Gameport
              when GAMEPORT_SELECT = '1' else
           rom_out when ROM_SELECT = '1' else  -- ROMs
-          psg_do when devselect(4) = '1' or ioselect(4) = '1' else
+          psg_do when (devselect(4) = '1' or ioselect(4) = '1') and mb_enabled = '1' else
           PD;                           -- Peripherals
 
   LD194 <= LD194_I;
@@ -341,21 +341,18 @@ begin
   mb : work.mockingboard
     port map (
       CLK14M    => CLK_14M,
-      CLK7M     => CLK_7M,
-      CLK       => not Q3,
+      CLK_VIA   => not Q3,
       CLK_PSG   => not PHASE_ZERO,
       I_P2_H    => not PHASE_ZERO,
-      I_ENA     => '1',
       I_RESET_L => not reset,
+      I_ENA_H   => mb_enabled,
       
       I_ADDR    => std_logic_vector(A)(7 downto 0),
       I_DATA    => std_logic_vector(D_OUT),
       unsigned(O_DATA)    => psg_do,
       I_RW_L    => not we,
       I_IOSEL_L => not ioselect(4),
-      I_DEVSEL_L => not devselect(4),
       O_IRQ_L   => psg_irq_n,
-      O_NMI_L   => psg_nmi_n,
       O_AUDIO_L => laudio,
       O_AUDIO_R => raudio
       );
