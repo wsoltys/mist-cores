@@ -75,7 +75,7 @@ end mist_top;
 
 architecture datapath of mist_top is
 
-  constant CONF_STR : string := "AppleII+;;S1,NIB;O2,Monitor Type,Color,Monochrome;O3,Monitor Mode,Main,Alt;O4,Enable Scanlines,off,on;O5,Joysticks,Normal,Swapped;";
+  constant CONF_STR : string := "AppleII+;;S1,NIB;O2,Monitor Type,Color,Monochrome;O3,Monitor Mode,Main,Alt;O4,Enable Scanlines,off,on;O5,Joysticks,Normal,Swapped;T6,Cold reset;";
 
   function to_slv(s: string) return std_logic_vector is 
     constant ss: string(1 to s'length) := s; 
@@ -188,10 +188,10 @@ architecture datapath of mist_top is
   signal clk_div : unsigned(1 downto 0);
   signal IO_SELECT, DEVICE_SELECT : std_logic_vector(7 downto 0);
   signal ADDR : unsigned(15 downto 0);
-  signal D, PD, ram_di : unsigned(7 downto 0);
+  signal D, PD: unsigned(7 downto 0);
   signal DO : std_logic_vector(7 downto 0);
 
-  signal ram_we : std_logic;
+  signal we_ram : std_logic;
   signal VIDEO, HBL, VBL, LD194 : std_logic;
   signal COLOR_LINE : std_logic;
   signal COLOR_LINE_CONTROL : std_logic;
@@ -239,6 +239,9 @@ architecture datapath of mist_top is
   signal io_ram_we : std_logic;
   signal io_ram_d : std_logic_vector(7 downto 0);
   signal io_ram_addr : std_logic_vector(18 downto 0);
+  signal ram_we : std_logic;
+  signal ram_di : std_logic_vector(7 downto 0);
+  signal ram_addr : std_logic_vector(24 downto 0);
   
   signal switches   : std_logic_vector(1 downto 0);
   signal buttons    : std_logic_vector(1 downto 0);
@@ -283,12 +286,12 @@ architecture datapath of mist_top is
 
 begin
 
-  reset <= status(0) or buttons(1) or power_on_reset or force_reset;
+  reset <= status(0) or power_on_reset or force_reset;
 
   power_on : process(CLK_14M)
   begin
     if rising_edge(CLK_14M) then
-      if buttons(1)='1' then
+      if buttons(1)='1' or status(6) = '1' then
         power_on_reset <= '1';
       elsif flash_clk(22) = '1' then
         power_on_reset <= '0';
@@ -386,11 +389,16 @@ begin
               clk => CLK_28M,  -- TH
               clkref => CLK_2M,   --TH
               init => not pll_locked,
-              din => std_logic_vector(D),
-              addr => "0000000" & std_logic_vector(a_ram),
+              din => ram_di,
+              addr => ram_addr,
               we => ram_we,
               dout => DO
     );
+  
+  -- Simulate power up on cold reset to go to the disk boot routine
+  ram_we   <= we_ram when status(6) = '0' else '1';
+  ram_addr <= "0000000" & std_logic_vector(a_ram) when status(6) = '0' else std_logic_vector(to_unsigned(1012,ram_addr'length)); -- $3F4
+  ram_di   <= std_logic_vector(D) when status(6) = '0' else "00000000";
   
   core : entity work.apple2 port map (
     CLK_14M        => CLK_14M,
@@ -403,7 +411,7 @@ begin
     D              => D,
     ram_do         => unsigned(DO),
     PD             => PD,
-    ram_we         => ram_we,
+    ram_we         => we_ram,
     VIDEO          => VIDEO,
     COLOR_LINE     => COLOR_LINE,
     HBL            => HBL,
