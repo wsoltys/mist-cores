@@ -1,3 +1,14 @@
+--
+-- Mockingboard clone for the Apple II
+-- Model A: two AY-3-8913 chips for six audio channels
+--
+-- Top file by W. Soltys <wsoltys@gmail.com>
+-- 
+-- loosely based on:
+-- http://www.downloads.reactivemicro.com/Public/Apple%20II%20Items/Hardware/Mockingboard_v1/Mockingboard-v1a-Docs.pdf
+-- http://www.applelogic.org/CarteBlancheIIProj6.html
+--
+
 library ieee ;
   use ieee.std_logic_1164.all ;
   use ieee.std_logic_unsigned.all;
@@ -13,19 +24,16 @@ entity MOCKINGBOARD is
     
     I_RW_L            : in std_logic;
     O_IRQ_L           : out std_logic;
-    O_NMI_L           : out std_logic;
     I_IOSEL_L         : in std_logic;
-    I_DEVSEL_L        : in std_logic;
     I_RESET_L         : in std_logic;
+    I_ENA_H           : in std_logic;     
     
     O_AUDIO_L         : out std_logic;
     O_AUDIO_R         : out std_logic;
     CLK14M            : in std_logic;
-    CLK               : in std_logic;
-    CLK7M             : in std_logic;
+    CLK_VIA           : in std_logic;
     CLK_PSG           : in std_logic;
-    I_P2_H            : in std_logic;
-    I_ENA             : in std_logic
+    I_P2_H            : in std_logic
     );
  end;
  
@@ -54,8 +62,8 @@ begin
 
   O_DATA <= o_data_l when lvia_read = '1' else o_data_r when rvia_read = '1' else (others=>'Z');
   
-  lvia_read <= I_RW_L and not I_ADDR(7) and not (I_DEVSEL_L and I_IOSEL_L);
-  rvia_read <= I_RW_L and I_ADDR(7) and not (I_DEVSEL_L and I_IOSEL_L);
+  lvia_read <= I_RW_L and not I_ADDR(7);
+  rvia_read <= I_RW_L and I_ADDR(7);
   
   O_IRQ_L <= lirq_l and rirq_l;
 
@@ -98,8 +106,8 @@ begin
   
       I_P2_H      => I_P2_H,
       RESET_L     => I_RESET_L,
-      ENA_4       => I_ENA,
-      CLK         => CLK
+      ENA_4       => '1',
+      CLK         => CLK_VIA and I_ENA_H
       );
       
       
@@ -129,13 +137,13 @@ begin
       --
       ENA         => '1',
       RESET_L     => o_pb_l(2),
-      CLK         => CLK_PSG
+      CLK         => CLK_PSG and I_ENA_H
       );
 
   dac_l : work.dac
     port map (
       clk_i		=> CLK14M,
-      res_n_i	=> I_RESET_L,
+      res_n_i	=> I_RESET_L and I_ENA_H,
       dac_i 	=> o_psg_al,
       dac_o 	=> O_AUDIO_L
       );
@@ -180,8 +188,8 @@ begin
   
       I_P2_H      => I_P2_H,
       RESET_L     => I_RESET_L,
-      ENA_4       => I_ENA,
-      CLK         => CLK
+      ENA_4       => '1',
+      CLK         => CLK_VIA and I_ENA_H
       );
       
       
@@ -211,13 +219,13 @@ begin
       --
       ENA         => '1',
       RESET_L     => o_pb_r(2),
-      CLK         => CLK_PSG
+      CLK         => CLK_PSG and I_ENA_H
       );
       
   dac_r : work.dac
     port map (
       clk_i		=> CLK14M,
-      res_n_i	=> I_RESET_L,
+      res_n_i	=> I_RESET_L and I_ENA_H,
       dac_i 	=> o_psg_ar,
       dac_o 	=> O_AUDIO_R
       );

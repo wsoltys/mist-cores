@@ -75,7 +75,7 @@ end mist_top;
 
 architecture datapath of mist_top is
 
-  constant CONF_STR : string := "AppleII+;;S1,NIB;O2,Monitor Type,Color,Monochrome;O3,Monitor Mode,Main,Alt;O4,Enable Scanlines,off,on;O5,Joysticks,Normal,Swapped;T6,Cold reset;";
+  constant CONF_STR : string := "AppleII+;;S1,NIB;O2,Monitor Type,Color,Monochrome;O3,Monitor Mode,Main,Alt;O4,Enable Scanlines,off,on;O5,Joysticks,Normal,Swapped;O6,Mockingboard S4,off,on;T7,Cold reset;";
 
   function to_slv(s: string) return std_logic_vector is 
     constant ss: string(1 to s'length) := s; 
@@ -291,7 +291,7 @@ begin
   power_on : process(CLK_14M)
   begin
     if rising_edge(CLK_14M) then
-      if buttons(1)='1' or status(6) = '1' then
+      if buttons(1)='1' or status(7) = '1' then
         power_on_reset <= '1';
       elsif flash_clk(22) = '1' then
         power_on_reset <= '0';
@@ -396,9 +396,9 @@ begin
     );
   
   -- Simulate power up on cold reset to go to the disk boot routine
-  ram_we   <= we_ram when status(6) = '0' else '1';
-  ram_addr <= "0000000" & std_logic_vector(a_ram) when status(6) = '0' else std_logic_vector(to_unsigned(1012,ram_addr'length)); -- $3F4
-  ram_di   <= std_logic_vector(D) when status(6) = '0' else "00000000";
+  ram_we   <= we_ram when status(7) = '0' else '1';
+  ram_addr <= "0000000" & std_logic_vector(a_ram) when status(7) = '0' else std_logic_vector(to_unsigned(1012,ram_addr'length)); -- $3F4
+  ram_di   <= std_logic_vector(D) when status(7) = '0' else "00000000";
   
   core : entity work.apple2 port map (
     CLK_14M        => CLK_14M,
@@ -427,11 +427,12 @@ begin
     pcDebugOut     => cpu_pc,
     speaker        => audio,
     laudio         => audiol,
-    raudio         => audior
+    raudio         => audior,
+    mb_enabled     => status(6)
     );
     
-  AUDIO_L <= audiol;-- or audio;
-  AUDIO_R <= audior;-- or audio;
+  AUDIO_L <= audiol or audio;
+  AUDIO_R <= audior or audio;
 
   vga : entity work.vga_controller port map (
     CLK_28M    => CLK_28M,
