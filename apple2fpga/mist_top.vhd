@@ -304,7 +304,11 @@ begin
   flash_clkgen : process (CLK_14M)
   begin
     if rising_edge(CLK_14M) then
-      flash_clk <= flash_clk + 1;
+      if buttons(1)='1' or status(7) = '1' then
+        flash_clk <= (others=>'0');
+      else
+        flash_clk <= flash_clk + 1;
+      end if;
     end if;     
   end process;
 
