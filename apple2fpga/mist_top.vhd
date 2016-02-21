@@ -483,23 +483,49 @@ begin
     ram_we         => TRACK_RAM_WE
     );
 
-  sdcard_interface : entity work.spi_controller port map (
-    CLK_14M        => CLK_14M,
-    RESET          => RESET,
-
-    CS_N           => sd_cs,
-    MOSI           => sd_sdi,
-    MISO           => sd_sdo,
-    SCLK           => sd_sck,
+--  sdcard_interface : entity work.spi_controller port map (
+--    CLK_14M        => CLK_14M,
+--    RESET          => RESET,
+--
+--    CS_N           => sd_cs,
+--    MOSI           => sd_sdi,
+--    MISO           => sd_sdo,
+--    SCLK           => sd_sck,
+--    
+--    change         => sd_change,
+--    track          => TRACK,
+--    image          => (others=>'0'),
+--    busy           => LED,
+--    
+--    ram_write_addr => TRACK_RAM_ADDR,
+--    ram_di         => TRACK_RAM_DI,
+--    ram_we         => TRACK_RAM_WE
+--    );
     
-    change         => sd_change,
-    track          => TRACK,
-    image          => (others=>'0'),
-    busy           => LED,
+  sdcard_interface : entity work.block_io port map (
+    io_lba         => sd_lba,
+    io_rd          => sd_rd,
+    io_wr          => sd_wr,
+    io_ack         => sd_ack,
+    io_conf        => sd_conf,
+    io_sdhc        => sd_sdhc,
+    
+    io_din         => sd_data_in,
+    io_din_strobe  => sd_data_in_strobe,
+    io_dout        => sd_data_out,
+    io_dout_strobe => sd_data_out_strobe,
+    
+    clk            => CLK_14M,
+    clk2           => CLK_2M,
+    reset          => RESET,
     
     ram_write_addr => TRACK_RAM_ADDR,
     ram_di         => TRACK_RAM_DI,
-    ram_we         => TRACK_RAM_WE
+    ram_we         => TRACK_RAM_WE,
+    change         => sd_change,
+    track          => TRACK,
+    busy           => LED
+    
     );
     
   --LED <= not D1_ACTIVE;
@@ -537,29 +563,29 @@ begin
       ps2_kbd_data => ps2Data
     );
     
-  sd_card_d: component sd_card
-    port map
-    (
-      -- connection to io controller
-      io_lba => sd_lba,
-      io_rd  => sd_rd,
-      io_wr  => sd_wr,
-      io_ack => sd_ack,
-      io_conf => sd_conf,
-      io_sdhc => sd_sdhc,
-      io_din => sd_data_in,
-      io_din_strobe => sd_data_in_strobe,
-      io_dout => sd_data_out,
-      io_dout_strobe => sd_data_out_strobe,
-   
-      allow_sdhc  => '1',
-      
-      -- connection to host
-      sd_cs  => sd_cs,
-      sd_sck => sd_sck,
-      sd_sdi => sd_sdi,
-      sd_sdo => sd_sdo		
-    );
+--  sd_card_d: component sd_card
+--    port map
+--    (
+--      -- connection to io controller
+--      io_lba => sd_lba,
+--      io_rd  => sd_rd,
+--      io_wr  => sd_wr,
+--      io_ack => sd_ack,
+--      io_conf => sd_conf,
+--      io_sdhc => sd_sdhc,
+--      io_din => sd_data_in,
+--      io_din_strobe => sd_data_in_strobe,
+--      io_dout => sd_data_out,
+--      io_dout_strobe => sd_data_out_strobe,
+--   
+--      allow_sdhc  => '1',
+--      
+--      -- connection to host
+--      sd_cs  => sd_cs,
+--      sd_sck => sd_sck,
+--      sd_sdi => sd_sdi,
+--      sd_sdo => sd_sdo		
+--    );
     
   osd_inst : osd
     port map (
