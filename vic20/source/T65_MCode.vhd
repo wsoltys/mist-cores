@@ -746,6 +746,7 @@ begin
                 ALUmore <= '1'; -- For undoc DCP/DCM support
                 Set_BusA_To<=Set_BusA_To_ABC;
               end if;
+              SaveP <= '1'; -- wsoltys: added to original source to make key "2" work again in vic20.
             when others =>
           end case;
         else
