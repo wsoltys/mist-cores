@@ -39,6 +39,9 @@
 --
 -- Revision list
 --
+-- version 004 fixes to PB7 T1 control and Mode 0 Shift Register operation
+-- version 003 fix reset of T1/T2 IFR flags if T1/T2 is reload via reg5/reg9 from wolfgang (WoS)
+--             Ported to numeric_std and simulation fix for signal initializations from arnim laeuger
 -- version 002 fix from Mark McDougall, untested
 -- version 001 initial release
 -- not very sure about the shift register, documentation is a bit light.
@@ -47,9 +50,6 @@ library ieee ;
   use ieee.std_logic_1164.all ;
   use ieee.std_logic_unsigned.all;
   use ieee.numeric_std.all;
-
---library UNISIM;
-  --use UNISIM.Vcomponents.all;
 
 entity M6522 is
   port (
@@ -96,7 +96,7 @@ end;
 
 architecture RTL of M6522 is
 
-  signal phase             : std_logic_vector(1 downto 0);
+  signal phase             : std_logic_vector(1 downto 0):="00";
   signal p2_h_t1           : std_logic;
   signal cs                : std_logic;
 
@@ -127,7 +127,7 @@ architecture RTL of M6522 is
   signal load_data         : std_logic_vector(7 downto 0);
 
   -- timer 1
-  signal t1c               : std_logic_vector(15 downto 0);
+  signal t1c               : std_logic_vector(15 downto 0) := (others => '1'); -- simulators may not catch up w/o init here...
   signal t1c_active        : boolean;
   signal t1c_done          : boolean;
   signal t1_w_reset_int    : boolean;
@@ -138,7 +138,7 @@ architecture RTL of M6522 is
   signal t1_irq            : std_logic := '0';
 
   -- timer 2
-  signal t2c               : std_logic_vector(15 downto 0);
+  signal t2c               : std_logic_vector(15 downto 0) := (others => '1'); -- simulators may not catch up w/o init here...
   signal t2c_active        : boolean;
   signal t2c_done          : boolean;
   signal t2_pb6            : std_logic;
@@ -275,17 +275,30 @@ begin
           end case;
         end if;
 
-        if (r_acr(7) = '1') and (t1_toggle = '1') then
-          r_orb(7) <= not r_orb(7); -- toggle
+        if r_acr(7) = '1' then
+          -- DMB: Forgetting to clear B7 broke Acornsoft Planetoid
+          if t1_load_counter then
+            r_orb(7) <= '0'; -- writing T1C-H resets bit 7
+          elsif t1_toggle = '1' then
+            r_orb(7) <= not r_orb(7); -- toggle
+          end if;
         end if;
       end if;
     end if;
   end process;
 
-  p_write_reg : process
+  p_write_reg : process (RESET_L, CLK) is
   begin
-    wait until rising_edge(CLK);
-    if (ENA_4 = '1') then
+    if (RESET_L = '0') then
+     -- The spec says, this is not reset.
+     -- Fact is that the 1541 VIA1 timer won't work,
+     -- as the firmware ONLY sets the r_t1l_h latch!!!!
+     r_t1l_l   <= (others => '0');
+     r_t1l_h   <= (others => '0');
+     r_t2l_l   <= (others => '0');
+     r_t2l_h   <= (others => '0');
+   elsif rising_edge(CLK) then
+     if (ENA_4 = '1') then
       t1_w_reset_int  <= false;
       t1_load_counter <= false;
 
@@ -300,25 +313,26 @@ begin
       if (cs = '1') and (I_RW_L = '0') then
         load_data <= I_DATA;
         case I_RS is
-          when x"4" => r_t1l_l   <= I_DATA;
-          when x"5" => r_t1l_h   <= I_DATA; t1_w_reset_int  <= true;
-                                            t1_load_counter <= true;
+         when x"4" => r_t1l_l   <= I_DATA;
+         when x"5" => r_t1l_h   <= I_DATA; t1_w_reset_int  <= true;
+                                t1_load_counter <= true;
 
-          when x"6" => r_t1l_l   <= I_DATA;
-          when x"7" => r_t1l_h   <= I_DATA; t1_w_reset_int  <= true;
+         when x"6" => r_t1l_l   <= I_DATA;
+         when x"7" => r_t1l_h   <= I_DATA; t1_w_reset_int  <= true;
 
-          when x"8" => r_t2l_l   <= I_DATA;
-          when x"9" => r_t2l_h   <= I_DATA; t2_w_reset_int  <= true;
-                                            t2_load_counter <= true;
+         when x"8" => r_t2l_l   <= I_DATA;
+         when x"9" => r_t2l_h   <= I_DATA; t2_w_reset_int  <= true;
+                                t2_load_counter <= true;
 
-          when x"A" => sr_write_ena  <= true;
-          when x"D" => ifr_write_ena <= true;
-          when x"E" => ier_write_ena <= true;
+         when x"A" => sr_write_ena  <= true;
+         when x"D" => ifr_write_ena <= true;
+         when x"E" => ier_write_ena <= true;
 
-          when others => null;
+         when others => null;
         end case;
       end if;
-    end if;
+     end if;
+   end if;
   end process;
 
   p_oe : process(cs, I_RW_L)
@@ -605,6 +619,9 @@ begin
       if (phase = "11") then
         t1_reload_counter <= done and (r_acr(6) = '1');
       end if;
+      if t1_load_counter then -- done reset on load!
+        t1c_done <= false;
+      end if;
     end if;
   end process;
 
@@ -632,6 +649,9 @@ begin
       elsif t1_w_reset_int or t1_r_reset_int or (clear_irq(6) = '1') then
         t1_irq <= '0';
       end if;
+      if t1_load_counter then -- irq reset on load!
+        t1_irq <= '0';
+      end if;
     end if;
   end process;
   --
@@ -657,6 +677,9 @@ begin
       t2c_done <= done and (phase = "11");
       if (phase = "11") then
         t2_reload_counter <= done;
+      end if;
+      if t2_load_counter then -- done reset on load!
+        t2c_done <= false;
       end if;
     end if;
   end process;
@@ -692,10 +715,12 @@ begin
         t2c_active <= false;
       end if;
 
-
       if t2c_active and t2c_done then
         t2_irq <= '1';
       elsif t2_w_reset_int or t2_r_reset_int or (clear_irq(5) = '1') then
+        t2_irq <= '0';
+      end if;
+      if t2_load_counter then -- irq reset on load!
         t2_irq <= '0';
       end if;
     end if;
@@ -730,9 +755,14 @@ begin
         cb1_ip   := '0';
         use_t2   := '0';
         free_run := '0';
-
+        
+        -- DMB: SR still runs even in disabled mode (on rising edge of CB1).
+        -- It just doesn't generate any interrupts.
+        -- Ref BBC micro advanced user guide p409
+                    
         case r_acr(4 downto 2) is
-          when "000" => ena := '0';
+          -- DMB: in disabled mode, configure cb1 as an input
+          when "000" => ena := '0'; cb1_ip := '1';
           when "001" => ena := '1'; cb1_op := '1'; use_t2 := '1';
           when "010" => ena := '1'; cb1_op := '1';
           when "011" => ena := '1'; cb1_ip := '1';
@@ -744,19 +774,16 @@ begin
         end case;
 
         -- clock select
-        if (ena = '0') then
-          sr_strobe <= '1';
+        -- DMB: in disabled mode, strobe from cb1
+        if (cb1_ip = '1') then
+          sr_strobe <= I_CB1;
         else
-          if (cb1_ip = '1') then
-            sr_strobe <= I_CB1;
+          if (sr_cnt(3) = '0') and (free_run = '0') then
+            sr_strobe <= '1';
           else
-            if (sr_cnt(3) = '0') and (free_run = '0') then
-              sr_strobe <= '1';
-            else
-              if ((use_t2 = '1') and t2_sr_ena) or
-                 ((use_t2 = '0') and (phase = "00")) then
-                  sr_strobe <= not sr_strobe;
-              end if;
+            if ((use_t2 = '1') and t2_sr_ena) or
+               ((use_t2 = '0') and (phase = "00")) then
+                sr_strobe <= not sr_strobe;
             end if;
           end if;
         end if;
@@ -764,8 +791,9 @@ begin
         -- latch on rising edge, shift on falling edge
         if sr_write_ena then
           r_sr <= load_data;
-        elsif (ena = '1') then -- use shift reg
 
+        else
+          -- DMB: allow shifting in all modes
           if (dir_out = '0') then
             -- input
             if (sr_cnt(3) = '1') or (cb1_ip = '1') then
@@ -792,7 +820,10 @@ begin
 
         sr_count_ena := sr_strobe_rising;
 
-        if sr_write_ena or sr_read_ena then
+        -- DMB: reseting sr_count when not enabled cause the sr to
+        -- start running immediately it was enabled, which is incorrect
+        -- and broke the latest SmartSPI ROM on the BBC Micro
+        if ena = '1' and (sr_write_ena or sr_read_ena) then
         -- some documentation says sr bit in IFR must be set as well ?
           sr_cnt <= "1000";
         elsif sr_count_ena and (sr_cnt(3) = '1') then
