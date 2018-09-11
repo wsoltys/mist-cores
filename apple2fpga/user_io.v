@@ -37,6 +37,7 @@ module user_io #(parameter STRLEN=0) (
 	output [1:0] 		buttons,
 	output [1:0] 		switches,
 	output  				scandoubler_disable,
+	output  				ypbpr,
 
 	output reg [7:0]   status,
 
@@ -77,6 +78,7 @@ reg [2:0]         stick_idx;
 assign buttons = but_sw[1:0];
 assign switches = but_sw[3:2];
 assign scandoubler_disable = but_sw[4];
+assign ypbpr = but_sw[5];
 assign sd_dout = { sbuf, SPI_MOSI};
 
 // this variant of user_io is for 8 bit cores (type == a4) only

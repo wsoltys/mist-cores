@@ -68,9 +68,9 @@ entity vga_controller is
     VGA_HS     : out std_logic;             -- Active low
     VGA_VS     : out std_logic;             -- Active low
     VGA_BLANK  : out std_logic;
-    VGA_R      : out unsigned(9 downto 0);
-    VGA_G      : out unsigned(9 downto 0);
-    VGA_B      : out unsigned(9 downto 0)
+    VGA_R      : out unsigned(7 downto 0);
+    VGA_G      : out unsigned(7 downto 0);
+    VGA_B      : out unsigned(7 downto 0)
     );
   
 end vga_controller;
@@ -290,9 +290,9 @@ begin
         
       end if;
       
-      VGA_R <= r & r(7 downto 6);
-      VGA_G <= g & g(7 downto 6);
-      VGA_B <= b & b(7 downto 6);
+      VGA_R <= r;
+      VGA_G <= g;
+      VGA_B <= b;
       
     end if;
   end process pixel_generator;

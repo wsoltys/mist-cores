@@ -108,6 +108,8 @@ architecture datapath of mist_top is
             status: out std_logic_vector(7 downto 0);
             switches : out std_logic_vector(1 downto 0);
             buttons : out std_logic_vector(1 downto 0);
+            scandoubler_disable : out std_logic;
+            ypbpr : out std_logic;
             sd_lba : in std_logic_vector(31 downto 0);
             sd_rd : in std_logic;
             sd_wr : in std_logic;
@@ -184,7 +186,7 @@ architecture datapath of mist_top is
          );
   end component osd;
 
-  signal CLK_28M, CLK_14M, CLK_2M, PRE_PHASE_ZERO, CLK_12k : std_logic;
+  signal CLK_28M, CLK_14M, CLK_7M, CLK_2M, PRE_PHASE_ZERO, CLK_12k : std_logic;
   signal clk_div : unsigned(1 downto 0);
   signal IO_SELECT, DEVICE_SELECT : std_logic_vector(7 downto 0);
   signal ADDR : unsigned(15 downto 0);
@@ -198,6 +200,8 @@ architecture datapath of mist_top is
   signal SCREEN_MODE : std_logic_vector(1 downto 0);
   signal GAMEPORT : std_logic_vector(7 downto 0);
   signal cpu_pc : unsigned(15 downto 0);
+  signal scandoubler_disable : std_logic;
+  signal ypbpr : std_logic;
 
   signal K : unsigned(7 downto 0);
   signal read_key : std_logic;
@@ -223,9 +227,10 @@ architecture datapath of mist_top is
   signal io_index : std_logic_vector(4 downto 0);
   signal size : std_logic_vector(24 downto 0) := (others=>'0');
   signal a_ram: unsigned(17 downto 0);
-  signal r : unsigned(9 downto 0);
-  signal g : unsigned(9 downto 0);
-  signal b : unsigned(9 downto 0);
+  signal osd_clk : std_logic;
+  signal r : unsigned(7 downto 0);
+  signal g : unsigned(7 downto 0);
+  signal b : unsigned(7 downto 0);
   signal hsync : std_logic;
   signal vsync : std_logic;
   signal sd_we : std_logic;
@@ -312,13 +317,13 @@ begin
     end if;     
   end process;
 
-  SDRAM_CLK <= not CLK_28M;  --TH
+  SDRAM_CLK <= not CLK_28M;
   
   pll : entity work.mist_clk 
   port map (
     areset => '0',
     inclk0 => CLOCK_27(0),
-    c0     => CLK_28M,  --TH
+    c0     => CLK_28M,
     c2     => CLK_12k,
     locked => pll_locked
     );
@@ -328,6 +333,14 @@ begin
   begin
     if rising_edge(CLK_28M) then
       CLK_14M <= not CLK_14M;
+    end if;
+  end process;
+  
+  -- generate 7Mhz OSD pixel clock from 14.3MHz system clock
+  process(CLK_14M)
+  begin
+    if rising_edge(CLK_14M) then
+      CLK_7M <= not CLK_7M;
     end if;
   end process;
 
@@ -390,8 +403,8 @@ begin
               sd_we => SDRAM_nWE,
               sd_ras => SDRAM_nRAS,
               sd_cas => SDRAM_nCAS,
-              clk => CLK_28M,  -- TH
-              clkref => CLK_2M,   --TH
+              clk => CLK_28M,
+              clkref => CLK_2M,
               init => not pll_locked,
               din => ram_di,
               addr => ram_addr,
@@ -518,8 +531,10 @@ begin
       joystick_1 => joy1,
       joystick_analog_0 => joy_an0,
       joystick_analog_1 => joy_an1,
-      SWITCHES => switches,   
+      SWITCHES => switches,
       BUTTONS => buttons,
+		scandoubler_disable => scandoubler_disable,
+		ypbpr => ypbpr,
       -- connection to io controller
       sd_lba  => sd_lba,
       sd_rd   => sd_rd,
@@ -560,18 +575,18 @@ begin
       sd_sdi => sd_sdi,
       sd_sdo => sd_sdo		
     );
-    
+
   osd_inst : osd
     port map (
       pclk => CLK_14M,
       sdi => SPI_DI,
       sck => SPI_SCK,
       ss => SPI_SS3,
-      red_in => std_logic_vector(r(9 downto 4)),
-      green_in => std_logic_vector(g(9 downto 4)),
-      blue_in => std_logic_vector(b(9 downto 4)),
-      hs_in => not hsync,
-      vs_in => not vsync,
+      red_in => std_logic_vector(r(7 downto 2)),
+      green_in => std_logic_vector(g(7 downto 2)),
+      blue_in => std_logic_vector(b(7 downto 2)),
+      hs_in => hsync,
+      vs_in => vsync,
       scanline_ena_h => status(4),
       red_out => VGA_R,
       green_out => VGA_G,
