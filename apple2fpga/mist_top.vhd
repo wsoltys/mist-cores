@@ -75,7 +75,7 @@ end mist_top;
 
 architecture datapath of mist_top is
 
-  constant CONF_STR : string := "AppleII+;;S1,NIB;O2,Monitor Type,Color,Monochrome;O3,Monitor Mode,Main,Alt;O4,Enable Scanlines,off,on;O5,Joysticks,Normal,Swapped;O6,Mockingboard S4,off,on;T7,Cold reset;";
+  constant CONF_STR : string := "AppleII+;;S,NIB;O2,Monitor Type,Color,Monochrome;O3,Monitor Mode,Main,Alt;O4,Enable Scanlines,off,on;O5,Joysticks,Normal,Swapped;O6,Mockingboard S4,off,on;T7,Cold reset;";
 
   function to_slv(s: string) return std_logic_vector is 
     constant ss: string(1 to s'length) := s; 
@@ -186,7 +186,7 @@ architecture datapath of mist_top is
          );
   end component osd;
 
-  signal CLK_28M, CLK_14M, CLK_7M, CLK_2M, PRE_PHASE_ZERO, CLK_12k : std_logic;
+  signal CLK_28M, CLK_14M, CLK_2M, PRE_PHASE_ZERO, CLK_12k : std_logic;
   signal clk_div : unsigned(1 downto 0);
   signal IO_SELECT, DEVICE_SELECT : std_logic_vector(7 downto 0);
   signal ADDR : unsigned(15 downto 0);
@@ -336,14 +336,6 @@ begin
     end if;
   end process;
   
-  -- generate 7Mhz OSD pixel clock from 14.3MHz system clock
-  process(CLK_14M)
-  begin
-    if rising_edge(CLK_14M) then
-      CLK_7M <= not CLK_7M;
-    end if;
-  end process;
-
   -- Paddle buttons
   -- GAMEPORT input bits:
   --  7    6    5    4    3   2   1    0
