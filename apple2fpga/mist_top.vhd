@@ -186,6 +186,17 @@ architecture datapath of mist_top is
          );
   end component osd;
 
+  component rgb2ypbpr is
+    port ( 
+           red : in std_logic_vector(5 downto 0);
+           green : in std_logic_vector(5 downto 0);
+           blue : in std_logic_vector(5 downto 0);
+           y :  out std_logic_vector(5 downto 0);
+           pb : out std_logic_vector(5 downto 0);
+           pr : out std_logic_vector(5 downto 0)
+    );
+  end component;
+
   signal CLK_28M, CLK_14M, CLK_2M, PRE_PHASE_ZERO, CLK_12k : std_logic;
   signal clk_div : unsigned(1 downto 0);
   signal IO_SELECT, DEVICE_SELECT : std_logic_vector(7 downto 0);
@@ -203,6 +214,15 @@ architecture datapath of mist_top is
   signal scandoubler_disable : std_logic;
   signal ypbpr : std_logic;
 
+  signal vga_red : std_logic_vector(5 downto 0);
+  signal vga_green : std_logic_vector(5 downto 0);
+  signal vga_blue : std_logic_vector(5 downto 0);
+  signal vga_hsync : std_logic;
+  signal vga_vsync : std_logic;
+  signal y : std_logic_vector(5 downto 0);
+  signal pb : std_logic_vector(5 downto 0);
+  signal pr : std_logic_vector(5 downto 0);
+  
   signal K : unsigned(7 downto 0);
   signal read_key : std_logic;
 
@@ -293,30 +313,23 @@ begin
 
   reset <= status(0) or power_on_reset or force_reset;
 
+  -- In the Apple ][, this was a 555 timer
   power_on : process(CLK_14M)
   begin
     if rising_edge(CLK_14M) then
       if buttons(1)='1' or status(7) = '1' then
         power_on_reset <= '1';
-      elsif flash_clk(22) = '1' then
-        power_on_reset <= '0';
+        flash_clk <= (others=>'0');
+      else
+		  if flash_clk(22) = '1' then
+          power_on_reset <= '0';
+			end if;
+			 
+        flash_clk <= flash_clk + 1;
       end if;
     end if;
   end process;
   
-
-  -- In the Apple ][, this was a 555 timer
-  flash_clkgen : process (CLK_14M)
-  begin
-    if rising_edge(CLK_14M) then
-      if buttons(1)='1' or status(7) = '1' then
-        flash_clk <= (others=>'0');
-      else
-        flash_clk <= flash_clk + 1;
-      end if;
-    end if;     
-  end process;
-
   SDRAM_CLK <= not CLK_28M;
   
   pll : entity work.mist_clk 
@@ -324,18 +337,12 @@ begin
     areset => '0',
     inclk0 => CLOCK_27(0),
     c0     => CLK_28M,
+    c1     => CLK_14M,
     c2     => CLK_12k,
     locked => pll_locked
     );
 
-  -- generate 14.3MHz system clock from 28.6MHz video clock
-  process(CLK_28M)
-  begin
-    if rising_edge(CLK_28M) then
-      CLK_14M <= not CLK_14M;
-    end if;
-  end process;
-  
+ 
   -- Paddle buttons
   -- GAMEPORT input bits:
   --  7    6    5    4    3   2   1    0
@@ -580,11 +587,28 @@ begin
       hs_in => hsync,
       vs_in => vsync,
       scanline_ena_h => status(4),
-      red_out => VGA_R,
-      green_out => VGA_G,
-      blue_out => VGA_B,
-      hs_out => VGA_HS,
-      vs_out => VGA_VS
+      red_out => vga_red,
+      green_out => vga_green,
+      blue_out => vga_blue,
+      hs_out => vga_hsync,
+      vs_out => vga_vsync
+    );
+
+  -- map ypbpr or rgb to VGA output
+  VGA_R <= pr when ypbpr='1' else vga_red;
+  VGA_G <= y  when ypbpr='1' else vga_green;
+  VGA_B <= pb when ypbpr='1' else vga_blue;
+  VGA_HS <= not (vga_hsync xor vga_vsync) when ypbpr='1' else vga_hsync;
+  VGA_VS <= '1' when ypbpr='1' else vga_vsync;
+
+  rgb2component : rgb2ypbpr
+    port map (
+      red   => vga_red,
+      green => vga_green,
+      blue  => vga_blue,
+      y     => y,
+      pb    => pb,
+      pr    => pr
     );
 
 end datapath;
