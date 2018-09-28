@@ -64,7 +64,7 @@ set_global_assignment -name ENABLE_RECOVERY_REMOVAL_ANALYSIS ON
 set_global_assignment -name IGNORE_LCELL_BUFFERS ON
 set_global_assignment -name ROUTER_TIMING_OPTIMIZATION_LEVEL MAXIMUM
 set_global_assignment -name OPTIMIZE_HOLD_TIMING OFF
-set_global_assignment -name FITTER_EFFORT "FAST FIT"
+set_global_assignment -name FITTER_EFFORT "AUTO FIT"
 set_global_assignment -name PLACEMENT_EFFORT_MULTIPLIER 4.0
 set_global_assignment -name ROUTER_EFFORT_MULTIPLIER 2.0
 set_global_assignment -name OPTIMIZE_TIMING "NORMAL COMPILATION"
@@ -318,6 +318,7 @@ set_global_assignment -name ENABLE_SIGNALTAP OFF
 set_global_assignment -name USE_SIGNALTAP_FILE out/stp1.stp
 set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
 set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
+set_global_assignment -name SYSTEMVERILOG_FILE rgb2ypbpr.sv
 set_global_assignment -name VHDL_FILE mockingboard/dac.vhd
 set_global_assignment -name VHDL_FILE mockingboard/YM2149_volmix.vhd
 set_global_assignment -name VHDL_FILE mockingboard/vol_table_array.vhd
