@@ -54,7 +54,8 @@ entity cv_clock is
     clk_i         : in  std_logic;
     clk_en_10m7_i : in  std_logic;
     reset_n_i     : in  std_logic;
-    clk_en_3m58_o : out std_logic
+    clk_en_3m58_p_o : out std_logic;
+    clk_en_3m58_n_o : out std_logic
   );
 
 end cv_clock;
@@ -91,7 +92,11 @@ begin
   --
   -----------------------------------------------------------------------------
 
-  clk_en_3m58_o <=   clk_en_10m7_i
+  clk_en_3m58_p_o <=   clk_en_10m7_i
                    when clk_cnt_q = 0 else
+                     '0';
+
+  clk_en_3m58_n_o <=   clk_en_10m7_i
+                   when clk_cnt_q = "10" else
                      '0';
 end rtl;

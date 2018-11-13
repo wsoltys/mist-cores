@@ -132,14 +132,15 @@ use work.sn76489_comp_pack.sn76489_top;
 
 architecture struct of cv_console is
 
-  component T80a
+  component T80pa
     generic(
       Mode : integer := 0     -- 0 => Z80, 1 => Fast Z80, 2 => 8080, 3 => GB
     );
     port(
       RESET_n    : in  std_logic;
-      CLK_n      : in  std_logic;
-      CLK_EN_SYS : in  std_logic;
+      CLK        : in  std_logic;
+      CEN_p      : in  std_logic;
+      CEN_n      : in  std_logic;
       WAIT_n     : in  std_logic;
       INT_n      : in  std_logic;
       NMI_n      : in  std_logic;
@@ -153,18 +154,19 @@ architecture struct of cv_console is
       HALT_n     : out std_logic;
       BUSAK_n    : out std_logic;
       A          : out std_logic_vector(15 downto 0);
-      D_i        : in  std_logic_vector( 7 downto 0);
-      D_o        : out std_logic_vector( 7 downto 0)
+      DI         : in  std_logic_vector( 7 downto 0);
+      DO         : out std_logic_vector( 7 downto 0)
     );
   end component;
 
   signal por_n_s          : std_logic;
   signal reset_n_s        : std_logic;
 
-  signal clk_en_3m58_s    : std_logic;
+  signal clk_en_3m58_p_s  : std_logic;
+  signal clk_en_3m58_n_s  : std_logic;
 
   -- CPU signals
-  signal clk_en_cpu_s     : std_logic;
+  signal wait_n_s         : std_logic;
   signal nmi_n_s          : std_logic;
   signal iorq_n_s         : std_logic;
   signal m1_n_s           : std_logic;
@@ -231,24 +233,23 @@ begin
       clk_i         => clk_i,
       clk_en_10m7_i => clk_en_10m7_i,
       reset_n_i     => reset_n_s,
-      clk_en_3m58_o => clk_en_3m58_s
+      clk_en_3m58_p_o => clk_en_3m58_p_s,
+      clk_en_3m58_n_o => clk_en_3m58_n_s
     );
-
-  clk_en_cpu_s  <= clk_en_3m58_s and psg_ready_s and not m1_wait_q;
-
 
   -----------------------------------------------------------------------------
   -- T80 CPU
   -----------------------------------------------------------------------------
-  t80a_b : T80a
+  t80a_b : T80pa
     generic map (
       Mode       => 0
     )
     port map(
       RESET_n    => reset_n_s,
-      CLK_n      => clk_i,
-      CLK_EN_SYS => clk_en_cpu_s,
-      WAIT_n     => vdd_s,
+      CLK        => clk_i,
+      CEN_p      => clk_en_3m58_p_s,
+      CEN_n      => clk_en_3m58_n_s,
+      WAIT_n     => wait_n_s,
       INT_n      => vdd_s,
       NMI_n      => nmi_n_s,
       BUSRQ_n    => vdd_s,
@@ -261,8 +262,8 @@ begin
       HALT_n     => open,
       BUSAK_n    => open,
       A          => a_s,
-      D_i        => d_to_cpu_s,
-      D_o        => d_from_cpu_s
+      DI         => d_to_cpu_s,
+      DO         => d_from_cpu_s
     );
 
 
@@ -277,11 +278,14 @@ begin
     if reset_n_s = '0' or m1_n_s = '1' then
       m1_wait_q   <= '0';
     elsif clk_i'event and clk_i = '1' then
-      if clk_en_3m58_s = '1' then
+      if clk_en_3m58_p_s = '1' then
         m1_wait_q <= not m1_wait_q;
       end if;
     end if;
   end process m1_wait;
+
+  wait_n_s  <= psg_ready_s and not m1_wait_q;
+
   --
   -----------------------------------------------------------------------------
 
@@ -327,7 +331,7 @@ begin
     )
     port map (
       clock_i    => clk_i,
-      clock_en_i => clk_en_3m58_s,
+      clock_en_i => clk_en_3m58_p_s,
       res_n_i    => reset_n_s,
       ce_n_i     => psg_we_n_s,
       we_n_i     => psg_we_n_s,
@@ -343,7 +347,7 @@ begin
   ctrl_b : cv_ctrl
     port map (
       clk_i           => clk_i,
-      clk_en_3m58_i   => clk_en_3m58_s,
+      clk_en_3m58_i   => clk_en_3m58_p_s,
       reset_n_i       => reset_n_s,
       ctrl_en_key_n_i => ctrl_en_key_n_s,
       ctrl_en_joy_n_i => ctrl_en_joy_n_s,
