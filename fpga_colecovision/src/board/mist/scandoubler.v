@@ -29,9 +29,9 @@ module scandoubler
 	// shifter video interface
 	input            hs_in,
 	input            vs_in,
-	input      [3:0] r_in,
-	input      [3:0] g_in,
-	input      [3:0] b_in,
+	input      [5:0] r_in,
+	input      [5:0] g_in,
+	input      [5:0] b_in,
 
 	// output interface
 	output reg       hs_out,
@@ -75,27 +75,27 @@ always @(posedge clk_sys) begin
 
 		// if no scanlines or not a scanline
 		if(!scanline || !scanlines) begin
-			r_out <= { sd_out[11:8], 2'b00 };
-			g_out <= { sd_out[7:4], 2'b00 };
-			b_out <= { sd_out[3:0], 2'b00 };
+			r_out <= { sd_out[17:12] };
+			g_out <= { sd_out[11:6] };
+			b_out <= { sd_out[5:0] };
 		end else begin
 			case(scanlines)
 				1: begin // reduce 25% = 1/2 + 1/4
-					r_out <= {1'b0, sd_out[11:8], 1'b0} + {2'b00, sd_out[11:8]};
-					g_out <= {1'b0, sd_out[7:4],  1'b0} + {2'b00, sd_out[7:4] };
-					b_out <= {1'b0, sd_out[3:0],  1'b0} + {2'b00, sd_out[3:0]  };
+					r_out <= {1'b0, sd_out[16:13], 1'b0} + {2'b00, sd_out[16:13]};
+					g_out <= {1'b0, sd_out[10:7],  1'b0} + {2'b00, sd_out[10:7] };
+					b_out <= {1'b0, sd_out[4:1],  1'b0} + {2'b00, sd_out[4:1]  };
 				end
 
 				2: begin // reduce 50% = 1/2
-					r_out <= {1'b0, sd_out[11:8], 1'b0};
-					g_out <= {1'b0, sd_out[7:4],  1'b0};
-					b_out <= {1'b0, sd_out[3:0],  1'b0};
+					r_out <= {1'b0, sd_out[16:13], 1'b0};
+					g_out <= {1'b0, sd_out[10:7],  1'b0};
+					b_out <= {1'b0, sd_out[4:1],  1'b0};
 				end
 
 				3: begin // reduce 75% = 1/4
-					r_out <= {2'b00, sd_out[11:8]};
-					g_out <= {2'b00, sd_out[7:4]};
-					b_out <= {2'b00, sd_out[3:0]};
+					r_out <= {2'b00, sd_out[16:13]};
+					g_out <= {2'b00, sd_out[10:7]};
+					b_out <= {2'b00, sd_out[4:1]};
 				end
 			endcase
 		end
@@ -103,14 +103,14 @@ always @(posedge clk_sys) begin
 end
 
 // scan doubler output register
-reg [11:0] sd_out;
+reg [17:0] sd_out;
 
 // ==================================================================
 // ======================== the line buffers ========================
 // ==================================================================
 
-// 2 lines of 512 pixels 3*4 bit RGB
-(* ramstyle = "no_rw_check" *) reg [11:0] sd_buffer[2048];
+// 2 lines of 512 pixels 3*6 bit RGB
+(* ramstyle = "no_rw_check" *) reg [17:0] sd_buffer[2048];
 
 // use alternating sd_buffers when storing/reading data   
 reg        line_toggle;

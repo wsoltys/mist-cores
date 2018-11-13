@@ -651,7 +651,7 @@ rgb2component: component rgb2ypbpr
 
 osd_red_i   <= coleco_red(7 downto 2) when scandoubler_disable = '1' else sd_r;
 osd_green_i <= coleco_green(7 downto 2) when scandoubler_disable = '1' else sd_g;
-osd_blue_i  <= coleco_green(7 downto 2) when scandoubler_disable = '1' else sd_b;
+osd_blue_i  <= coleco_blue(7 downto 2) when scandoubler_disable = '1' else sd_b;
 osd_hs_i    <= coleco_hs when scandoubler_disable = '1' else sd_hs;
 osd_vs_i    <= coleco_vs when scandoubler_disable = '1' else sd_vs;
 
