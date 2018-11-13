@@ -176,15 +176,27 @@ component user_io
          dout: out std_logic_vector(7 downto 0));
   end component;
   
-  component osd
-    port ( pclk, sck, ss, sdi, hs_in, vs_in, scanline_ena_h : in std_logic;
-           red_in, blue_in, green_in : in std_logic_vector(5 downto 0);
-           red_out, blue_out, green_out : out std_logic_vector(5 downto 0);
-           hs_out, vs_out : out std_logic
-         );
-  end component osd;
+component osd
+         generic ( OSD_COLOR : integer := 1 );  -- blue
+    port (  clk_sys     : in std_logic;
 
-  signal clk21m3, osd_pclk  : std_logic;
+            R_in        : in std_logic_vector(5 downto 0);
+            G_in        : in std_logic_vector(5 downto 0);
+            B_in        : in std_logic_vector(5 downto 0);
+            HSync       : in std_logic;
+            VSync       : in std_logic;
+
+            R_out       : out std_logic_vector(5 downto 0);
+            G_out       : out std_logic_vector(5 downto 0);
+            B_out       : out std_logic_vector(5 downto 0);
+
+            SPI_SCK     : in std_logic;
+            SPI_SS3     : in std_logic;
+            SPI_DI      : in std_logic
+        );
+    end component osd;
+
+  signal clk21m3 : std_logic;
   signal force_reset : std_logic := '0';
   signal reset_n_s : std_logic;
   
@@ -627,13 +639,11 @@ begin
     end if;
   end process vga_col;
   
-  osd_pclk <= clk_21m3_s when scandoubler_disable='0' else clk_en_10m7_q;
-  --
   -- a minimig vga->scart cable expects a composite sync signal on the VGA_HS output 
   -- and VCC on VGA_VS (to switch into rgb mode)
-  csync_out <= '1' when (hsync_out = vsync_out) else '0';
-  VGA_HS <= hsync_out when scandoubler_disable='0' else csync_out;
-  VGA_VS <= vsync_out when scandoubler_disable='0' else '1';
+  csync_out <= not (vid_hsync xor vid_vsync);
+  VGA_HS <= vid_hsync when scandoubler_disable='0' else csync_out;
+  VGA_VS <= vid_vsync when scandoubler_disable='0' else '1';
   
   -----------------------------------------------------------------------------
 
@@ -678,21 +688,18 @@ begin
     
   osd_inst : osd
     port map (
-      pclk => osd_pclk,
-      sdi => SPI_DI,
-      sck => SPI_SCK,
-      ss => SPI_SS3,
-      red_in => vid_r(7 downto 2),
-      green_in => vid_g(7 downto 2),
-      blue_in => vid_b(7 downto 2),
-      hs_in => vid_hsync,
-      vs_in => vid_vsync,
-      scanline_ena_h => status(2),
-      red_out => VGA_R,
-      green_out => VGA_G,
-      blue_out => VGA_B,
-      hs_out => hsync_out,
-      vs_out => vsync_out
+      clk_sys => clk_21m3_s,
+      SPI_DI => SPI_DI,
+      SPI_SCK => SPI_SCK,
+      SPI_SS3 => SPI_SS3,
+      R_in => vid_r(7 downto 2),
+      G_in => vid_g(7 downto 2),
+      B_in => vid_b(7 downto 2),
+      HSync => vid_hsync,
+      VSync => vid_vsync,
+      R_out => VGA_R,
+      G_out => VGA_G,
+      B_out => VGA_B
     );
     
   data_io_inst: data_io
