@@ -139,27 +139,28 @@ architecture rtl of mist_cv is
   end function; 
 
 
-
-  component user_io
-    generic ( STRLEN : integer := 0 );
-  
-    port ( SPI_CLK, SPI_SS_IO, SPI_MOSI :in std_logic;
-           SPI_MISO : out std_logic;
-           conf_str : in std_logic_vector(8*STRLEN-1 downto 0);
-           joystick_0 : out std_logic_vector(5 downto 0);
-           joystick_1 : out std_logic_vector(5 downto 0);
-           joystick_analog_0 : out std_logic_vector(15 downto 0);
-           joystick_analog_1 : out std_logic_vector(15 downto 0);
-           scandoubler_disable : out std_logic;
-           status:    out std_logic_vector(7 downto 0);
-           SWITCHES : out std_logic_vector(1 downto 0);
-           BUTTONS : out std_logic_vector(1 downto 0);
-           sd_sdhc : in std_logic;
-           ps2_clk : in std_logic;
-           ps2_kbd_clk : out std_logic;
-           ps2_kbd_data : out std_logic
-         );
-
+component user_io
+        generic ( STRLEN : integer := 0 );
+   port (
+        clk_sys : in std_logic;
+        clk_sd  : in std_logic;
+        SPI_CLK, SPI_SS_IO, SPI_MOSI :in std_logic;
+        SPI_MISO : out std_logic;
+        conf_str : in std_logic_vector(8*STRLEN-1 downto 0);
+        joystick_0 : out std_logic_vector(31 downto 0);
+        joystick_1 : out std_logic_vector(31 downto 0);
+        joystick_analog_0 : out std_logic_vector(15 downto 0);
+        joystick_analog_1 : out std_logic_vector(15 downto 0);
+        status: out std_logic_vector(31 downto 0);
+        switches : out std_logic_vector(1 downto 0);
+        buttons : out std_logic_vector(1 downto 0);
+        scandoubler_disable: out std_logic;
+        ypbpr: out std_logic;
+        ps2_kbd_clk : out std_logic;
+        ps2_kbd_data : out std_logic;
+        ps2_mouse_clk : out std_logic;
+        ps2_mouse_data : out std_logic
+      );
   end component user_io;
   
   component data_io is
@@ -183,19 +184,19 @@ architecture rtl of mist_cv is
          );
   end component osd;
 
-  signal clk21m3, clk12k, osd_pclk  : std_logic;
+  signal clk21m3, osd_pclk  : std_logic;
   signal force_reset : std_logic := '0';
   signal reset_n_s : std_logic;
   
   signal switches   : std_logic_vector(1 downto 0);
   signal buttons    : std_logic_vector(1 downto 0);
   signal joy        : std_logic_vector(5 downto 0);
-  signal joy0       : std_logic_vector(5 downto 0);
-  signal joy1       : std_logic_vector(5 downto 0);
+  signal joy0       : std_logic_vector(31 downto 0);
+  signal joy1       : std_logic_vector(31 downto 0);
   signal joy_an0    : std_logic_vector(15 downto 0);
   signal joy_an1    : std_logic_vector(15 downto 0);
   signal joy_an     : std_logic_vector(15 downto 0);
-  signal status     : std_logic_vector(7 downto 0);
+  signal status     : std_logic_vector(31 downto 0);
   signal scandoubler_disable : std_logic;
   signal ps2Clk     : std_logic;
   signal ps2Data    : std_logic;
@@ -296,13 +297,13 @@ architecture rtl of mist_cv is
 
 begin
 
+  LED <= '1';
   reset_n_s <= not(status(0) or buttons(1) or force_reset or not pll_locked);
 
   pll : entity work.mist_pll
     port map (
       inclk0 => CLOCK_27(0),
       c0     => clk_21m3_s,
-      c1     => clk12k,
       locked => pll_locked
       );
       
@@ -644,7 +645,7 @@ begin
   
   dac : entity work.dac
     port map (
-      clk_i     => CLOCK_27(0),
+      clk_i     => clk_21m3_s,
       res_n_i   => reset_n_s,
       dac_i     => dac_audio_s,
       dac_o     => audio_s
@@ -656,21 +657,21 @@ begin
     generic map (STRLEN => CONF_STR'length)
     
     port map ( 
+      clk_sys => clk_21m3_s,
+      clk_sd => '0',
       SPI_CLK => SPI_SCK,
       SPI_SS_IO => CONF_DATA0,    
       SPI_MISO => SPI_DO,    
       SPI_MOSI => SPI_DI,       
       conf_str => to_slv(CONF_STR),
-      status => status,   
-      joystick_0 => joy0,   
+      status => status,
+      joystick_0 => joy0,
       joystick_1 => joy1,
       joystick_analog_0 => joy_an0,
       joystick_analog_1 => joy_an1,
       scandoubler_disable => scandoubler_disable,
       SWITCHES => switches,   
       BUTTONS => buttons,
-      sd_sdhc => '1',
-      ps2_clk => clk12k,
       ps2_kbd_clk => ps2Clk,
       ps2_kbd_data => ps2Data
     );

@@ -278,6 +278,7 @@ set_global_assignment -name LAST_QUARTUS_VERSION 13.1
 
 set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
 set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
+set_global_assignment -name SDC_FILE ../../src/board/mist/coleco.sdc
 set_global_assignment -name VERILOG_FILE ../../src/board/mist/data_io_ram.v
 set_global_assignment -name VHDL_FILE ../../src/board/misc/dpram.vhd
 set_global_assignment -name VHDL_FILE ../../src/board/mist/dpram.vhd
