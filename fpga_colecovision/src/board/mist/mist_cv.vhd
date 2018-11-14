@@ -120,7 +120,7 @@ end mist_cv;
 
 architecture rtl of mist_cv is
 
-  constant CONF_STR : string := "COLECO;COL;F1,BIN;O2,Enable Scanlines,no,yes;";
+  constant CONF_STR : string := "COLECO;COLBIN;O23,Scanlines,Off,25%,50%,75%;";
 
   function to_slv(s: string) return std_logic_vector is 
     constant ss: string(1 to s'length) := s; 
@@ -139,27 +139,28 @@ architecture rtl of mist_cv is
   end function; 
 
 
-
-  component user_io
-    generic ( STRLEN : integer := 0 );
-  
-    port ( SPI_CLK, SPI_SS_IO, SPI_MOSI :in std_logic;
-           SPI_MISO : out std_logic;
-           conf_str : in std_logic_vector(8*STRLEN-1 downto 0);
-           joystick_0 : out std_logic_vector(5 downto 0);
-           joystick_1 : out std_logic_vector(5 downto 0);
-           joystick_analog_0 : out std_logic_vector(15 downto 0);
-           joystick_analog_1 : out std_logic_vector(15 downto 0);
-           scandoubler_disable : out std_logic;
-           status:    out std_logic_vector(7 downto 0);
-           SWITCHES : out std_logic_vector(1 downto 0);
-           BUTTONS : out std_logic_vector(1 downto 0);
-           sd_sdhc : in std_logic;
-           ps2_clk : in std_logic;
-           ps2_kbd_clk : out std_logic;
-           ps2_kbd_data : out std_logic
-         );
-
+component user_io
+        generic ( STRLEN : integer := 0 );
+   port (
+        clk_sys : in std_logic;
+        clk_sd  : in std_logic;
+        SPI_CLK, SPI_SS_IO, SPI_MOSI :in std_logic;
+        SPI_MISO : out std_logic;
+        conf_str : in std_logic_vector(8*STRLEN-1 downto 0);
+        joystick_0 : out std_logic_vector(31 downto 0);
+        joystick_1 : out std_logic_vector(31 downto 0);
+        joystick_analog_0 : out std_logic_vector(15 downto 0);
+        joystick_analog_1 : out std_logic_vector(15 downto 0);
+        status: out std_logic_vector(31 downto 0);
+        switches : out std_logic_vector(1 downto 0);
+        buttons : out std_logic_vector(1 downto 0);
+        scandoubler_disable: out std_logic;
+        ypbpr: out std_logic;
+        ps2_kbd_clk : out std_logic;
+        ps2_kbd_data : out std_logic;
+        ps2_mouse_clk : out std_logic;
+        ps2_mouse_data : out std_logic
+      );
   end component user_io;
   
   component data_io is
@@ -174,44 +175,102 @@ architecture rtl of mist_cv is
          din: in std_logic_vector(7 downto 0);
          dout: out std_logic_vector(7 downto 0));
   end component;
-  
-  component osd
-    port ( pclk, sck, ss, sdi, hs_in, vs_in, scanline_ena_h : in std_logic;
-           red_in, blue_in, green_in : in std_logic_vector(5 downto 0);
-           red_out, blue_out, green_out : out std_logic_vector(5 downto 0);
-           hs_out, vs_out : out std_logic
-         );
-  end component osd;
 
-  signal clk21m3, clk12k, osd_pclk  : std_logic;
+component scandoubler
+    port (
+            clk_sys     : in std_logic;
+            scanlines   : in std_logic_vector(1 downto 0);
+    
+            hs_in       : in std_logic;
+            vs_in       : in std_logic;
+            r_in        : in std_logic_vector(5 downto 0);
+            g_in        : in std_logic_vector(5 downto 0);
+            b_in        : in std_logic_vector(5 downto 0);
+  
+            hs_out      : out std_logic;
+            vs_out      : out std_logic;
+            r_out       : out std_logic_vector(5 downto 0);
+            g_out       : out std_logic_vector(5 downto 0);
+            b_out       : out std_logic_vector(5 downto 0)
+        );
+end component scandoubler;
+  
+component osd
+         generic ( OSD_COLOR : integer := 1 );  -- blue
+    port (  clk_sys     : in std_logic;
+
+            R_in        : in std_logic_vector(5 downto 0);
+            G_in        : in std_logic_vector(5 downto 0);
+            B_in        : in std_logic_vector(5 downto 0);
+            HSync       : in std_logic;
+            VSync       : in std_logic;
+
+            R_out       : out std_logic_vector(5 downto 0);
+            G_out       : out std_logic_vector(5 downto 0);
+            B_out       : out std_logic_vector(5 downto 0);
+
+            SPI_SCK     : in std_logic;
+            SPI_SS3     : in std_logic;
+            SPI_DI      : in std_logic
+        );
+    end component osd;
+
+COMPONENT rgb2ypbpr
+        PORT
+        (
+        red     :        IN std_logic_vector(5 DOWNTO 0);
+        green   :        IN std_logic_vector(5 DOWNTO 0);
+        blue    :        IN std_logic_vector(5 DOWNTO 0);
+        y       :        OUT std_logic_vector(5 DOWNTO 0);
+        pb      :        OUT std_logic_vector(5 DOWNTO 0);
+        pr      :        OUT std_logic_vector(5 DOWNTO 0)
+        );
+END COMPONENT;
+
+  signal clk21m3 : std_logic;
   signal force_reset : std_logic := '0';
   signal reset_n_s : std_logic;
   
   signal switches   : std_logic_vector(1 downto 0);
   signal buttons    : std_logic_vector(1 downto 0);
   signal joy        : std_logic_vector(5 downto 0);
-  signal joy0       : std_logic_vector(5 downto 0);
-  signal joy1       : std_logic_vector(5 downto 0);
+  signal joy0       : std_logic_vector(31 downto 0);
+  signal joy1       : std_logic_vector(31 downto 0);
   signal joy_an0    : std_logic_vector(15 downto 0);
   signal joy_an1    : std_logic_vector(15 downto 0);
   signal joy_an     : std_logic_vector(15 downto 0);
-  signal status     : std_logic_vector(7 downto 0);
+  signal status     : std_logic_vector(31 downto 0);
   signal scandoubler_disable : std_logic;
+  signal ypbpr      : std_logic;
   signal ps2Clk     : std_logic;
   signal ps2Data    : std_logic;
   signal audio      : std_logic;
   
   signal pll_locked : std_logic;
   
-  signal VGA_R_O  : std_logic_vector(5 downto 0);
-  signal VGA_G_O  : std_logic_vector(5 downto 0);
-  signal VGA_B_O  : std_logic_vector(5 downto 0);
-  signal VGA_HS_O : std_logic;
-  signal VGA_VS_O : std_logic;
-  
-  signal hsync_out : std_logic;
-  signal vsync_out : std_logic;
-  signal csync_out : std_logic;
+  signal coleco_red      : std_logic_vector(7 downto 0);
+  signal coleco_green    : std_logic_vector(7 downto 0);
+  signal coleco_blue     : std_logic_vector(7 downto 0);
+  signal coleco_hs       : std_logic;
+  signal coleco_vs       : std_logic;
+    
+  signal sd_r         : std_logic_vector(5 downto 0);
+  signal sd_g         : std_logic_vector(5 downto 0);
+  signal sd_b         : std_logic_vector(5 downto 0);
+  signal sd_hs        : std_logic;
+  signal sd_vs        : std_logic;
+
+  signal osd_red_i    : std_logic_vector(5 downto 0);
+  signal osd_green_i  : std_logic_vector(5 downto 0);
+  signal osd_blue_i   : std_logic_vector(5 downto 0);
+  signal osd_vs_i     : std_logic;
+  signal osd_hs_i     : std_logic;
+  signal osd_red_o : std_logic_vector(5 downto 0);
+  signal osd_green_o : std_logic_vector(5 downto 0);
+  signal osd_blue_o : std_logic_vector(5 downto 0);
+  signal vga_y_o : std_logic_vector(5 downto 0);
+  signal vga_pb_o : std_logic_vector(5 downto 0);
+  signal vga_pr_o : std_logic_vector(5 downto 0);  
   
   signal downl          : std_logic := '0';
   signal size           : std_logic_vector(15 downto 0) := (others=>'0');
@@ -223,23 +282,6 @@ architecture rtl of mist_cv is
 	signal clk_21m3_s					  : std_logic;
   signal clk_en_10m7_q			  : std_logic;
   signal por_n_s              : std_logic;
-  
-  signal rgb_col_s            : std_logic_vector(3 downto 0);
-  signal rgb_hsync_n_s,
-         rgb_vsync_n_s        : std_logic;
-  signal rgb_hsync_s,
-         rgb_vsync_s          : std_logic;
-
-  signal vga_col_s            : std_logic_vector(3 downto 0);
-  signal vga_hsync_s,
-         vga_vsync_s          : std_logic;
-         
-  signal vid_hsync						  : std_logic;
-	signal vid_vsync						  : std_logic;
-         
-  signal vid_r,
-				 vid_g,
-				 vid_b							  : std_logic_vector(7 downto 0);
   
   signal ctrl_p1_s,
          ctrl_p2_s,
@@ -296,13 +338,13 @@ architecture rtl of mist_cv is
 
 begin
 
+  LED <= '1';
   reset_n_s <= not(status(0) or buttons(1) or force_reset or not pll_locked);
 
   pll : entity work.mist_pll
     port map (
       inclk0 => CLOCK_27(0),
       c0     => clk_21m3_s,
-      c1     => clk12k,
       locked => pll_locked
       );
       
@@ -387,19 +429,16 @@ begin
       cart_en_c0_n_o  => cart_en_c0_n_s,
       cart_en_e0_n_o  => cart_en_e0_n_s,
       cart_d_i        => cart_d_s,
-      col_o           => rgb_col_s,
-      rgb_r_o         => open,
-      rgb_g_o         => open,
-      rgb_b_o         => open,
-      hsync_n_o       => rgb_hsync_n_s,
-      vsync_n_o       => rgb_vsync_n_s,
+      col_o           => open,
+      rgb_r_o         => coleco_red,
+      rgb_g_o         => coleco_green,
+      rgb_b_o         => coleco_blue,
+      hsync_n_o       => coleco_hs,
+      vsync_n_o       => coleco_vs,
       comp_sync_n_o   => open,
       audio_o         => signed_audio_s
     );
     
-  rgb_hsync_s <= not rgb_hsync_n_s;
-  rgb_vsync_s <= not rgb_vsync_n_s;
-  
   -----------------------------------------------------------------------------
   -- BIOS ROM
   -----------------------------------------------------------------------------
@@ -560,80 +599,68 @@ begin
   -----------------------------------------------------------------------------
   -- VGA Scan Doubler
   -----------------------------------------------------------------------------
-  dblscan_b : entity work.dblscan
+
+scandoubler_inst: scandoubler
     port map (
-      COL_IN     => rgb_col_s,
-      HSYNC_IN   => rgb_hsync_s,
-      VSYNC_IN   => rgb_vsync_s,
-      COL_OUT    => vga_col_s,
-      HSYNC_OUT  => vga_hsync_s,
-      VSYNC_OUT  => vga_vsync_s,
-      BLANK_OUT  => open,
-      CLK_6      => clk_21m3_s,
-      CLK_EN_6M  => clk_en_5m37_q,
-      CLK_12     => clk_21m3_s,
-      CLK_EN_12M => clk_en_10m7_q
+        clk_sys     => clk_21m3_s,
+        scanlines   => status(3 downto 2),
+
+        hs_in       => coleco_hs,
+        vs_in       => coleco_vs,
+        r_in        => coleco_red(7 downto 2),
+        g_in        => coleco_green(7 downto 2),
+        b_in        => coleco_blue(7 downto 2),
+        
+        hs_out      => sd_hs,
+        vs_out      => sd_vs,
+        r_out       => sd_r,
+        g_out       => sd_g,
+        b_out       => sd_b
     );
-    
-  -----------------------------------------------------------------------------
-  -- VGA Output
-  -----------------------------------------------------------------------------
-  -- Process vga_col
-  --
-  -- Purpose:
-  --   Converts the color information (doubled to VGA scan) to RGB values.
-  --
-  vga_col: process (clk_21m3_s, reset_n_s)
-    variable vga_col_v : natural range 0 to 15;
-    variable vga_r_v,
-             vga_g_v,
-             vga_b_v   : rgb_val_t;
-  begin
-    if reset_n_s = '0' then
-      vid_r <= (others => '0');
-      vid_g <= (others => '0');
-      vid_b <= (others => '0');
 
-    elsif clk_21m3_s'event and clk_21m3_s = '1' then
-      if clk_en_10m7_q = '1' then
-        if scandoubler_disable = '1' then
-          vga_col_v := to_integer(unsigned(rgb_col_s));
-          vga_r_v   := full_rgb_table_c(vga_col_v)(r_c);
-          vga_g_v   := full_rgb_table_c(vga_col_v)(g_c);
-          vga_b_v   := full_rgb_table_c(vga_col_v)(b_c);
-          --
-          vid_r     <= std_logic_vector(to_unsigned(vga_r_v, 8));
-          vid_g     <= std_logic_vector(to_unsigned(vga_g_v, 8));
-          vid_b     <= std_logic_vector(to_unsigned(vga_b_v, 8));
-          
-          vid_hsync <= not rgb_hsync_s;
-          vid_vsync <= not rgb_vsync_s;
-        else
-          vga_col_v := to_integer(unsigned(vga_col_s));
-          vga_r_v   := full_rgb_table_c(vga_col_v)(r_c);
-          vga_g_v   := full_rgb_table_c(vga_col_v)(g_c);
-          vga_b_v   := full_rgb_table_c(vga_col_v)(b_c);
-          --
-          vid_r     <= std_logic_vector(to_unsigned(vga_r_v, 8));
-          vid_g     <= std_logic_vector(to_unsigned(vga_g_v, 8));
-          vid_b     <= std_logic_vector(to_unsigned(vga_b_v, 8));
-          
-          vid_hsync <= not vga_hsync_s;
-          vid_vsync <= not vga_vsync_s;
-        end if;
-      end if;
+osd_inst: osd
+    port map (
+        clk_sys     => clk_21m3_s,
 
-    end if;
-  end process vga_col;
-  
-  osd_pclk <= clk_21m3_s when scandoubler_disable='0' else clk_en_10m7_q;
-  --
-  -- a minimig vga->scart cable expects a composite sync signal on the VGA_HS output 
-  -- and VCC on VGA_VS (to switch into rgb mode)
-  csync_out <= '1' when (hsync_out = vsync_out) else '0';
-  VGA_HS <= hsync_out when scandoubler_disable='0' else csync_out;
-  VGA_VS <= vsync_out when scandoubler_disable='0' else '1';
-  
+        SPI_SCK     => SPI_SCK,
+        SPI_SS3     => SPI_SS3,
+        SPI_DI      => SPI_DI,
+
+        R_in        => osd_red_i,
+        G_in        => osd_green_i,
+        B_in        => osd_blue_i,
+        HSync       => osd_hs_i,
+        VSync       => osd_vs_i,
+
+        R_out       => osd_red_o,
+        G_out       => osd_green_o,
+        B_out       => osd_blue_o
+    );
+
+--
+rgb2component: component rgb2ypbpr
+        port map
+        (
+           red => osd_red_o,
+           green => osd_green_o,
+           blue => osd_blue_o,
+           y => vga_y_o,
+           pb => vga_pb_o,
+           pr => vga_pr_o
+        );
+
+osd_red_i   <= coleco_red(7 downto 2) when scandoubler_disable = '1' else sd_r;
+osd_green_i <= coleco_green(7 downto 2) when scandoubler_disable = '1' else sd_g;
+osd_blue_i  <= coleco_blue(7 downto 2) when scandoubler_disable = '1' else sd_b;
+osd_hs_i    <= coleco_hs when scandoubler_disable = '1' else sd_hs;
+osd_vs_i    <= coleco_vs when scandoubler_disable = '1' else sd_vs;
+
+ -- If 15kHz Video - composite sync to VGA_HS and VGA_VS high for MiST RGB cable
+VGA_HS <= not (coleco_hs xor coleco_vs) when scandoubler_disable='1' else not (sd_hs xor sd_vs) when ypbpr='1' else sd_hs;
+VGA_VS <= '1' when scandoubler_disable='1' or ypbpr='1' else sd_vs;
+VGA_R <= vga_pr_o when ypbpr='1' else osd_red_o;
+VGA_G <= vga_y_o  when ypbpr='1' else osd_green_o;
+VGA_B <= vga_pb_o when ypbpr='1' else osd_blue_o;  
   -----------------------------------------------------------------------------
 
   -----------------------------------------------------------------------------
@@ -644,7 +671,7 @@ begin
   
   dac : entity work.dac
     port map (
-      clk_i     => CLOCK_27(0),
+      clk_i     => clk_21m3_s,
       res_n_i   => reset_n_s,
       dac_i     => dac_audio_s,
       dac_o     => audio_s
@@ -656,42 +683,24 @@ begin
     generic map (STRLEN => CONF_STR'length)
     
     port map ( 
+      clk_sys => clk_21m3_s,
+      clk_sd => '0',
       SPI_CLK => SPI_SCK,
       SPI_SS_IO => CONF_DATA0,    
       SPI_MISO => SPI_DO,    
       SPI_MOSI => SPI_DI,       
       conf_str => to_slv(CONF_STR),
-      status => status,   
-      joystick_0 => joy0,   
+      status => status,
+      joystick_0 => joy0,
       joystick_1 => joy1,
       joystick_analog_0 => joy_an0,
       joystick_analog_1 => joy_an1,
       scandoubler_disable => scandoubler_disable,
+      ypbpr =>ypbpr,
       SWITCHES => switches,   
       BUTTONS => buttons,
-      sd_sdhc => '1',
-      ps2_clk => clk12k,
       ps2_kbd_clk => ps2Clk,
       ps2_kbd_data => ps2Data
-    );
-    
-  osd_inst : osd
-    port map (
-      pclk => osd_pclk,
-      sdi => SPI_DI,
-      sck => SPI_SCK,
-      ss => SPI_SS3,
-      red_in => vid_r(7 downto 2),
-      green_in => vid_g(7 downto 2),
-      blue_in => vid_b(7 downto 2),
-      hs_in => vid_hsync,
-      vs_in => vid_vsync,
-      scanline_ena_h => status(2),
-      red_out => VGA_R,
-      green_out => VGA_G,
-      blue_out => VGA_B,
-      hs_out => hsync_out,
-      vs_out => vsync_out
     );
     
   data_io_inst: data_io

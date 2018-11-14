@@ -18,7 +18,8 @@ package cv_comp_pack is
       clk_i         : in  std_logic;
       clk_en_10m7_i : in  std_logic;
       reset_n_i     : in  std_logic;
-      clk_en_3m58_o : out std_logic
+      clk_en_3m58_p_o : out std_logic;
+      clk_en_3m58_n_o : out std_logic
     );
   end component;
 
