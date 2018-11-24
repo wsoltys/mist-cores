@@ -164,17 +164,43 @@ component user_io
   end component user_io;
   
   component data_io is
-    port(sck: in std_logic;
-         ss: in std_logic;
-         sdi: in std_logic;
-         downloading: out std_logic;
-         size: out std_logic_vector(15 downto 0);
-         clk: in std_logic;
-         we: in std_logic;
-         a: in std_logic_vector(14 downto 0);
-         din: in std_logic_vector(7 downto 0);
-         dout: out std_logic_vector(7 downto 0));
-  end component;
+    port (
+        sck         : in std_logic;
+        ss          : in std_logic;
+        sdi         : in std_logic;
+        downloading : out std_logic;
+        index       : out std_logic_vector(7 downto 0);
+        clk         : in std_logic;
+        clkref      : in std_logic;
+        wr          : out std_logic;
+        a           : out std_logic_vector(24 downto 0);
+        d           : out std_logic_vector(7 downto 0)
+    );
+  end component data_io;
+
+component sdram
+    port (
+        SDRAM_DQ    : inout std_logic_vector(15 downto 0);
+        SDRAM_A     : out std_logic_vector(12 downto 0);
+        SDRAM_DQML  : out std_logic;
+        SDRAM_DQMH  : out std_logic;
+        SDRAM_BA    : out std_logic_vector(1 downto 0);
+        SDRAM_nCS   : out std_logic;
+        SDRAM_nWE   : out std_logic;
+        SDRAM_nRAS  : out std_logic;
+        SDRAM_nCAS  : out std_logic;
+        SDRAM_CKE   : out std_logic;
+
+        init        : in std_logic;
+        clk         : in std_logic;
+
+        addr        : in std_logic_vector(24 downto 0);
+        rd          : in std_logic;
+        dout        : out std_logic_vector(7 downto 0);
+        din         : in std_logic_vector(7 downto 0);
+        we          : in std_logic
+    );
+end component sdram;
 
 component scandoubler
     port (
@@ -228,6 +254,8 @@ COMPONENT rgb2ypbpr
 END COMPONENT;
 
   signal clk21m3 : std_logic;
+  signal clkref  : std_logic;
+  signal rom_en  : std_logic;
   signal force_reset : std_logic := '0';
   signal reset_n_s : std_logic;
   
@@ -274,12 +302,14 @@ END COMPONENT;
   
   signal downl          : std_logic := '0';
   signal size           : std_logic_vector(15 downto 0) := (others=>'0');
-  signal cart_a         : std_logic_vector(14 downto 0);
+  signal cart_a         : std_logic_vector(24 downto 0);
   signal cart_d         : std_logic_vector(7 downto 0);
   
   signal clk_cnt_q            : unsigned(1 downto 0);
 	signal clk_en_5m37_q			  : std_logic;
 	signal clk_21m3_s					  : std_logic;
+  signal clk_mem_s      : std_logic;
+  signal clk_mem_cnt    : unsigned(2 downto 0);
   signal clk_en_10m7_q			  : std_logic;
   signal por_n_s              : std_logic;
   
@@ -309,7 +339,7 @@ END COMPONENT;
   signal vram_d_to_cv_s,
          vram_d_from_cv_s    : std_logic_vector( 7 downto 0);
 
-  signal cart_a_s            : std_logic_vector(14 downto 0);
+  signal cart_a_s            : std_logic_vector(24 downto 0);
   signal cart_d_s            : std_logic_vector( 7 downto 0);
   signal cart_en_80_n_s,
          cart_en_a0_n_s,
@@ -336,6 +366,11 @@ END COMPONENT;
   signal ps2_keys_s				    : std_logic_vector(15 downto 0);
 	signal ps2_joy_s				    : std_logic_vector(15 downto 0);
 
+  signal romwr_a            : std_logic_vector(24 downto 0);
+  signal ioctl_dout         : std_logic_vector(7 downto 0);
+  signal rom_wr             : std_logic;
+  signal sd_wrack           : std_logic;
+
 begin
 
   LED <= '1';
@@ -345,9 +380,11 @@ begin
     port map (
       inclk0 => CLOCK_27(0),
       c0     => clk_21m3_s,
+      c1     => clk_mem_s,
       locked => pll_locked
       );
       
+  SDRAM_CLK <= not clk_mem_s;
   -----------------------------------------------------------------------------
   -- Process clk_cnt
   --
@@ -423,7 +460,7 @@ begin
       vram_we_o       => vram_we_s,
       vram_d_o        => vram_d_from_cv_s,
       vram_d_i        => vram_d_to_cv_s,
-      cart_a_o        => cart_a_s,
+      cart_a_o        => cart_a_s(14 downto 0),
       cart_en_80_n_o  => cart_en_80_n_s,
       cart_en_a0_n_o  => cart_en_a0_n_s,
       cart_en_c0_n_o  => cart_en_c0_n_s,
@@ -702,24 +739,46 @@ VGA_B <= vga_pb_o when ypbpr='1' else osd_blue_o;
       ps2_kbd_clk => ps2Clk,
       ps2_kbd_data => ps2Data
     );
-    
+
   data_io_inst: data_io
-    port map(SPI_SCK, SPI_SS2, SPI_DI, downl, size, clk_21m3_s, '0', cart_a, (others=>'0'), cart_d);
-    
-  process(downl)
+    port map(SPI_SCK, SPI_SS2, SPI_DI, downl, open, clk_mem_s, clkref, rom_wr, romwr_a, ioctl_dout);
+
+  cart_rom: sdram
+  port map (
+        SDRAM_DQ    => SDRAM_DQ,
+        SDRAM_A     => SDRAM_A,
+        SDRAM_DQML  => SDRAM_DQML,
+        SDRAM_DQMH  => SDRAM_DQMH,
+        SDRAM_BA    => SDRAM_BA,
+        SDRAM_nCS   => SDRAM_nCS,
+        SDRAM_nWE   => SDRAM_nWE,
+        SDRAM_nRAS  => SDRAM_nRAS,
+        SDRAM_nCAS  => SDRAM_nCAS,
+        SDRAM_CKE   => SDRAM_CKE,
+
+        init        => not pll_locked,
+        clk         => clk_mem_s,
+
+        addr        => cart_a,
+        rd          => rom_en,
+        dout        => cart_d_s,
+        din         => ioctl_dout,
+        we          => rom_wr
+  );
+
+  rom_en <= not (cart_en_80_n_s and cart_en_a0_n_s and cart_en_c0_n_s and cart_en_e0_n_s);
+  cart_a <= cart_a_s when downl = '0' else romwr_a;
+
+  clkref <= '1' when clk_mem_cnt = "000" else '0';
+  force_reset <= downl;
+
+  process(clk_mem_s)
   begin
-    if(downl = '0') then
-      cart_a <= cart_a_s;
-      cart_d_s <= cart_d;
-      force_reset <= '0';
-    else
-      cart_a <= cart_a_s;
-      cart_d_s <= x"FF";
-      force_reset <= '1';
+    if rising_edge (clk_mem_s) then
+        clk_mem_cnt <= clk_mem_cnt + 1;
     end if;
   end process;
     
-  SDRAM_nCAS  <= '1'; -- disable sdram
   AUDIO_L     <= audio_s;
   AUDIO_R     <= audio_s;
 
