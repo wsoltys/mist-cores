@@ -120,7 +120,10 @@ end mist_cv;
 
 architecture rtl of mist_cv is
 
-  constant CONF_STR : string := "COLECO;COLBIN;O23,Scanlines,Off,25%,50%,75%;";
+  constant CONF_STR : string := "COLECO;COLBINROM;"&
+                                "O4,RAM Size,1k,8k;"&
+                                "O23,Scanlines,Off,25%,50%,75%;"&
+                                "T0,Reset;";
 
   function to_slv(s: string) return std_logic_vector is 
     constant ss: string(1 to s'length) := s; 
@@ -193,12 +196,14 @@ component sdram
 
         init        : in std_logic;
         clk         : in std_logic;
+        wtbt        : in std_logic_vector(1 downto 0);
 
         addr        : in std_logic_vector(24 downto 0);
         rd          : in std_logic;
         dout        : out std_logic_vector(7 downto 0);
         din         : in std_logic_vector(7 downto 0);
-        we          : in std_logic
+        we          : in std_logic;
+        ready       : out std_logic
     );
 end component sdram;
 
@@ -301,7 +306,6 @@ END COMPONENT;
   signal vga_pr_o : std_logic_vector(5 downto 0);  
   
   signal downl          : std_logic := '0';
-  signal size           : std_logic_vector(15 downto 0) := (others=>'0');
   signal cart_a         : std_logic_vector(24 downto 0);
   signal cart_d         : std_logic_vector(7 downto 0);
   
@@ -327,7 +331,8 @@ END COMPONENT;
   signal bios_rom_ce_n_s     : std_logic;
   signal bios_rom_d_s        : std_logic_vector( 7 downto 0);
 
-  signal cpu_ram_a_s         : std_logic_vector( 9 downto 0);
+  signal ram_a_s             : std_logic_vector(12 downto 0);
+  signal cpu_ram_a_s         : std_logic_vector(12 downto 0);
   signal cpu_ram_ce_n_s      : std_logic;
   signal cpu_ram_we_n_s      : std_logic;
   signal cpu_ram_d_to_cv_s,
@@ -370,6 +375,7 @@ END COMPONENT;
   signal ioctl_dout         : std_logic_vector(7 downto 0);
   signal rom_wr             : std_logic;
   signal sd_wrack           : std_logic;
+  signal ram_ready          : std_logic;
 
 begin
 
@@ -460,7 +466,8 @@ begin
       vram_we_o       => vram_we_s,
       vram_d_o        => vram_d_from_cv_s,
       vram_d_i        => vram_d_to_cv_s,
-      cart_a_o        => cart_a_s(14 downto 0),
+      cart_a_o        => cart_a_s(19 downto 0),
+      cart_pages_i    => romwr_a(19 downto 14),
       cart_en_80_n_o  => cart_en_80_n_s,
       cart_en_a0_n_o  => cart_en_a0_n_s,
       cart_en_c0_n_o  => cart_en_c0_n_s,
@@ -497,15 +504,18 @@ begin
   -----------------------------------------------------------------------------
   cpu_ram_we_s <= clk_en_10m7_q and
                   not (cpu_ram_we_n_s or cpu_ram_ce_n_s);
+  ram_a_s <= cpu_ram_a_s when status(4) = '1' -- 8k
+        else "000" & cpu_ram_a_s(9 downto 0); -- 1k
+
   cpu_ram_b : entity work.spram
     generic map 
 		(
-      widthad_a     => 10
+      widthad_a     => 13
     )
     port map
 		(
       clock    			=> clk_21m3_s,
-      address 			=> cpu_ram_a_s,
+      address 			=> ram_a_s,
       wren    			=> cpu_ram_we_s,
       data    			=> cpu_ram_d_from_cv_s,
       q       			=> cpu_ram_d_to_cv_s
@@ -758,14 +768,17 @@ VGA_B <= vga_pb_o when ypbpr='1' else osd_blue_o;
 
         init        => not pll_locked,
         clk         => clk_mem_s,
+        wtbt        => "00",
 
         addr        => cart_a,
         rd          => rom_en,
         dout        => cart_d_s,
         din         => ioctl_dout,
-        we          => rom_wr
+        we          => rom_wr,
+        ready       => ram_ready
   );
 
+  cart_a_s(24 downto 20) <= "00000";
   rom_en <= not (cart_en_80_n_s and cart_en_a0_n_s and cart_en_c0_n_s and cart_en_e0_n_s);
   cart_a <= cart_a_s when downl = '0' else romwr_a;
 

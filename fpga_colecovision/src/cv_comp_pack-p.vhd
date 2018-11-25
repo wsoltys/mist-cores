@@ -46,7 +46,11 @@ package cv_comp_pack is
 
   component cv_addr_dec
     port (
+      clk_i           : in  std_logic;
+      reset_n_i       : in  std_logic;
       a_i             : in  std_logic_vector(15 downto 0);
+      cart_pages_i    : in  std_logic_vector(5 downto 0);
+      cart_page_o     : out std_logic_vector(5 downto 0);
       iorq_n_i        : in  std_logic;
       rd_n_i          : in  std_logic;
       wr_n_i          : in  std_logic;

@@ -86,7 +86,7 @@ entity cv_console is
     bios_rom_ce_n_o : out std_logic;
     bios_rom_d_i    : in  std_logic_vector( 7 downto 0);
     -- CPU RAM Interface ------------------------------------------------------
-    cpu_ram_a_o     : out std_logic_vector( 9 downto 0);
+    cpu_ram_a_o     : out std_logic_vector( 12 downto 0);
     cpu_ram_ce_n_o  : out std_logic;
     cpu_ram_we_n_o  : out std_logic;
     cpu_ram_d_i     : in  std_logic_vector( 7 downto 0);
@@ -97,7 +97,8 @@ entity cv_console is
     vram_d_o        : out std_logic_vector( 7 downto 0);
     vram_d_i        : in  std_logic_vector( 7 downto 0);
     -- Cartridge ROM Interface ------------------------------------------------
-    cart_a_o        : out std_logic_vector(14 downto 0);
+    cart_a_o        : out std_logic_vector(19 downto 0);
+    cart_pages_i    : in  std_logic_vector(5 downto 0);
     cart_en_80_n_o  : out std_logic;
     cart_en_a0_n_o  : out std_logic;
     cart_en_c0_n_o  : out std_logic;
@@ -201,7 +202,7 @@ architecture struct of cv_console is
          cart_en_a0_n_s,
          cart_en_c0_n_s,
          cart_en_e0_n_s   : std_logic;
-
+  signal cart_page_s      : std_logic_vector(5 downto 0);
   -- misc signals
   signal vdd_s            : std_logic;
 
@@ -370,7 +371,11 @@ begin
   -----------------------------------------------------------------------------
   addr_dec_b : cv_addr_dec
     port map (
+      clk_i           => clk_i,
+      reset_n_i       => reset_n_i,
       a_i             => a_s,
+      cart_pages_i    => cart_pages_i,
+      cart_page_o     => cart_page_s,
       iorq_n_i        => iorq_n_s,
       rd_n_i          => rd_n_s,
       wr_n_i          => wr_n_s,
@@ -425,9 +430,9 @@ begin
   -- Misc outputs
   -----------------------------------------------------------------------------
   bios_rom_a_o <= a_s(12 downto 0);
-  cpu_ram_a_o  <= a_s( 9 downto 0);
+  cpu_ram_a_o  <= a_s(12 downto 0);
   cpu_ram_d_o  <= d_from_cpu_s;
-  cart_a_o     <= a_s(14 downto 0);
+  cart_a_o     <= cart_page_s & a_s(13 downto 0);
 
 
   -- pragma translate_off
