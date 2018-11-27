@@ -58,11 +58,13 @@ entity cv_bus_mux is
     cart_en_a0_n_i  : in  std_logic;
     cart_en_c0_n_i  : in  std_logic;
     cart_en_e0_n_i  : in  std_logic;
+    ay_data_rd_n_i  : in  std_logic;
     bios_rom_d_i    : in  std_logic_vector(7 downto 0);
     cpu_ram_d_i     : in  std_logic_vector(7 downto 0);
     vdp_d_i         : in  std_logic_vector(7 downto 0);
     ctrl_d_i        : in  std_logic_vector(7 downto 0);
     cart_d_i        : in  std_logic_vector(7 downto 0);
+    ay_d_i          : in  std_logic_vector(7 downto 0);
     d_o             : out std_logic_vector(7 downto 0)
   );
 
@@ -91,7 +93,8 @@ begin
              d_ram_v,
              d_vdp_v,
              d_ctrl_v,
-             d_cart_v  : std_logic_vector(7 downto 0);
+             d_cart_v,
+             d_ay_v  : std_logic_vector(7 downto 0);
   begin
     -- default assignments
     d_bios_v := d_inact_c;
@@ -99,6 +102,7 @@ begin
     d_vdp_v  := d_inact_c;
     d_ctrl_v := d_inact_c;
     d_cart_v := d_inact_c;
+    d_ay_v   := d_inact_c;
 
     if bios_rom_ce_n_i = '0' then
       d_bios_v := bios_rom_d_i;
@@ -116,12 +120,16 @@ begin
         cart_en_c0_n_i and cart_en_e0_n_i) = '0' then
       d_cart_v := cart_d_i;
     end if;
+    if ay_data_rd_n_i = '0' then
+      d_ay_v := ay_d_i;
+    end if;
 
     d_o <= d_bios_v and
            d_ram_v  and
            d_vdp_v  and
            d_ctrl_v and
-           d_cart_v;
+           d_cart_v and
+           d_ay_v;
 
   end process mux;
   --

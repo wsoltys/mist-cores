@@ -86,7 +86,7 @@ entity cv_console is
     bios_rom_ce_n_o : out std_logic;
     bios_rom_d_i    : in  std_logic_vector( 7 downto 0);
     -- CPU RAM Interface ------------------------------------------------------
-    cpu_ram_a_o     : out std_logic_vector( 12 downto 0);
+    cpu_ram_a_o     : out std_logic_vector( 14 downto 0);
     cpu_ram_ce_n_o  : out std_logic;
     cpu_ram_we_n_o  : out std_logic;
     cpu_ram_d_i     : in  std_logic_vector( 7 downto 0);
@@ -113,7 +113,7 @@ entity cv_console is
     vsync_n_o       : out std_logic;
     comp_sync_n_o   : out std_logic;
     -- Audio Interface --------------------------------------------------------
-    audio_o         : out signed(7 downto 0)
+    audio_o         : out unsigned(7 downto 0)
   );
 
 end cv_console;
@@ -160,6 +160,32 @@ architecture struct of cv_console is
     );
   end component;
 
+  component YM2149
+  port (
+    CLK         : in  std_logic;
+    CE          : in  std_logic;
+    RESET       : in  std_logic;
+    BDIR        : in  std_logic; -- Bus Direction (0 - read , 1 - write)
+    BC          : in  std_logic; -- Bus control
+    DI          : in  std_logic_vector(7 downto 0);
+    DO          : out std_logic_vector(7 downto 0);
+    CHANNEL_A   : out std_logic_vector(7 downto 0);
+    CHANNEL_B   : out std_logic_vector(7 downto 0);
+    CHANNEL_C   : out std_logic_vector(7 downto 0);
+
+    SEL         : in  std_logic;
+    MODE        : in  std_logic;
+
+    ACTIVE      : out std_logic_vector(5 downto 0);
+
+    IOA_in      : in  std_logic_vector(7 downto 0);
+    IOA_out     : out std_logic_vector(7 downto 0);
+
+    IOB_in      : in  std_logic_vector(7 downto 0);
+    IOB_out     : out std_logic_vector(7 downto 0)
+    );
+  end component;
+
   signal por_n_s          : std_logic;
   signal reset_n_s        : std_logic;
 
@@ -185,7 +211,16 @@ architecture struct of cv_console is
 
   -- SN76489 signal
   signal psg_ready_s      : std_logic;
+  signal psg_audio_s      : signed( 7 downto 0);
 
+  -- AY-8910 signal
+  signal ay_d_s           : std_logic_vector( 7 downto 0);
+  signal ay_ch_a_s        : std_logic_vector( 7 downto 0);
+  signal ay_ch_b_s        : std_logic_vector( 7 downto 0);
+  signal ay_ch_c_s        : std_logic_vector( 7 downto 0);
+  signal ay_audio_s       : unsigned( 8 downto 0);
+
+  signal audio_mix        : unsigned( 8 downto 0);
   -- Controller signals
   signal d_from_ctrl_s    : std_logic_vector( 7 downto 0);
 
@@ -195,6 +230,9 @@ architecture struct of cv_console is
   signal vdp_r_n_s,
          vdp_w_n_s        : std_logic;
   signal psg_we_n_s       : std_logic;
+  signal ay_addr_we_n_s   : std_logic;
+  signal ay_data_we_n_s   : std_logic;
+  signal ay_data_rd_n_s   : std_logic;
   signal ctrl_r_n_s       : std_logic;
   signal ctrl_en_key_n_s,
          ctrl_en_joy_n_s  : std_logic;
@@ -213,6 +251,9 @@ architecture struct of cv_console is
 begin
 
   vdd_s <= '1';
+  ay_audio_s <= unsigned('0' & ay_ch_a_s) + unsigned('0' & ay_ch_b_s) + unsigned('0' & ay_ch_c_s);
+  audio_mix <= unsigned(psg_audio_s+128) + ay_audio_s;
+  audio_o <= audio_mix(8 downto 1);
 
   -----------------------------------------------------------------------------
   -- Reset generation
@@ -267,6 +308,30 @@ begin
       DO         => d_from_cpu_s
     );
 
+  ym2149_inst: YM2149
+  port map (
+    CLK         => clk_i,
+    CE          => clk_en_3m58_p_s,
+    RESET       => not reset_n_s,
+    BDIR        => not ay_addr_we_n_s or not ay_data_we_n_s,
+    BC          => not ay_addr_we_n_s or not ay_data_rd_n_s,
+    DI          => d_from_cpu_s,
+    DO          => ay_d_s,
+    CHANNEL_A   => ay_ch_a_s,
+    CHANNEL_B   => ay_ch_b_s,
+    CHANNEL_C   => ay_ch_c_s,
+
+    SEL         => '0',
+    MODE        => '0',
+
+    ACTIVE      => open,
+
+    IOA_in      => (others => '0'),
+    IOA_out     => open,
+
+    IOB_in      => (others => '0'),
+    IOB_out     => open
+    );
 
   -----------------------------------------------------------------------------
   -- Process m1_wait
@@ -338,7 +403,7 @@ begin
       we_n_i     => psg_we_n_s,
       ready_o    => psg_ready_s,
       d_i        => d_from_cpu_s,
-      aout_o     => audio_o
+      aout_o     => psg_audio_s
     );
 
 
@@ -374,6 +439,7 @@ begin
       clk_i           => clk_i,
       reset_n_i       => reset_n_i,
       a_i             => a_s,
+      d_i             => d_from_cpu_s,
       cart_pages_i    => cart_pages_i,
       cart_page_o     => cart_page_s,
       iorq_n_i        => iorq_n_s,
@@ -386,6 +452,9 @@ begin
       vdp_r_n_o       => vdp_r_n_s,
       vdp_w_n_o       => vdp_w_n_s,
       psg_we_n_o      => psg_we_n_s,
+      ay_addr_we_n_o  => ay_addr_we_n_s,
+      ay_data_we_n_o  => ay_data_we_n_s,
+      ay_data_rd_n_o  => ay_data_rd_n_s,
       ctrl_r_n_o      => ctrl_r_n_s,
       ctrl_en_key_n_o => ctrl_en_key_n_s,
       ctrl_en_joy_n_o => ctrl_en_joy_n_s,
@@ -417,11 +486,13 @@ begin
       cart_en_a0_n_i  => cart_en_a0_n_s,
       cart_en_c0_n_i  => cart_en_c0_n_s,
       cart_en_e0_n_i  => cart_en_e0_n_s,
+      ay_data_rd_n_i  => ay_data_rd_n_s,
       bios_rom_d_i    => bios_rom_d_i,
       cpu_ram_d_i     => cpu_ram_d_i,
       vdp_d_i         => d_from_vdp_s,
       ctrl_d_i        => d_from_ctrl_s,
       cart_d_i        => cart_d_i,
+      ay_d_i          => ay_d_s,
       d_o             => d_to_cpu_s
     );
 
@@ -430,7 +501,7 @@ begin
   -- Misc outputs
   -----------------------------------------------------------------------------
   bios_rom_a_o <= a_s(12 downto 0);
-  cpu_ram_a_o  <= a_s(12 downto 0);
+  cpu_ram_a_o  <= a_s(14 downto 0);
   cpu_ram_d_o  <= d_from_cpu_s;
   cart_a_o     <= cart_page_s & a_s(13 downto 0);
 

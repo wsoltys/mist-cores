@@ -36,7 +36,7 @@ package cv_console_comp_pack is
       bios_rom_a_o    : out std_logic_vector(12 downto 0);
       bios_rom_ce_n_o : out std_logic;
       bios_rom_d_i    : in  std_logic_vector( 7 downto 0);
-      cpu_ram_a_o     : out std_logic_vector( 9 downto 0);
+      cpu_ram_a_o     : out std_logic_vector( 14 downto 0);
       cpu_ram_ce_n_o  : out std_logic;
       cpu_ram_we_n_o  : out std_logic;
       cpu_ram_d_i     : in  std_logic_vector( 7 downto 0);
@@ -45,7 +45,8 @@ package cv_console_comp_pack is
       vram_we_o       : out std_logic;
       vram_d_o        : out std_logic_vector( 7 downto 0);
       vram_d_i        : in  std_logic_vector( 7 downto 0);
-      cart_a_o        : out std_logic_vector(14 downto 0);
+      cart_a_o        : out std_logic_vector(19 downto 0);
+      cart_pages_i    : in  std_logic_vector(5 downto 0);
       cart_en_80_n_o  : out std_logic;
       cart_en_a0_n_o  : out std_logic;
       cart_en_c0_n_o  : out std_logic;

@@ -49,6 +49,7 @@ package cv_comp_pack is
       clk_i           : in  std_logic;
       reset_n_i       : in  std_logic;
       a_i             : in  std_logic_vector(15 downto 0);
+      d_i             : in  std_logic_vector(7 downto 0);
       cart_pages_i    : in  std_logic_vector(5 downto 0);
       cart_page_o     : out std_logic_vector(5 downto 0);
       iorq_n_i        : in  std_logic;
@@ -61,6 +62,9 @@ package cv_comp_pack is
       vdp_r_n_o       : out std_logic;
       vdp_w_n_o       : out std_logic;
       psg_we_n_o      : out std_logic;
+      ay_addr_we_n_o  : out std_logic;
+      ay_data_we_n_o  : out std_logic;
+      ay_data_rd_n_o  : out std_logic;
       ctrl_r_n_o      : out std_logic;
       ctrl_en_key_n_o : out std_logic;
       ctrl_en_joy_n_o : out std_logic;
@@ -81,11 +85,13 @@ package cv_comp_pack is
       cart_en_a0_n_i  : in  std_logic;
       cart_en_c0_n_i  : in  std_logic;
       cart_en_e0_n_i  : in  std_logic;
+      ay_data_rd_n_i  : in  std_logic;
       bios_rom_d_i    : in  std_logic_vector(7 downto 0);
       cpu_ram_d_i     : in  std_logic_vector(7 downto 0);
       vdp_d_i         : in  std_logic_vector(7 downto 0);
       ctrl_d_i        : in  std_logic_vector(7 downto 0);
       cart_d_i        : in  std_logic_vector(7 downto 0);
+      ay_d_i          : in  std_logic_vector(7 downto 0);
       d_o             : out std_logic_vector(7 downto 0)
     );
   end component;

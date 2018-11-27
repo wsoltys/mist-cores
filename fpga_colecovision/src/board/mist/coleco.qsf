@@ -280,6 +280,8 @@ set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 
 set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
 set_global_assignment -name TIMEQUEST_MULTICORNER_ANALYSIS ON
 set_global_assignment -name SMART_RECOMPILE ON
+set_global_assignment -name ENABLE_SIGNALTAP OFF
+set_global_assignment -name USE_SIGNALTAP_FILE ../../../syn/mist/rom.stp
 set_global_assignment -name VHDL_FILE ps2kbd.vhd
 set_global_assignment -name VHDL_FILE ps2kbd_pkg.vhd
 set_global_assignment -name VHDL_FILE keyboard.vhd
@@ -295,6 +297,7 @@ set_global_assignment -name SDC_FILE coleco.sdc
 set_global_assignment -name VERILOG_FILE ../../board/mist/data_io_ram.v
 set_global_assignment -name VHDL_FILE ../../board/misc/dpram.vhd
 set_global_assignment -name QIP_FILE ../../T80/T80.qip
+set_global_assignment -name SYSTEMVERILOG_FILE ../../YM2149.sv
 set_global_assignment -name VHDL_FILE "../../sn76489/sn76489_comp_pack-p.vhd"
 set_global_assignment -name VHDL_FILE ../../sn76489/sn76489_clock_div.vhd
 set_global_assignment -name VHDL_FILE ../../sn76489/sn76489_latch_ctrl.vhd
@@ -334,7 +337,6 @@ set_global_assignment -name VHDL_FILE "../../cv_keys_pack-p.vhd"
 set_global_assignment -name VHDL_FILE "../../cv_console_comp_pack-p.vhd"
 set_global_assignment -name VHDL_FILE ../../board/mist/mist_cv.vhd
 set_global_assignment -name QIP_FILE ../../board/mist/mist_pll.qip
-set_global_assignment -name ENABLE_SIGNALTAP OFF
-set_global_assignment -name USE_SIGNALTAP_FILE ../../../syn/mist/rom.stp
 set_global_assignment -name SIGNALTAP_FILE ../../../syn/mist/rom.stp
+set_global_assignment -name SIGNALTAP_FILE ../../../syn/mist/vdp.stp
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

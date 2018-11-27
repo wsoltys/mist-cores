@@ -121,7 +121,7 @@ end mist_cv;
 architecture rtl of mist_cv is
 
   constant CONF_STR : string := "COLECO;COLBINROM;"&
-                                "O4,RAM Size,1k,8k;"&
+                                "O45,RAM Size,1k,8k,SGM;"&
                                 "O23,Scanlines,Off,25%,50%,75%;"&
                                 "T0,Reset;";
 
@@ -331,8 +331,8 @@ END COMPONENT;
   signal bios_rom_ce_n_s     : std_logic;
   signal bios_rom_d_s        : std_logic_vector( 7 downto 0);
 
-  signal ram_a_s             : std_logic_vector(12 downto 0);
-  signal cpu_ram_a_s         : std_logic_vector(12 downto 0);
+  signal ram_a_s             : std_logic_vector(14 downto 0);
+  signal cpu_ram_a_s         : std_logic_vector(14 downto 0);
   signal cpu_ram_ce_n_s      : std_logic;
   signal cpu_ram_we_n_s      : std_logic;
   signal cpu_ram_d_to_cv_s,
@@ -364,8 +364,7 @@ END COMPONENT;
          but_left_s,
          but_right_s         : std_logic_vector( 1 downto 0);
 
-  signal signed_audio_s      : signed(7 downto 0);
-  signal dac_audio_s         : std_logic_vector( 7 downto 0);
+  signal unsigned_audio_s    : unsigned(7 downto 0);
   signal audio_s             : std_logic;
   
   signal ps2_keys_s				    : std_logic_vector(15 downto 0);
@@ -480,7 +479,7 @@ begin
       hsync_n_o       => coleco_hs,
       vsync_n_o       => coleco_vs,
       comp_sync_n_o   => open,
-      audio_o         => signed_audio_s
+      audio_o         => unsigned_audio_s
     );
     
   -----------------------------------------------------------------------------
@@ -504,13 +503,14 @@ begin
   -----------------------------------------------------------------------------
   cpu_ram_we_s <= clk_en_10m7_q and
                   not (cpu_ram_we_n_s or cpu_ram_ce_n_s);
-  ram_a_s <= cpu_ram_a_s when status(4) = '1' -- 8k
-        else "000" & cpu_ram_a_s(9 downto 0); -- 1k
+  ram_a_s <= "00" & cpu_ram_a_s(12 downto 0) when status(5 downto 4) = "01" -- 8k
+        else "00000" & cpu_ram_a_s(9 downto 0) when status(5 downto 4) = "00" -- 1k
+        else cpu_ram_a_s; -- SGM/32k
 
   cpu_ram_b : entity work.spram
     generic map 
 		(
-      widthad_a     => 13
+      widthad_a     => 15
     )
     port map
 		(
@@ -710,17 +710,11 @@ VGA_G <= vga_y_o  when ypbpr='1' else osd_green_o;
 VGA_B <= vga_pb_o when ypbpr='1' else osd_blue_o;  
   -----------------------------------------------------------------------------
 
-  -----------------------------------------------------------------------------
-  -- Convert signed audio data of the console (range 127 to -128) to
-  -- simple unsigned value.
-  -----------------------------------------------------------------------------
-  dac_audio_s <= std_logic_vector(unsigned(signed_audio_s + 128));
-  
   dac : entity work.dac
     port map (
       clk_i     => clk_21m3_s,
       res_n_i   => reset_n_s,
-      dac_i     => dac_audio_s,
+      dac_i     => std_logic_vector(unsigned_audio_s),
       dac_o     => audio_s
     ); 
     
