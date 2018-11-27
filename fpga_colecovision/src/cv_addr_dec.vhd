@@ -122,7 +122,8 @@ begin
     cart_en_c0_n_o  <= '1';
     cart_en_e0_n_o  <= '1';
 
-    if cart_pages_i = "000111" or -- 128k
+    if cart_pages_i = "000011" or --  64k
+       cart_pages_i = "000111" or -- 128k
        cart_pages_i = "001111" or -- 256k
        cart_pages_i = "011111" or -- 512k
        cart_pages_i = "111111" then -- 1M
