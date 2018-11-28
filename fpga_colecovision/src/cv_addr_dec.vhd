@@ -50,7 +50,12 @@ use ieee.std_logic_1164.all;
 entity cv_addr_dec is
 
   port (
+    clk_i           : in  std_logic;
+    reset_n_i       : in  std_logic;
     a_i             : in  std_logic_vector(15 downto 0);
+    d_i             : in  std_logic_vector(7 downto 0);
+    cart_pages_i    : in  std_logic_vector(5 downto 0);
+    cart_page_o     : out std_logic_vector(5 downto 0);
     iorq_n_i        : in  std_logic;
     rd_n_i          : in  std_logic;
     wr_n_i          : in  std_logic;
@@ -61,6 +66,9 @@ entity cv_addr_dec is
     vdp_r_n_o       : out std_logic;
     vdp_w_n_o       : out std_logic;
     psg_we_n_o      : out std_logic;
+    ay_addr_we_n_o  : out std_logic;
+    ay_data_we_n_o  : out std_logic;
+    ay_data_rd_n_o  : out std_logic;
     ctrl_r_n_o      : out std_logic;
     ctrl_en_key_n_o : out std_logic;
     ctrl_en_joy_n_o : out std_logic;
@@ -75,6 +83,10 @@ end cv_addr_dec;
 
 architecture rtl of cv_addr_dec is
 
+  signal megacart_en   : std_logic;
+  signal megacart_page : std_logic_vector(5 downto 0);
+  signal bios_en       : std_logic;
+
 begin
 
   -----------------------------------------------------------------------------
@@ -87,7 +99,10 @@ begin
                 iorq_n_i,
                 rd_n_i, wr_n_i,
                 mreq_n_i,
-                rfsh_n_i)
+                rfsh_n_i,
+                cart_pages_i,
+                megacart_en,
+                megacart_page)
     variable mux_v : std_logic_vector(2 downto 0);
   begin
     -- default assignments
@@ -96,6 +111,9 @@ begin
     vdp_r_n_o       <= '1';
     vdp_w_n_o       <= '1';
     psg_we_n_o      <= '1';
+    ay_addr_we_n_o  <= '1';
+    ay_data_we_n_o  <= '1';
+    ay_data_rd_n_o  <= '1';
     ctrl_r_n_o      <= '1';
     ctrl_en_key_n_o <= '1';
     ctrl_en_joy_n_o <= '1';
@@ -104,13 +122,45 @@ begin
     cart_en_c0_n_o  <= '1';
     cart_en_e0_n_o  <= '1';
 
+    if cart_pages_i = "000011" or --  64k
+       cart_pages_i = "000111" or -- 128k
+       cart_pages_i = "001111" or -- 256k
+       cart_pages_i = "011111" or -- 512k
+       cart_pages_i = "111111" then -- 1M
+        megacart_en <= '1';
+    else
+        megacart_en <= '0';
+    end if;
+
+    -- Paging
+    case a_i(15 downto 14) is
+        when "10" =>
+            if megacart_en = '1' then
+                cart_page_o <= cart_pages_i;
+            else
+                cart_page_o <= "000000";
+            end if;
+        when "11" =>
+            if megacart_en = '1' then
+                cart_page_o <= megacart_page;
+            else
+                cart_page_o <= "000001";
+            end if;
+        when others =>
+            cart_page_o <= "000000";
+    end case;
+
     -- Memory access ----------------------------------------------------------
     if mreq_n_i = '0' and rfsh_n_i = '1' then
       case a_i(15 downto 13) is
         when "000" =>
-          bios_rom_ce_n_o   <= '0';
-        when "011" =>
-          ram_ce_n_o        <= '0';
+          if bios_en = '1' then
+            bios_rom_ce_n_o   <= '0';
+          else
+            ram_ce_n_o <= '0';
+          end if;
+        when "001" | "010" | "011" =>
+          ram_ce_n_o        <= '0'; -- 2000 - 7fff = 24k
         when "100" =>
           cart_en_80_n_o    <= '0';
         when "101" =>
@@ -149,10 +199,40 @@ begin
             null;
         end case;
       end if;
+      if a_i(7 downto 0) = x"50" and wr_n_i = '0' then
+        ay_addr_we_n_o  <= '0';
+      elsif a_i(7 downto 0) = x"51" and wr_n_i = '0' then
+        ay_data_we_n_o  <= '0';
+      elsif a_i(7 downto 0) = x"52" and rd_n_i = '0' then
+        ay_data_rd_n_o  <= '0';
+      end if;
+
     end if;
 
   end process dec;
+
+
   --
   -----------------------------------------------------------------------------
+  megacart: process (reset_n_i, clk_i)
+  begin
+        if reset_n_i = '0' then
+            megacart_page <= "000000";
+            bios_en <= '1';
+        elsif rising_edge( clk_i ) then
+            -- MegaCart paging
+            if megacart_en = '1' and rfsh_n_i = '1' and mreq_n_i = '0' and
+               rd_n_i = '0' and a_i(15 downto 6) = x"FF"&"11"
+            then
+               megacart_page <= a_i(5 downto 0) and cart_pages_i;
+            end if;
+
+            -- SGM BIOS enable/disable
+            if iorq_n_i = '0' and mreq_n_i = '1' and rfsh_n_i = '1' and wr_n_i = '0' and a_i(7 downto 0) = x"7f"
+            then
+                bios_en <= d_i(1);
+            end if;
+        end if;
+  end process megacart;
 
 end rtl;

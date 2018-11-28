@@ -22,41 +22,40 @@
 
 module data_io (
 	// io controller spi interface
-	input         sck,
-	input         ss,
-	input         sdi,
+    input               sck,
+    input               ss,
+    input               sdi,
 
-	output        downloading,   // signal indicating an active download
-	output [15:0] size,          // number of bytes in input buffer
-	
-	// cpu ram interface
-	input 			clk,
-	input          we,
-	input [14:0]   a,
-	input [7:0]    din,
-	output [7:0]   dout
+    output              downloading,   // signal indicating an active download
+    output reg [7:0]    index,         // menu index used to upload the file
+
+    // external ram interface
+    input               clk,
+    input               clkref,
+    output reg          wr,
+    output reg [24:0]   a,
+    output [7:0]        d
 );
 
-parameter START_ADDR = 16'h0000;
+assign d = data;
 
-assign size = addr;
+parameter START_ADDR = 25'h0;
 
 // *********************************************************************************
 // spi client
 // *********************************************************************************
 
-// this core supports only the display related OSD commands
-// of the minimig
 reg [6:0]      sbuf;
-reg [7:0]      cmd /* synthesis noprune */;
-reg [7:0]      data /* synthesis noprune */;
-reg [4:0]      cnt /* synthesis noprune */;
+reg [7:0]      cmd;
+reg [7:0]      data;
+reg [4:0]      cnt;
 
-reg [15:0]     addr /* synthesis noprune */;
-reg rclk /* synthesis noprune */;
+reg [24:0]     addr;
+reg rclk;
 
 localparam UIO_FILE_TX      = 8'h53;
 localparam UIO_FILE_TX_DAT  = 8'h54;
+localparam UIO_FILE_INDEX   = 8'h55;
 
 assign downloading = downloading_reg;
 reg downloading_reg = 1'b0;
@@ -75,14 +74,14 @@ always@(posedge sck, posedge ss) begin
 
 		// increase target address after write
 		if(rclk)
-			addr <= addr + 16'd1;
-	 
+			addr <= addr + 25'd1;
+
 		// count 0-7 8-15 8-15 ... 
 		if(cnt < 15) 	cnt <= cnt + 4'd1;
 		else				cnt <= 4'd8;
 
 		// finished command byte
-      if(cnt == 7)
+		if(cnt == 7)
 			cmd <= {sbuf, sdi};
 
 		// prepare/end transmission
@@ -94,29 +93,36 @@ always@(posedge sck, posedge ss) begin
 			end else
 				downloading_reg <= 1'b0; 
 		end
-		
+
 		// command 0x54: UIO_FILE_TX
 		if((cmd == UIO_FILE_TX_DAT) && (cnt == 15)) begin
 			data <= {sbuf, sdi};
 			rclk <= 1'b1;
+			a <= addr;
 		end
+
+		// expose file (menu) index
+		if((cmd == UIO_FILE_INDEX) && (cnt == 15))
+			index <= {sbuf[3:0], sdi};
 	end
 end
 
-// include the embedded dual port ram
-data_io_ram data_io_ram (
-	// wire up cpu port
-	.address_a   	( a					),
-	.clock_a			( clk					),
-	.data_a			( din					),
-	.wren_a			( we					),
-	.q_a				( dout				),
-	
-	// io controller port
-	.address_b		( addr[14:0]		),
-	.clock_b			( rclk				),
-	.data_b			( {sbuf, sdi}		),
-	.wren_b			( (cmd == UIO_FILE_TX_DAT) && !ss	)
-);
+always@(posedge clk) begin
+    // bring rclk from spi clock domain into core clock domain
+    reg rclkD, rclkD2;
+    reg wr_int;
+
+    rclkD <= rclk;
+    rclkD2 <= rclkD;
+    wr <= 0;
+
+    if (clkref) begin
+        wr_int <= 0;
+        if (wr_int) wr <= 1'b1;
+    end
+
+    if(rclkD && !rclkD2)
+        wr_int <= 1'b1;
+end
 
 endmodule
