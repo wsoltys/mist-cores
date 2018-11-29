@@ -191,12 +191,12 @@ begin
              num_pix_i(0 to 5) /= "011111" and
              num_pix_i(6 to 7)  = "00"     and
              num_pix_i(4 to 5) /= "00"     then
-            -- sprite test interleaved with pattern accesses
+            -- sprite test interleaved with pattern accesses - 23 slots
             access_type_s <= AC_STST;
           end if;
-          if num_pix_plus_32_v(0 to 4) = "00000" and
-             num_pix_plus_32_v(6 to 7) /= "00"   then
-            -- sprite tests before starting pattern phase
+          if num_pix_plus_32_v(0 to 4) = "00000" or
+             num_pix_plus_32_v(0 to 7) = "00001000"   then
+            -- sprite tests before starting pattern phase - 9 slots
             access_type_s <= AC_STST;
           end if;
 
