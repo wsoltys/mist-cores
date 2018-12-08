@@ -1,0 +1,3 @@
+[submodule "sega-master-system/jt89"]
+	path = sega-master-system/jt89
+	url = git@github.com:jotego/jt89.git

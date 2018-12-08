@@ -314,6 +314,7 @@ set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
 set_global_assignment -name PARTITION_COLOR 2147039 -section_id Top
 
 
+set_global_assignment -name QIP_FILE ../jt89/hdl/jt89.qip
 set_global_assignment -name VERILOG_FILE src/data_io.v
 set_global_assignment -name VERILOG_FILE src/osd.v
 set_global_assignment -name VERILOG_FILE src/user_io.v
@@ -333,9 +334,6 @@ set_global_assignment -name VHDL_FILE src/uart_tx.vhd
 set_global_assignment -name VHDL_FILE src/system.vhd
 set_global_assignment -name VHDL_FILE src/spi.vhd
 set_global_assignment -name VHDL_FILE src/sms_mist.vhd
-set_global_assignment -name VHDL_FILE src/psg_tone.vhd
-set_global_assignment -name VHDL_FILE src/psg_noise.vhd
-set_global_assignment -name VHDL_FILE src/psg.vhd
 set_global_assignment -name VHDL_FILE src/io.vhd
 set_global_assignment -name VHDL_FILE src/dummy_z80.vhd
 set_global_assignment -name VHDL_FILE src/dac.vhd
