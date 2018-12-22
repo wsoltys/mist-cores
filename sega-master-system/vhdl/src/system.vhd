@@ -2,7 +2,8 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
-use work.all;
+--use work.all;
+use work.jt89.all;
 
 entity system is
 	port (
@@ -86,14 +87,6 @@ architecture Behavioral of system is
 		color: 			out std_logic_vector (5 downto 0));
 	end component;
 	
-	component psg is
-   port (
-		clk:				in  STD_LOGIC;
-		WR_n:				in  STD_LOGIC;
-		D_in:				in  STD_LOGIC_VECTOR (7 downto 0);
-		output:			out STD_LOGIC);
-	end component;
-	
 	component io is
    port (
 		clk:				in		STD_LOGIC;
@@ -116,7 +109,7 @@ architecture Behavioral of system is
 		J2_tr:			in 	STD_LOGIC;
 		RESET:			in 	STD_LOGIC);
 	end component;
-	
+
 	signal RESET_n:			std_logic;
 	signal RD_n:				std_logic;
 	signal WR_n:				std_logic;
@@ -125,27 +118,27 @@ architecture Behavioral of system is
 	signal A:					std_logic_vector(15 downto 0);
 	signal D_in:				std_logic_vector(7 downto 0);
 	signal D_out:				std_logic_vector(7 downto 0);
-	
+
 	signal vdp_RD_n:			std_logic;
 	signal vdp_WR_n:			std_logic;
 	signal vdp_D_out:			std_logic_vector(7 downto 0);
-	
+
 	signal psg_WR_n:			std_logic;
-	
+
 	signal ctl_WR_n:			std_logic;
-	
+
 	signal io_RD_n:			std_logic;
 	signal io_WR_n:			std_logic;
 	signal io_D_out:			std_logic_vector(7 downto 0);
-	
+
 	signal ram_WR_n:			std_logic;
 	signal ram_D_out:			std_logic_vector(7 downto 0);
-  signal cart_ram_D_out:std_logic_vector(7 downto 0);
-	
+	signal cart_ram_D_out:std_logic_vector(7 downto 0);
+
 	signal rom_WR_n:			std_logic;
-	
+
 	signal boot_rom_D_out:	std_logic_vector(7 downto 0);
-	
+
 	signal reset_counter:	unsigned(3 downto 0) := "1111";
 	signal bootloader:		std_logic := '0';
 	signal irom_D_out:		std_logic_vector(7 downto 0);
@@ -154,8 +147,10 @@ architecture Behavioral of system is
 	signal bank0:				std_logic_vector(7 downto 0) := "00000000";
 	signal bank1:				std_logic_vector(7 downto 0) := "00000001";
 	signal bank2:				std_logic_vector(7 downto 0) := "00000010";
-  
-  signal ram_e:       std_logic := '0';
+
+	signal ram_e:       std_logic := '0';
+	signal psg_sound : std_logic_vector(10 downto 0);	
+
 begin	
 	
 --	z80_inst: dummy_z80
@@ -196,14 +191,23 @@ begin
 		vblank		=> vblank,
 		hblank		=> hblank,
 		color			=> color);
-		
-	psg_inst: psg
-	port map (
-		clk			=> clk_cpu,
-		WR_n			=> psg_WR_n,
-		D_in			=> D_in,
-		output		=> audio);
 	
+	psg_inst : jt89_sms
+	port map(
+		rst    	=> not RESET_n,
+		clk		=> clk_cpu,
+		wr_n	=> psg_WR_n,
+		din  	=> D_in,
+		sound	=> psg_sound
+	);
+	
+	inst_dac: jt12_dac2
+	port map (
+		clk		=> clk_cpu,
+		rst    	=> not RESET_n,
+		din     => psg_sound,
+		dout	=> audio );
+
 	io_inst: io
    port map (
 		clk			=> clk_cpu,
