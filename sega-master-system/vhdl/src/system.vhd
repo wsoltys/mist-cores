@@ -110,12 +110,6 @@ architecture Behavioral of system is
 		RESET:			in 	STD_LOGIC);
 	end component;
 
-	component dac is
-	port (clk	: in  STD_LOGIC;
-			input	: in  STD_LOGIC_VECTOR (10 downto 0);
-			output: out STD_LOGIC);
-	end component;
-
 	signal RESET_n:			std_logic;
 	signal RD_n:				std_logic;
 	signal WR_n:				std_logic;
@@ -198,21 +192,21 @@ begin
 		hblank		=> hblank,
 		color			=> color);
 	
-	psg_inst : jt89
+	psg_inst : jt89_sms
 	port map(
 		rst    	=> not RESET_n,
 		clk		=> clk_cpu,
-		clk_en	=> '1',
 		wr_n	=> psg_WR_n,
 		din  	=> D_in,
 		sound	=> psg_sound
 	);
 	
-	inst_dac: dac
+	inst_dac: jt12_dac2
 	port map (
 		clk		=> clk_cpu,
-		input   => psg_sound,
-		output	=> audio );
+		rst    	=> not RESET_n,
+		din     => psg_sound,
+		dout	=> audio );
 
 	io_inst: io
    port map (
