@@ -26,7 +26,7 @@ module data_io (
     input               ss,
     input               sdi,
 
-    output              downloading,   // signal indicating an active download
+    output reg          downloading,   // signal indicating an active download
     output reg [7:0]    index,         // menu index used to upload the file
 
     // external ram interface
@@ -57,8 +57,8 @@ localparam UIO_FILE_TX      = 8'h53;
 localparam UIO_FILE_TX_DAT  = 8'h54;
 localparam UIO_FILE_INDEX   = 8'h55;
 
-assign downloading = downloading_reg;
 reg downloading_reg = 1'b0;
+reg [7:0] index_reg;
 
 // data_io has its own SPI interface to the io controller
 always@(posedge sck, posedge ss) begin
@@ -103,7 +103,7 @@ always@(posedge sck, posedge ss) begin
 
 		// expose file (menu) index
 		if((cmd == UIO_FILE_INDEX) && (cnt == 15))
-			index <= {sbuf[3:0], sdi};
+			index_reg <= {sbuf, sdi};
 	end
 end
 
@@ -115,6 +115,9 @@ always@(posedge clk) begin
     rclkD <= rclk;
     rclkD2 <= rclkD;
     wr <= 0;
+
+    downloading <= downloading_reg;
+    index <= index_reg;
 
     if (clkref) begin
         wr_int <= 0;

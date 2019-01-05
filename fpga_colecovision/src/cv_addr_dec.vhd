@@ -52,6 +52,7 @@ entity cv_addr_dec is
   port (
     clk_i           : in  std_logic;
     reset_n_i       : in  std_logic;
+    sg1000          : in  std_logic;
     a_i             : in  std_logic_vector(15 downto 0);
     d_i             : in  std_logic_vector(7 downto 0);
     cart_pages_i    : in  std_logic_vector(5 downto 0);
@@ -75,7 +76,8 @@ entity cv_addr_dec is
     cart_en_80_n_o  : out std_logic;
     cart_en_a0_n_o  : out std_logic;
     cart_en_c0_n_o  : out std_logic;
-    cart_en_e0_n_o  : out std_logic
+    cart_en_e0_n_o  : out std_logic;
+    cart_en_sg1000_n_o: out std_logic
   );
 
 end cv_addr_dec;
@@ -101,6 +103,8 @@ begin
                 mreq_n_i,
                 rfsh_n_i,
                 cart_pages_i,
+                bios_en,
+                sg1000,
                 megacart_en,
                 megacart_page)
     variable mux_v : std_logic_vector(2 downto 0);
@@ -121,12 +125,14 @@ begin
     cart_en_a0_n_o  <= '1';
     cart_en_c0_n_o  <= '1';
     cart_en_e0_n_o  <= '1';
+    cart_en_sg1000_n_o <='1';
 
-    if cart_pages_i = "000011" or --  64k
+    if sg1000 = '0' and (
+       cart_pages_i = "000011" or --  64k
        cart_pages_i = "000111" or -- 128k
        cart_pages_i = "001111" or -- 256k
        cart_pages_i = "011111" or -- 512k
-       cart_pages_i = "111111" then -- 1M
+       cart_pages_i = "111111") then -- 1M
         megacart_en <= '1';
     else
         megacart_en <= '0';
@@ -152,31 +158,40 @@ begin
 
     -- Memory access ----------------------------------------------------------
     if mreq_n_i = '0' and rfsh_n_i = '1' then
-      case a_i(15 downto 13) is
-        when "000" =>
-          if bios_en = '1' then
-            bios_rom_ce_n_o   <= '0';
-          else
-            ram_ce_n_o <= '0';
-          end if;
-        when "001" | "010" | "011" =>
-          ram_ce_n_o        <= '0'; -- 2000 - 7fff = 24k
-        when "100" =>
-          cart_en_80_n_o    <= '0';
-        when "101" =>
-          cart_en_a0_n_o    <= '0';
-        when "110" =>
-          cart_en_c0_n_o    <= '0';
-        when "111" =>
-          cart_en_e0_n_o    <= '0';
-        when others =>
-          null;
-      end case;
+        if sg1000 = '1' then
+            case a_i(15 downto 14) is
+            when "11" =>
+                ram_ce_n_o <= '0'; -- c000 - ffff
+            when others =>
+                cart_en_sg1000_n_o <= '0'; -- 0000 - bfff
+            end case;
+        else
+            case a_i(15 downto 13) is
+            when "000" =>
+                if bios_en = '1' then
+                    bios_rom_ce_n_o   <= '0';
+                else
+                    ram_ce_n_o <= '0';
+                end if;
+            when "001" | "010" | "011" =>
+                ram_ce_n_o        <= '0'; -- 2000 - 7fff = 24k
+            when "100" =>
+                cart_en_80_n_o    <= '0';
+            when "101" =>
+                cart_en_a0_n_o    <= '0';
+            when "110" =>
+                cart_en_c0_n_o    <= '0';
+            when "111" =>
+                cart_en_e0_n_o    <= '0';
+            when others =>
+                null;
+            end case;
+        end if;
     end if;
 
     -- I/O access -------------------------------------------------------------
     if iorq_n_i = '0' then
-      if a_i(7) = '1' then
+      if sg1000 = '0' and a_i(7) = '1' then
         mux_v := a_i(6) & a_i(5) & wr_n_i;
         case mux_v is
           when "000" =>
@@ -199,6 +214,27 @@ begin
             null;
         end case;
       end if;
+
+      if sg1000 = '1' then
+        mux_v := a_i(7) & a_i(6) & wr_n_i;
+        case mux_v is
+          when "010" =>
+            psg_we_n_o <= '0';
+          when "100" =>
+            vdp_w_n_o <= '0';
+          when "101" =>
+            if rd_n_i = '0' then
+              vdp_r_n_o <= '0';
+            end if;
+          when "111" =>
+            if rd_n_i = '0' then
+              ctrl_r_n_o <= '0';
+            end if;
+          when others =>
+            null;
+        end case;
+      end if;
+
       if a_i(7 downto 0) = x"50" and wr_n_i = '0' then
         ay_addr_we_n_o  <= '0';
       elsif a_i(7 downto 0) = x"51" and wr_n_i = '0' then
@@ -228,7 +264,9 @@ begin
             end if;
 
             -- SGM BIOS enable/disable
-            if iorq_n_i = '0' and mreq_n_i = '1' and rfsh_n_i = '1' and wr_n_i = '0' and a_i(7 downto 0) = x"7f"
+            if sg1000 = '1' then
+                bios_en <= '0';
+            elsif iorq_n_i = '0' and mreq_n_i = '1' and rfsh_n_i = '1' and wr_n_i = '0' and a_i(7 downto 0) = x"7f"
             then
                 bios_en <= d_i(1);
             end if;

@@ -70,6 +70,7 @@ entity cv_console is
     clk_i           : in  std_logic;
     clk_en_10m7_i   : in  std_logic;
     reset_n_i       : in  std_logic;
+    sg1000          : in  std_logic;
     por_n_o         : out std_logic;
     -- Controller Interface ---------------------------------------------------
     ctrl_p1_i       : in  std_logic_vector( 1 downto 0);
@@ -81,6 +82,8 @@ entity cv_console is
     ctrl_p7_i       : in  std_logic_vector( 1 downto 0);
     ctrl_p8_o       : out std_logic_vector( 1 downto 0);
     ctrl_p9_i       : in  std_logic_vector( 1 downto 0);
+    joy0_i          : in  std_logic_vector( 7 downto 0);
+    joy1_i          : in  std_logic_vector( 7 downto 0);
     -- BIOS ROM Interface -----------------------------------------------------
     bios_rom_a_o    : out std_logic_vector(12 downto 0);
     bios_rom_ce_n_o : out std_logic;
@@ -104,6 +107,7 @@ entity cv_console is
     cart_en_c0_n_o  : out std_logic;
     cart_en_e0_n_o  : out std_logic;
     cart_d_i        : in  std_logic_vector( 7 downto 0);
+    cart_en_sg1000_n_o : out std_logic;
     -- RGB Video Interface ----------------------------------------------------
     col_o           : out std_logic_vector( 3 downto 0);
     rgb_r_o         : out std_logic_vector( 7 downto 0);
@@ -195,6 +199,7 @@ architecture struct of cv_console is
   -- CPU signals
   signal wait_n_s         : std_logic;
   signal nmi_n_s          : std_logic;
+  signal int_n_s          : std_logic;
   signal iorq_n_s         : std_logic;
   signal m1_n_s           : std_logic;
   signal m1_wait_q        : std_logic;
@@ -208,6 +213,7 @@ architecture struct of cv_console is
 
   -- VDP18 signal
   signal d_from_vdp_s     : std_logic_vector( 7 downto 0);
+  signal vdp_int_n_s      : std_logic;
 
   -- SN76489 signal
   signal psg_ready_s      : std_logic;
@@ -223,6 +229,7 @@ architecture struct of cv_console is
   signal audio_mix        : unsigned( 8 downto 0);
   -- Controller signals
   signal d_from_ctrl_s    : std_logic_vector( 7 downto 0);
+  signal d_to_ctrl_s      : std_logic_vector( 7 downto 0);
 
   -- Address decoder signals
   signal bios_rom_ce_n_s  : std_logic;
@@ -241,6 +248,9 @@ architecture struct of cv_console is
          cart_en_c0_n_s,
          cart_en_e0_n_s   : std_logic;
   signal cart_page_s      : std_logic_vector(5 downto 0);
+
+  signal cart_en_sg1000_n_s : std_logic;
+
   -- misc signals
   signal vdd_s            : std_logic;
 
@@ -254,6 +264,9 @@ begin
   ay_audio_s <= unsigned('0' & ay_ch_a_s) + unsigned('0' & ay_ch_b_s) + unsigned('0' & ay_ch_c_s);
   audio_mix <= unsigned(psg_audio_s+128) + ay_audio_s;
   audio_o <= audio_mix(8 downto 1);
+
+  int_n_s <= '1' when sg1000 = '0' else vdp_int_n_s;
+  nmi_n_s <= vdp_int_n_s when sg1000 = '0' else joy0_i(7) and joy1_i(7);
 
   -----------------------------------------------------------------------------
   -- Reset generation
@@ -292,7 +305,7 @@ begin
       CEN_p      => clk_en_3m58_p_s,
       CEN_n      => clk_en_3m58_n_s,
       WAIT_n     => wait_n_s,
-      INT_n      => vdd_s,
+      INT_n      => int_n_s,
       NMI_n      => nmi_n_s,
       BUSRQ_n    => vdd_s,
       M1_n       => m1_n_s,
@@ -371,7 +384,7 @@ begin
       csr_n_i       => vdp_r_n_s,
       csw_n_i       => vdp_w_n_s,
       mode_i        => a_s(0),
-      int_n_o       => nmi_n_s,
+      int_n_o       => vdp_int_n_s,
       cd_i          => d_from_cpu_s,
       cd_o          => d_from_vdp_s,
       vram_we_o     => vram_we_o,
@@ -438,6 +451,7 @@ begin
     port map (
       clk_i           => clk_i,
       reset_n_i       => reset_n_i,
+      sg1000          => sg1000,
       a_i             => a_s,
       d_i             => d_from_cpu_s,
       cart_pages_i    => cart_pages_i,
@@ -461,7 +475,8 @@ begin
       cart_en_80_n_o  => cart_en_80_n_s,
       cart_en_a0_n_o  => cart_en_a0_n_s,
       cart_en_c0_n_o  => cart_en_c0_n_s,
-      cart_en_e0_n_o  => cart_en_e0_n_s
+      cart_en_e0_n_o  => cart_en_e0_n_s,
+      cart_en_sg1000_n_o=> cart_en_sg1000_n_s
     );
 
   bios_rom_ce_n_o <= bios_rom_ce_n_s;
@@ -471,11 +486,16 @@ begin
   cart_en_a0_n_o  <= cart_en_a0_n_s;
   cart_en_c0_n_o  <= cart_en_c0_n_s;
   cart_en_e0_n_o  <= cart_en_e0_n_s;
-
+  cart_en_sg1000_n_o <= cart_en_sg1000_n_s;
 
   -----------------------------------------------------------------------------
   -- Bus multiplexer
   -----------------------------------------------------------------------------
+
+  d_to_ctrl_s <= d_from_ctrl_s when sg1000 = '0'
+    else joy1_i(2) & joy1_i(3) & joy0_i(5) & joy0_i(4) & joy0_i(0) & joy0_i(1) & joy0_i(2) & joy0_i(3) when a_s(0) = '0'
+    else "111" & reset_n_i & joy1_i(5) & joy1_i(4) & joy1_i(0) & joy1_i(1);
+
   bus_mux_b : cv_bus_mux
     port map (
       bios_rom_ce_n_i => bios_rom_ce_n_s,
@@ -486,11 +506,12 @@ begin
       cart_en_a0_n_i  => cart_en_a0_n_s,
       cart_en_c0_n_i  => cart_en_c0_n_s,
       cart_en_e0_n_i  => cart_en_e0_n_s,
+      cart_en_sg1000_n_i => cart_en_sg1000_n_s,
       ay_data_rd_n_i  => ay_data_rd_n_s,
       bios_rom_d_i    => bios_rom_d_i,
       cpu_ram_d_i     => cpu_ram_d_i,
       vdp_d_i         => d_from_vdp_s,
-      ctrl_d_i        => d_from_ctrl_s,
+      ctrl_d_i        => d_to_ctrl_s,
       cart_d_i        => cart_d_i,
       ay_d_i          => ay_d_s,
       d_o             => d_to_cpu_s
@@ -503,7 +524,7 @@ begin
   bios_rom_a_o <= a_s(12 downto 0);
   cpu_ram_a_o  <= a_s(14 downto 0);
   cpu_ram_d_o  <= d_from_cpu_s;
-  cart_a_o     <= cart_page_s & a_s(13 downto 0);
+  cart_a_o     <= cart_page_s & a_s(13 downto 0) when sg1000 = '0' else "0000" & a_s(15 downto 0);
 
 
   -- pragma translate_off
