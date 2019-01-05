@@ -53,6 +53,7 @@ entity cv_addr_dec is
     clk_i           : in  std_logic;
     reset_n_i       : in  std_logic;
     sg1000          : in  std_logic;
+    dahjeeA_i       : in  std_logic;
     a_i             : in  std_logic_vector(15 downto 0);
     d_i             : in  std_logic_vector(7 downto 0);
     cart_pages_i    : in  std_logic_vector(5 downto 0);
@@ -159,12 +160,13 @@ begin
     -- Memory access ----------------------------------------------------------
     if mreq_n_i = '0' and rfsh_n_i = '1' then
         if sg1000 = '1' then
-            case a_i(15 downto 14) is
-            when "11" =>
-                ram_ce_n_o <= '0'; -- c000 - ffff
-            when others =>
-                cart_en_sg1000_n_o <= '0'; -- 0000 - bfff
-            end case;
+            if a_i(15 downto 14) = "11" then -- c000 - ffff
+                ram_ce_n_o <= '0';
+            elsif a_i(15 downto 13) = "001" and dahjeeA_i = '1' then -- 2000 - 3fff
+                ram_ce_n_o <= '0';
+            else
+                cart_en_sg1000_n_o <= '0';
+            end if;
         else
             case a_i(15 downto 13) is
             when "000" =>

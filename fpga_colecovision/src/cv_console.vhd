@@ -71,6 +71,7 @@ entity cv_console is
     clk_en_10m7_i   : in  std_logic;
     reset_n_i       : in  std_logic;
     sg1000          : in  std_logic;
+    dahjeeA_i       : in  std_logic;  -- SG-1000 RAM extension at 0x2000-0x3fff
     por_n_o         : out std_logic;
     -- Controller Interface ---------------------------------------------------
     ctrl_p1_i       : in  std_logic_vector( 1 downto 0);
@@ -452,6 +453,7 @@ begin
       clk_i           => clk_i,
       reset_n_i       => reset_n_i,
       sg1000          => sg1000,
+      dahjeeA_i       => dahjeeA_i,
       a_i             => a_s,
       d_i             => d_from_cpu_s,
       cart_pages_i    => cart_pages_i,

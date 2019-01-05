@@ -49,6 +49,7 @@ package cv_comp_pack is
       clk_i           : in  std_logic;
       reset_n_i       : in  std_logic;
       sg1000          : in  std_logic;
+      dahjeeA_i       : in  std_logic;
       a_i             : in  std_logic_vector(15 downto 0);
       d_i             : in  std_logic_vector(7 downto 0);
       cart_pages_i    : in  std_logic_vector(5 downto 0);
