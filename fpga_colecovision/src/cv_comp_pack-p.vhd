@@ -48,6 +48,8 @@ package cv_comp_pack is
     port (
       clk_i           : in  std_logic;
       reset_n_i       : in  std_logic;
+      sg1000          : in  std_logic;
+      dahjeeA_i       : in  std_logic;
       a_i             : in  std_logic_vector(15 downto 0);
       d_i             : in  std_logic_vector(7 downto 0);
       cart_pages_i    : in  std_logic_vector(5 downto 0);
@@ -71,7 +73,8 @@ package cv_comp_pack is
       cart_en_80_n_o  : out std_logic;
       cart_en_a0_n_o  : out std_logic;
       cart_en_c0_n_o  : out std_logic;
-      cart_en_e0_n_o  : out std_logic
+      cart_en_e0_n_o  : out std_logic;
+      cart_en_sg1000_n_o: out std_logic
     );
   end component;
 
@@ -85,6 +88,7 @@ package cv_comp_pack is
       cart_en_a0_n_i  : in  std_logic;
       cart_en_c0_n_i  : in  std_logic;
       cart_en_e0_n_i  : in  std_logic;
+      cart_en_sg1000_n_i : in std_logic;
       ay_data_rd_n_i  : in  std_logic;
       bios_rom_d_i    : in  std_logic_vector(7 downto 0);
       cpu_ram_d_i     : in  std_logic_vector(7 downto 0);

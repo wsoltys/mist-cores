@@ -121,6 +121,7 @@ end mist_cv;
 architecture rtl of mist_cv is
 
   constant CONF_STR : string := "COLECO;COLBINROM;"&
+                                "F,SG ,Load;"&
                                 "O45,RAM Size,1k,8k,SGM;"&
                                 "O23,Scanlines,Off,25%,50%,75%;"&
                                 "T0,Reset;";
@@ -305,9 +306,12 @@ END COMPONENT;
   signal vga_pb_o : std_logic_vector(5 downto 0);
   signal vga_pr_o : std_logic_vector(5 downto 0);  
   
+  signal index          : std_logic_vector(7 downto 0);
   signal downl          : std_logic := '0';
+  signal old_downl      : std_logic;
   signal cart_a         : std_logic_vector(24 downto 0);
   signal cart_d         : std_logic_vector(7 downto 0);
+  signal chksum         : std_logic_vector(7 downto 0);
   
   signal clk_cnt_q            : unsigned(1 downto 0);
 	signal clk_en_5m37_q			  : std_logic;
@@ -349,7 +353,8 @@ END COMPONENT;
   signal cart_en_80_n_s,
          cart_en_a0_n_s,
          cart_en_c0_n_s,
-         cart_en_e0_n_s      : std_logic;
+         cart_en_e0_n_s,
+         cart_en_sg1000_n_s: std_logic;
          
   signal but_a_s,
          but_b_s,
@@ -364,7 +369,7 @@ END COMPONENT;
          but_left_s,
          but_right_s         : std_logic_vector( 1 downto 0);
 
-  signal unsigned_audio_s    : unsigned(7 downto 0);
+  signal unsigned_audio_s    : unsigned(10 downto 0);
   signal audio_s             : std_logic;
   
   signal ps2_keys_s				    : std_logic_vector(15 downto 0);
@@ -375,10 +380,12 @@ END COMPONENT;
   signal rom_wr             : std_logic;
   signal sd_wrack           : std_logic;
   signal ram_ready          : std_logic;
+  signal sg1000             : std_logic;
+  signal dahjeeA            : std_logic;
 
 begin
 
-  LED <= '1';
+  LED <= not downl;
   reset_n_s <= not(status(0) or buttons(1) or force_reset or not pll_locked);
 
   pll : entity work.mist_pll
@@ -434,6 +441,8 @@ begin
   -----------------------------------------------------------------------------
   -- The Colecovision console
   -----------------------------------------------------------------------------
+  sg1000 <= index(1);
+
   cv_console_b : entity work.cv_console
     generic map (
       is_pal_g        => 0,
@@ -443,6 +452,8 @@ begin
       clk_i           => clk_21m3_s,
       clk_en_10m7_i   => clk_en_10m7_q,
       reset_n_i       => reset_n_s,
+      sg1000          => sg1000,
+      dahjeeA_i       => dahjeeA,
       por_n_o         => por_n_s,
       ctrl_p1_i       => ctrl_p1_s,
       ctrl_p2_i       => ctrl_p2_s,
@@ -453,6 +464,8 @@ begin
       ctrl_p7_i       => ctrl_p7_s,
       ctrl_p8_o       => ctrl_p8_s,
       ctrl_p9_i       => ctrl_p9_s,
+      joy0_i          => not joy1(7 downto 0),
+      joy1_i          => not joy0(7 downto 0),
       bios_rom_a_o    => bios_rom_a_s,
       bios_rom_ce_n_o => bios_rom_ce_n_s,
       bios_rom_d_i    => bios_rom_d_s,
@@ -471,6 +484,7 @@ begin
       cart_en_a0_n_o  => cart_en_a0_n_s,
       cart_en_c0_n_o  => cart_en_c0_n_s,
       cart_en_e0_n_o  => cart_en_e0_n_s,
+      cart_en_sg1000_n_o => cart_en_sg1000_n_s,
       cart_d_i        => cart_d_s,
       col_o           => open,
       rgb_r_o         => coleco_red,
@@ -503,8 +517,10 @@ begin
   -----------------------------------------------------------------------------
   cpu_ram_we_s <= clk_en_10m7_q and
                   not (cpu_ram_we_n_s or cpu_ram_ce_n_s);
-  ram_a_s <= "00" & cpu_ram_a_s(12 downto 0) when status(5 downto 4) = "01" -- 8k
-        else "00000" & cpu_ram_a_s(9 downto 0) when status(5 downto 4) = "00" -- 1k
+  ram_a_s <=           cpu_ram_a_s(14 downto 0) when (sg1000 = '1' and dahjeeA = '1')
+        else    "00" & cpu_ram_a_s(12 downto 0) when status(5 downto 4) = "01" -- 8k
+        else "00000" & cpu_ram_a_s( 9 downto 0) when status(5 downto 4) = "00" -- 1k
+        else    "00" & cpu_ram_a_s(12 downto 0) when sg1000 = '1' -- SGM means 8k on SG1000
         else cpu_ram_a_s; -- SGM/32k
 
   cpu_ram_b : entity work.spram
@@ -559,7 +575,7 @@ begin
   -- Purpose:
   --   Maps the gamepad signals to the controller buses of the console.
   --
-  pad_ctrl: process (ctrl_p5_s, ctrl_p8_s)
+  pad_ctrl: process (ctrl_p5_s, ctrl_p8_s, ps2_keys_s, ps2_joy_s, joy1)
     variable key_v : natural range cv_keys_t'range;
   begin
     -- quadrature device not implemented
@@ -711,6 +727,7 @@ VGA_B <= vga_pb_o when ypbpr='1' else osd_blue_o;
   -----------------------------------------------------------------------------
 
   dac : entity work.dac
+    generic map (10)
     port map (
       clk_i     => clk_21m3_s,
       res_n_i   => reset_n_s,
@@ -745,7 +762,7 @@ VGA_B <= vga_pb_o when ypbpr='1' else osd_blue_o;
     );
 
   data_io_inst: data_io
-    port map(SPI_SCK, SPI_SS2, SPI_DI, downl, open, clk_mem_s, clkref, rom_wr, romwr_a, ioctl_dout);
+    port map(SPI_SCK, SPI_SS2, SPI_DI, downl, index, clk_mem_s, clkref, rom_wr, romwr_a, ioctl_dout);
 
   cart_rom: sdram
   port map (
@@ -773,7 +790,7 @@ VGA_B <= vga_pb_o when ypbpr='1' else osd_blue_o;
   );
 
   cart_a_s(24 downto 20) <= "00000";
-  rom_en <= not (cart_en_80_n_s and cart_en_a0_n_s and cart_en_c0_n_s and cart_en_e0_n_s);
+  rom_en <= not (cart_en_80_n_s and cart_en_a0_n_s and cart_en_c0_n_s and cart_en_e0_n_s and cart_en_sg1000_n_s);
   cart_a <= cart_a_s when downl = '0' else romwr_a;
 
   clkref <= '1' when clk_mem_cnt = "000" else '0';
@@ -783,9 +800,25 @@ VGA_B <= vga_pb_o when ypbpr='1' else osd_blue_o;
   begin
     if rising_edge (clk_mem_s) then
         clk_mem_cnt <= clk_mem_cnt + 1;
+        old_downl <= downl;
+
+        if sg1000 = '1' and downl = '1' then
+            if old_downl = '0' then
+                chksum <= (others => '0');
+                dahjeeA <= '0';
+            end if;
+            if romwr_a(15 downto 0) = x"2000" then
+                chksum <= ioctl_dout;
+            elsif romwr_a(15 downto 0) <= x"3fff" then
+                chksum <= chksum and ioctl_dout;
+            end if;
+        end if;
+        if sg1000 = '1' and downl = '0' and chksum = x"FF" then
+            dahjeeA <= '1';
+        end if;
     end if;
   end process;
-    
+
   AUDIO_L     <= audio_s;
   AUDIO_R     <= audio_s;
 

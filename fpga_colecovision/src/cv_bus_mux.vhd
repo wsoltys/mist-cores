@@ -58,6 +58,7 @@ entity cv_bus_mux is
     cart_en_a0_n_i  : in  std_logic;
     cart_en_c0_n_i  : in  std_logic;
     cart_en_e0_n_i  : in  std_logic;
+    cart_en_sg1000_n_i : in std_logic;
     ay_data_rd_n_i  : in  std_logic;
     bios_rom_d_i    : in  std_logic_vector(7 downto 0);
     cpu_ram_d_i     : in  std_logic_vector(7 downto 0);
@@ -87,7 +88,9 @@ begin
                 ctrl_r_n_i,      ctrl_d_i,
                 cart_en_80_n_i,  cart_en_a0_n_i,
                 cart_en_c0_n_i,  cart_en_e0_n_i,
-                cart_d_i)
+                cart_en_sg1000_n_i,
+                cart_d_i,
+                ay_data_rd_n_i, ay_d_i)
     constant d_inact_c : std_logic_vector(7 downto 0) := (others => '1');
     variable d_bios_v,
              d_ram_v,
@@ -117,7 +120,8 @@ begin
       d_ctrl_v := ctrl_d_i;
     end if;
     if (cart_en_80_n_i and cart_en_a0_n_i and
-        cart_en_c0_n_i and cart_en_e0_n_i) = '0' then
+        cart_en_c0_n_i and cart_en_e0_n_i and
+        cart_en_sg1000_n_i) = '0' then
       d_cart_v := cart_d_i;
     end if;
     if ay_data_rd_n_i = '0' then
