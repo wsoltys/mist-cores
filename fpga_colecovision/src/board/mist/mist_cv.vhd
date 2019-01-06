@@ -809,7 +809,7 @@ VGA_B <= vga_pb_o when ypbpr='1' else osd_blue_o;
             end if;
             if romwr_a(15 downto 0) = x"2000" then
                 chksum <= ioctl_dout;
-            elsif romwr_a(15 downto 0) <= x"3fff" then
+            elsif romwr_a(15 downto 13) = "001" then -- 2xxx - 3xxx
                 chksum <= chksum and ioctl_dout;
             end if;
         end if;
