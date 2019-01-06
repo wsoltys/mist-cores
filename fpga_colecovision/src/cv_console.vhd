@@ -118,7 +118,7 @@ entity cv_console is
     vsync_n_o       : out std_logic;
     comp_sync_n_o   : out std_logic;
     -- Audio Interface --------------------------------------------------------
-    audio_o         : out unsigned(7 downto 0)
+    audio_o         : out unsigned(10 downto 0)
   );
 
 end cv_console;
@@ -225,9 +225,7 @@ architecture struct of cv_console is
   signal ay_ch_a_s        : std_logic_vector( 7 downto 0);
   signal ay_ch_b_s        : std_logic_vector( 7 downto 0);
   signal ay_ch_c_s        : std_logic_vector( 7 downto 0);
-  signal ay_audio_s       : unsigned( 8 downto 0);
 
-  signal audio_mix        : unsigned( 8 downto 0);
   -- Controller signals
   signal d_from_ctrl_s    : std_logic_vector( 7 downto 0);
   signal d_to_ctrl_s      : std_logic_vector( 7 downto 0);
@@ -262,9 +260,7 @@ architecture struct of cv_console is
 begin
 
   vdd_s <= '1';
-  ay_audio_s <= unsigned('0' & ay_ch_a_s) + unsigned('0' & ay_ch_b_s) + unsigned('0' & ay_ch_c_s);
-  audio_mix <= unsigned(psg_audio_s+128) + ay_audio_s;
-  audio_o <= audio_mix(8 downto 1);
+  audio_o <= ("0" & unsigned(psg_audio_s+128) & "00") + unsigned(ay_ch_a_s) + unsigned(ay_ch_b_s) + unsigned(ay_ch_c_s);
 
   int_n_s <= '1' when sg1000 = '0' else vdp_int_n_s;
   nmi_n_s <= vdp_int_n_s when sg1000 = '0' else joy0_i(7) and joy1_i(7);

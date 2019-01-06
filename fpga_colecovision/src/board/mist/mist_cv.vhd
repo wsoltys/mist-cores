@@ -369,7 +369,7 @@ END COMPONENT;
          but_left_s,
          but_right_s         : std_logic_vector( 1 downto 0);
 
-  signal unsigned_audio_s    : unsigned(7 downto 0);
+  signal unsigned_audio_s    : unsigned(10 downto 0);
   signal audio_s             : std_logic;
   
   signal ps2_keys_s				    : std_logic_vector(15 downto 0);
@@ -727,6 +727,7 @@ VGA_B <= vga_pb_o when ypbpr='1' else osd_blue_o;
   -----------------------------------------------------------------------------
 
   dac : entity work.dac
+    generic map (10)
     port map (
       clk_i     => clk_21m3_s,
       res_n_i   => reset_n_s,
