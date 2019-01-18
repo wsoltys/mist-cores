@@ -46,6 +46,7 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
 entity cv_ctrl is
 
@@ -65,7 +66,8 @@ entity cv_ctrl is
     ctrl_p7_i       : in  std_logic_vector(2 downto 1);
     ctrl_p8_o       : out std_logic_vector(2 downto 1);
     ctrl_p9_i       : in  std_logic_vector(2 downto 1);
-    d_o             : out std_logic_vector(7 downto 0)
+    d_o             : out std_logic_vector(7 downto 0);
+    int_n_o         : out std_logic
   );
 
 end cv_ctrl;
@@ -74,6 +76,14 @@ end cv_ctrl;
 architecture rtl of cv_ctrl is
 
   signal sel_q : std_logic;
+
+  signal nand_i1: std_logic_vector(2 downto 1);
+  signal nand_i2: std_logic_vector(2 downto 1);
+  signal nand_o: std_logic_vector(2 downto 1);
+  signal nand_o_d: std_logic_vector(2 downto 1);
+  signal int: std_logic_vector(2 downto 1);
+  type timer_type is array (2 downto 1) of unsigned (11 downto 0);
+  signal rctimer: timer_type;
 
 begin
 
@@ -121,11 +131,10 @@ begin
   --
   -- Purpose:
   --   Read multiplexer for the controller lines.
-  --   NOTE: The quadrature decoders are not implemented!
   --
-  ctrl_read: process (a1_i,
+  ctrl_read: process (clk_i, a1_i, nand_o, nand_i1, nand_i2,
                       ctrl_p1_i, ctrl_p2_i, ctrl_p3_i, ctrl_p4_i,
-                      ctrl_p6_i, ctrl_p7_i)
+                      ctrl_p6_i, ctrl_p7_i, ctrl_p9_i, int)
     variable idx_v : natural range 1 to 2;
   begin
     if a1_i = '0' then
@@ -136,10 +145,38 @@ begin
       idx_v := 2;
     end if;
 
-    d_o <= '0'              &           -- quadrature information
+    -- quadrature decoders: movement and direction signals
+    for idx in 1 to 2 loop
+        nand_i1(idx) <= ctrl_p9_i(idx);
+        nand_o(idx) <= not (nand_i1(idx) and nand_i2(idx));
+        if rising_edge(clk_i) then
+            int(idx) <= '0';
+            nand_o_d(idx) <= nand_o(idx);
+            if rctimer(idx) = 0 then
+                nand_i2(idx) <= '1';
+            else
+                -- signal movement until the timer is active
+                nand_i2(idx) <= '0';
+                -- and also fire an interrupt for a while
+                if rctimer(idx) > x"4f0" then
+                    int(idx) <= '1';
+                end if;
+            end if;
+            if nand_o_d(idx) = '0' and nand_o(idx) = '1' then
+                -- movement detected, start timer
+                rctimer(idx) <= x"5f0";
+            end if;
+            if rctimer(idx) /= 0 then
+                rctimer(idx) <= rctimer(idx) - 1;
+            end if;
+        end if;
+    end loop;
+    int_n_o <= not (int(1) or int(2));
+
+    d_o <= nand_o(idx_v) &           -- quadrature information
            ctrl_p6_i(idx_v) &
            ctrl_p7_i(idx_v) &
-           '1'              &           -- quadrature information
+           nand_i2(idx_v) &          -- quadrature information
            ctrl_p3_i(idx_v) &
            ctrl_p2_i(idx_v) &
            ctrl_p4_i(idx_v) &

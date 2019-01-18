@@ -40,7 +40,8 @@ package cv_comp_pack is
       ctrl_p7_i       : in  std_logic_vector(2 downto 1);
       ctrl_p8_o       : out std_logic_vector(2 downto 1);
       ctrl_p9_i       : in  std_logic_vector(2 downto 1);
-      d_o             : out std_logic_vector(7 downto 0)
+      d_o             : out std_logic_vector(7 downto 0);
+      int_n_o         : out std_logic
     );
   end component;
 
