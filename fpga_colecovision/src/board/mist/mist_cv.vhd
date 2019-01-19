@@ -123,6 +123,7 @@ architecture rtl of mist_cv is
   constant CONF_STR : string := "COLECO;COLBINROM;"&
                                 "F,SG ,Load;"&
                                 "O45,RAM Size,1k,8k,SGM;"&
+                                "O6,Joystick swap,Off,On;"&
                                 "O23,Scanlines,Off,25%,50%,75%;"&
                                 "T0,Reset;";
 
@@ -279,9 +280,8 @@ END COMPONENT;
   signal ps2Clk     : std_logic;
   signal ps2Data    : std_logic;
   signal audio      : std_logic;
-  
   signal pll_locked : std_logic;
-  
+
   signal coleco_red      : std_logic_vector(7 downto 0);
   signal coleco_green    : std_logic_vector(7 downto 0);
   signal coleco_blue     : std_logic_vector(7 downto 0);
@@ -319,6 +319,8 @@ END COMPONENT;
   signal clk_mem_s      : std_logic;
   signal clk_mem_cnt    : unsigned(2 downto 0);
   signal clk_en_10m7_q			  : std_logic;
+  signal clk_en_spinner_counter_s : unsigned(15 downto 0);
+  signal clk_en_spinner_s   : std_logic;
   signal por_n_s              : std_logic;
   
   signal ctrl_p1_s,
@@ -409,6 +411,8 @@ begin
       clk_cnt_q     <= (others => '0');
       clk_en_10m7_q <= '0';
       clk_en_5m37_q <= '0';
+      clk_en_spinner_s <=  '0';
+      clk_en_spinner_counter_s <= (others => '0');
 
     elsif clk_21m3_s'event and clk_21m3_s = '1' then
       -- Clock counter --------------------------------------------------------
@@ -434,10 +438,16 @@ begin
           clk_en_5m37_q <= '0';
       end case;
 
+      -- clk enable for spinner
+      clk_en_spinner_counter_s <= clk_en_spinner_counter_s + 1;
+      if clk_en_spinner_counter_s = 0 then
+        clk_en_spinner_s <= '1';
+      else
+        clk_en_spinner_s <= '0';
+      end if;
     end if;
   end process clk_cnt;
-  --
- 
+
   -----------------------------------------------------------------------------
   -- The Colecovision console
   -----------------------------------------------------------------------------
@@ -575,14 +585,48 @@ begin
   -- Purpose:
   --   Maps the gamepad signals to the controller buses of the console.
   --
-  pad_ctrl: process (ctrl_p5_s, ctrl_p8_s, ps2_keys_s, ps2_joy_s, joy1)
+  pad_ctrl: process (clk_21m3_s, ctrl_p5_s, ctrl_p8_s, ps2_keys_s, ps2_joy_s, joy0, joy1, status)
     variable key_v : natural range cv_keys_t'range;
+    variable quadr_in : std_logic_vector(1 downto 0);
+    variable joy, joya, joyb: std_logic_vector(7 downto 0);
   begin
-    -- quadrature device not implemented
-    ctrl_p7_s          <= "11";
-    ctrl_p9_s          <= "11";
+    if status(6) = '0' then
+        joya := joy0(7 downto 0);
+        joyb := joy1(7 downto 0);
+    else
+        joya := joy1(7 downto 0);
+        joyb := joy0(7 downto 0);
+    end if;
 
     for idx in 1 to 2 loop
+      if idx = 1 then
+          joy := joya;
+      else
+          joy := joyb;
+      end if;
+
+      if rising_edge(clk_21m3_s) then
+        if clk_en_spinner_s = '1' then
+            quadr_in := ctrl_p7_s(idx) & ctrl_p9_s(idx);
+            if joy(1) = '1' then
+                case quadr_in is
+                when "00" => ctrl_p9_s(idx) <= '1';
+                when "01" => ctrl_p7_s(idx) <= '1';
+                when "11" => ctrl_p9_s(idx) <= '0';
+                when "10" => ctrl_p7_s(idx) <= '0';
+                when others => null;
+                end case;
+            elsif joy(0) = '1' then
+                case quadr_in is
+                when "00" => ctrl_p7_s(idx) <= '1';
+                when "01" => ctrl_p9_s(idx) <= '0';
+                when "11" => ctrl_p7_s(idx) <= '0';
+                when "10" => ctrl_p9_s(idx) <= '1';
+                end case;
+            end if;
+        end if;
+      end if;
+
       if    ctrl_p5_s(idx) = '0' and ctrl_p8_s(idx) = '1' then
         -- keys and right button enabled --------------------------------------
 
@@ -634,15 +678,15 @@ begin
         ctrl_p4_s(idx) <= cv_keys_c(key_v)(4);
 
         -- KEY X
-        ctrl_p6_s(idx) <= not ps2_keys_s(0) and not joy1(5); -- button 2
+        ctrl_p6_s(idx) <= not ps2_keys_s(0) and not joy(5); -- button 2
 
       elsif ctrl_p5_s(idx) = '1' and ctrl_p8_s(idx) = '0' then
         -- joystick and left button enabled -----------------------------------
-        ctrl_p1_s(idx) <= not ps2_joy_s(0) and not joy1(3);	-- up
-        ctrl_p2_s(idx) <= not ps2_joy_s(1) and not joy1(2); -- down
-        ctrl_p3_s(idx) <= not ps2_joy_s(2) and not joy1(1); -- left
-        ctrl_p4_s(idx) <= not ps2_joy_s(3) and not joy1(0); -- right
-        ctrl_p6_s(idx) <= not ps2_joy_s(4) and not joy1(4); -- button 1
+        ctrl_p1_s(idx) <= not ps2_joy_s(0) and not joy(3);	-- up
+        ctrl_p2_s(idx) <= not ps2_joy_s(1) and not joy(2); -- down
+        ctrl_p3_s(idx) <= not ps2_joy_s(2) and not joy(1); -- left
+        ctrl_p4_s(idx) <= not ps2_joy_s(3) and not joy(0); -- right
+        ctrl_p6_s(idx) <= not ps2_joy_s(4) and not joy(4); -- button 1
 
       else
         -- nothing active -----------------------------------------------------
@@ -651,7 +695,6 @@ begin
         ctrl_p3_s(idx) <= '1';
         ctrl_p4_s(idx) <= '1';
         ctrl_p6_s(idx) <= '1';
-        ctrl_p7_s(idx) <= '1';
       end if;
     end loop;
   end process pad_ctrl;

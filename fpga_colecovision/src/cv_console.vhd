@@ -229,6 +229,7 @@ architecture struct of cv_console is
   -- Controller signals
   signal d_from_ctrl_s    : std_logic_vector( 7 downto 0);
   signal d_to_ctrl_s      : std_logic_vector( 7 downto 0);
+  signal ctrl_int_n_s     : std_logic;
 
   -- Address decoder signals
   signal bios_rom_ce_n_s  : std_logic;
@@ -262,7 +263,7 @@ begin
   vdd_s <= '1';
   audio_o <= ("0" & unsigned(psg_audio_s+128) & "00") + unsigned(ay_ch_a_s) + unsigned(ay_ch_b_s) + unsigned(ay_ch_c_s);
 
-  int_n_s <= '1' when sg1000 = '0' else vdp_int_n_s;
+  int_n_s <= ctrl_int_n_s when sg1000 = '0' else vdp_int_n_s;
   nmi_n_s <= vdp_int_n_s when sg1000 = '0' else joy0_i(7) and joy1_i(7);
 
   -----------------------------------------------------------------------------
@@ -437,7 +438,8 @@ begin
       ctrl_p7_i       => ctrl_p7_i,
       ctrl_p8_o       => ctrl_p8_o,
       ctrl_p9_i       => ctrl_p9_i,
-      d_o             => d_from_ctrl_s
+      d_o             => d_from_ctrl_s,
+      int_n_o         => ctrl_int_n_s
     );
 
 
