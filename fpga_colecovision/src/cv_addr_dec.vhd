@@ -107,7 +107,8 @@ begin
                 bios_en,
                 sg1000,
                 megacart_en,
-                megacart_page)
+                megacart_page,
+                dahjeeA_i)
     variable mux_v : std_logic_vector(2 downto 0);
   begin
     -- default assignments
