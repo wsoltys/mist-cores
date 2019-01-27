@@ -123,6 +123,7 @@ architecture rtl of mist_cv is
   constant CONF_STR : string := "COLECO;COLBINROM;"&
                                 "F,SG ,Load;"&
                                 "O45,RAM Size,1k,8k,SGM;"&
+                                "O7,Exp mod. 2,Off,On;"&
                                 "O6,Joystick swap,Off,On;"&
                                 "O23,Scanlines,Off,25%,50%,75%;"&
                                 "T0,Reset;";
@@ -281,6 +282,8 @@ END COMPONENT;
   signal ps2Data    : std_logic;
   signal audio      : std_logic;
   signal pll_locked : std_logic;
+  signal joya       : std_logic_vector(7 downto 0);
+  signal joyb       : std_logic_vector(7 downto 0);
 
   signal coleco_red      : std_logic_vector(7 downto 0);
   signal coleco_green    : std_logic_vector(7 downto 0);
@@ -474,8 +477,8 @@ begin
       ctrl_p7_i       => ctrl_p7_s,
       ctrl_p8_o       => ctrl_p8_s,
       ctrl_p9_i       => ctrl_p9_s,
-      joy0_i          => not joy1(7 downto 0),
-      joy1_i          => not joy0(7 downto 0),
+      joy0_i          => not joya,
+      joy1_i          => not joyb,
       bios_rom_a_o    => bios_rom_a_s,
       bios_rom_ce_n_o => bios_rom_ce_n_s,
       bios_rom_d_i    => bios_rom_d_s,
@@ -578,7 +581,9 @@ begin
       keys				=> ps2_keys_s,
       joy					=> ps2_joy_s
     );
-    
+
+  joya <= joy0(7 downto 0) when status(6) = '0' else joy1(7 downto 0);
+  joyb <= joy1(7 downto 0) when status(6) = '0' else joy0(7 downto 0);
   -----------------------------------------------------------------------------
   -- Process pad_ctrl
   --
@@ -588,15 +593,8 @@ begin
   pad_ctrl: process (clk_21m3_s, ctrl_p5_s, ctrl_p8_s, ps2_keys_s, ps2_joy_s, joy0, joy1, status)
     variable key_v : natural range cv_keys_t'range;
     variable quadr_in : std_logic_vector(1 downto 0);
-    variable joy, joya, joyb: std_logic_vector(7 downto 0);
+    variable joy: std_logic_vector(7 downto 0);
   begin
-    if status(6) = '0' then
-        joya := joy0(7 downto 0);
-        joyb := joy1(7 downto 0);
-    else
-        joya := joy1(7 downto 0);
-        joyb := joy0(7 downto 0);
-    end if;
 
     for idx in 1 to 2 loop
       if idx = 1 then
@@ -606,7 +604,10 @@ begin
       end if;
 
       if rising_edge(clk_21m3_s) then
-        if clk_en_spinner_s = '1' then
+        if status(7) = '0' then
+            ctrl_p7_s(idx) <= '1';
+            ctrl_p9_s(idx) <= '1';
+        elsif clk_en_spinner_s = '1' then
             quadr_in := ctrl_p7_s(idx) & ctrl_p9_s(idx);
             if joy(1) = '1' then
                 case quadr_in is
