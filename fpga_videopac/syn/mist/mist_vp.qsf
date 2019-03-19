@@ -54,7 +54,7 @@ set_global_assignment -name FLEX10K_DEVICE_IO_STANDARD LVTTL/LVCMOS
 
 # Assembler Assignments
 # =====================
-set_global_assignment -name ON_CHIP_BITSTREAM_DECOMPRESSION OFF
+set_global_assignment -name ON_CHIP_BITSTREAM_DECOMPRESSION ON
 set_global_assignment -name GENERATE_RBF_FILE ON
 
 set_global_assignment -name SMART_RECOMPILE ON
@@ -314,8 +314,10 @@ set_global_assignment -name OPTIMIZE_MULTI_CORNER_TIMING ON
 set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
 set_global_assignment -name PARTITION_COLOR 2147039 -section_id Top
 
-set_global_assignment -name ENABLE_SIGNALTAP ON
-set_global_assignment -name USE_SIGNALTAP_FILE ../../src/board/mist/stp1.stp
+set_global_assignment -name ENABLE_SIGNALTAP OFF
+set_global_assignment -name USE_SIGNALTAP_FILE out/dataio.stp
+set_instance_assignment -name CURRENT_STRENGTH_NEW "MAXIMUM CURRENT" -to VGA_VS
+set_instance_assignment -name CURRENT_STRENGTH_NEW "MAXIMUM CURRENT" -to VGA_HS
 set_global_assignment -name VHDL_FILE ../../src/board/misc/vp_keymap.vhd
 set_global_assignment -name VHDL_FILE ../../src/board/misc/ps2/key_slice.vhd
 set_global_assignment -name VHDL_FILE "../../src/board/misc/ps2/ps2_keyboard_comp_pack-p.vhd"
@@ -385,4 +387,9 @@ set_global_assignment -name VHDL_FILE ../../src/board/misc/dac.vhd
 set_global_assignment -name VHDL_FILE "../../src/i8244/i8244_col_pack-p.vhd"
 set_global_assignment -name VHDL_FILE ../../src/board/mist/mist_vp.vhd
 set_global_assignment -name QIP_FILE ../../src/board/mist/pll27.qip
+set_global_assignment -name SYSTEMVERILOG_FILE ../../src/board/mist/rgb2ypbpr.sv
+set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
+set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
+set_global_assignment -name STRATIX_DEVICE_IO_STANDARD "3.3-V LVTTL"
+set_global_assignment -name SIGNALTAP_FILE out/dataio.stp
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

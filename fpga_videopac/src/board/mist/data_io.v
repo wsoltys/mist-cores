@@ -113,10 +113,10 @@ data_io_ram data_io_ram (
 	.q_a				( dout				),
 	
 	// io controller port
-	.address_b		( addr[12:0]		),
-	.clock_b			( rclk				),
-	.data_b			( {sbuf, sdi}		),
-	.wren_b			( (cmd == UIO_FILE_TX_DAT) && !ss	)
+	.address_b		( addr[12:0]	),
+	.clock_b		( sck			),
+	.data_b			( data			),
+	.wren_b			( rclk			)
 );
 
 endmodule
