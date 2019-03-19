@@ -59,7 +59,6 @@ entity BALLY_CLOCKS is
     O_ENA_X2          : out   std_logic;
     O_ENA             : out   std_logic;
     O_CLK             : out   std_logic;
-    O_CLK12k          : out   std_logic;
     O_RESET           : out   std_logic
     );
 end;
@@ -81,9 +80,7 @@ begin
   pll : entity work.mist_pll
     port map (
       inclk0 => I_CLK_REF,
-      areset => not I_RESET_L,
       c0     => clk,
-      c1     => O_CLK12k,
       locked => dcm_locked
       );
 
