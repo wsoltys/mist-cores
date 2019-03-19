@@ -1,0 +1,6 @@
+PLLJ_PLLSPE_INFO.txt
+*.bak
+syn/
+db/
+incremental_db/
+greybox_tmp/
