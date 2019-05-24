@@ -163,6 +163,9 @@ begin
         if sg1000 = '1' then
             if a_i(15 downto 14) = "11" then -- c000 - ffff
                 ram_ce_n_o <= '0';
+            elsif cart_pages_i(5 downto 1) = "00000" and a_i(15 downto 14) = "10" then
+                -- 8000 - bfff for The Castle/Othello/Basic
+                ram_ce_n_o <= '0';
             elsif a_i(15 downto 13) = "001" and dahjeeA_i = '1' then -- 2000 - 3fff
                 ram_ce_n_o <= '0';
             else

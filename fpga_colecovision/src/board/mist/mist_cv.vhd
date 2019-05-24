@@ -531,9 +531,10 @@ begin
   cpu_ram_we_s <= clk_en_10m7_q and
                   not (cpu_ram_we_n_s or cpu_ram_ce_n_s);
   ram_a_s <=           cpu_ram_a_s(14 downto 0) when (sg1000 = '1' and dahjeeA = '1')
+        else     "1" & cpu_ram_a_s(13 downto 0) when (sg1000 = '1' and cpu_ram_a_s(14) = '0') -- 16k at $8000 for Basic/The Castle/Othello
         else    "00" & cpu_ram_a_s(12 downto 0) when status(5 downto 4) = "01" -- 8k
         else "00000" & cpu_ram_a_s( 9 downto 0) when status(5 downto 4) = "00" -- 1k
-        else    "00" & cpu_ram_a_s(12 downto 0) when sg1000 = '1' -- SGM means 8k on SG1000
+        else     "0" & cpu_ram_a_s(13 downto 0) when sg1000 = '1' -- SGM means 16k on SG1000
         else cpu_ram_a_s; -- SGM/32k
 
   cpu_ram_b : entity work.spram
