@@ -69,6 +69,7 @@ entity cv_bus_mux is
     cart_d_i        : in  std_logic_vector(7 downto 0);
     ay_d_i          : in  std_logic_vector(7 downto 0);
     col_sg1000_i    : in  std_logic_vector(11 downto 0);
+    tap_sg1000_i    : in  std_logic;
     d_o             : out std_logic_vector(7 downto 0)
   );
 
@@ -136,7 +137,7 @@ begin
         d_pa_v := col_sg1000_i(7 downto 0);
     end if;
     if pb_r_sg1000_n_i = '0' then
-        d_pb_v := "1111" & col_sg1000_i(11 downto 8);
+        d_pb_v := tap_sg1000_i & "111" & col_sg1000_i(11 downto 8);
     end if;
 
     if ay_data_rd_n_i = '0' then

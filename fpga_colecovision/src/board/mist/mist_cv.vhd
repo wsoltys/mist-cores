@@ -112,10 +112,13 @@ entity mist_cv is
     AUDIO_R : out std_logic;
     
     -- LEDG
-    LED : out std_logic
+    LED : out std_logic;
+
+    UART_RX : in std_logic;
+    UART_TX : out std_logic
 
     );
-  
+
 end mist_cv;
 
 architecture rtl of mist_cv is
@@ -389,6 +392,8 @@ END COMPONENT;
   signal dahjeeA            : std_logic;
   signal sg1000_row         : std_logic_vector(2 downto 0);
   signal sg1000_col         : std_logic_vector(11 downto 0);
+  signal uart_rx_d          : std_logic;
+  signal uart_rx_d2         : std_logic;
 
 begin
 
@@ -404,6 +409,16 @@ begin
       );
       
   SDRAM_CLK <= not clk_mem_s;
+
+  UART_TX <= '1';
+  uart: process (clk_21m3_s)
+  begin
+    if clk_21m3_s'event and clk_21m3_s = '1' then
+        uart_rx_d <= UART_RX;
+        uart_rx_d2 <= uart_rx_d;
+    end if;
+  end process;
+
   -----------------------------------------------------------------------------
   -- Process clk_cnt
   --
@@ -470,6 +485,7 @@ begin
       sg1000          => sg1000,
       sg1000_row_o    => sg1000_row,
       sg1000_col_i    => sg1000_col,
+      sg1000_tap_i    => uart_rx_d2,
       dahjeeA_i       => dahjeeA,
       por_n_o         => por_n_s,
       ctrl_p1_i       => ctrl_p1_s,

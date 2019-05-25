@@ -73,6 +73,7 @@ entity cv_console is
     sg1000          : in  std_logic;
     sg1000_row_o    : out std_logic_vector( 2 downto 0);
     sg1000_col_i    : in  std_logic_vector(11 downto 0);
+    sg1000_tap_i    : in  std_logic;
     dahjeeA_i       : in  std_logic;  -- SG-1000 RAM extension at 0x2000-0x3fff
     por_n_o         : out std_logic;
     -- Controller Interface ---------------------------------------------------
@@ -525,6 +526,7 @@ begin
       cart_d_i        => cart_d_i,
       ay_d_i          => ay_d_s,
       col_sg1000_i    => sg1000_col_i,
+      tap_sg1000_i    => sg1000_tap_i,
       d_o             => d_to_cpu_s
     );
 

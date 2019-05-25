@@ -103,6 +103,7 @@ package cv_comp_pack is
       cart_d_i        : in  std_logic_vector(7 downto 0);
       ay_d_i          : in  std_logic_vector(7 downto 0);
       col_sg1000_i    : in  std_logic_vector(11 downto 0);
+      tap_sg1000_i    : in  std_logic;
       d_o             : out std_logic_vector(7 downto 0)
     );
   end component;
