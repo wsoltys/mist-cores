@@ -387,6 +387,8 @@ END COMPONENT;
   signal ram_ready          : std_logic;
   signal sg1000             : std_logic;
   signal dahjeeA            : std_logic;
+  signal sg1000_row         : std_logic_vector(2 downto 0);
+  signal sg1000_col         : std_logic_vector(11 downto 0);
 
 begin
 
@@ -466,6 +468,8 @@ begin
       clk_en_10m7_i   => clk_en_10m7_q,
       reset_n_i       => reset_n_s,
       sg1000          => sg1000,
+      sg1000_row_o    => sg1000_row,
+      sg1000_col_i    => sg1000_col,
       dahjeeA_i       => dahjeeA,
       por_n_o         => por_n_s,
       ctrl_p1_i       => ctrl_p1_s,
@@ -579,8 +583,11 @@ begin
       ps2_data 		=> ps2Data,
   
       -- user outputs
-      keys				=> ps2_keys_s,
-      joy					=> ps2_joy_s
+      keys          => ps2_keys_s,
+      joy           => ps2_joy_s,
+
+      sg1000_row    => sg1000_row,
+      sg1000_col    => sg1000_col
     );
 
   joya <= joy0(7 downto 0) when status(6) = '0' else joy1(7 downto 0);
@@ -591,7 +598,7 @@ begin
   -- Purpose:
   --   Maps the gamepad signals to the controller buses of the console.
   --
-  pad_ctrl: process (clk_21m3_s, ctrl_p5_s, ctrl_p8_s, ps2_keys_s, ps2_joy_s, joy0, joy1, status)
+  pad_ctrl: process (clk_21m3_s, ctrl_p5_s, ctrl_p8_s, ps2_keys_s, ps2_joy_s, joya, joyb, status)
     variable key_v : natural range cv_keys_t'range;
     variable quadr_in : std_logic_vector(1 downto 0);
     variable joy: std_logic_vector(7 downto 0);

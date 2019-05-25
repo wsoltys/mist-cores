@@ -75,7 +75,10 @@ package cv_comp_pack is
       cart_en_a0_n_o  : out std_logic;
       cart_en_c0_n_o  : out std_logic;
       cart_en_e0_n_o  : out std_logic;
-      cart_en_sg1000_n_o: out std_logic
+      cart_en_sg1000_n_o: out std_logic;
+      pa_r_sg1000_n_o : out std_logic;
+      pb_r_sg1000_n_o : out std_logic;
+      pc_w_sg1000_n_o : out std_logic
     );
   end component;
 
@@ -90,6 +93,8 @@ package cv_comp_pack is
       cart_en_c0_n_i  : in  std_logic;
       cart_en_e0_n_i  : in  std_logic;
       cart_en_sg1000_n_i : in std_logic;
+      pa_r_sg1000_n_i : in  std_logic;
+      pb_r_sg1000_n_i : in  std_logic;
       ay_data_rd_n_i  : in  std_logic;
       bios_rom_d_i    : in  std_logic_vector(7 downto 0);
       cpu_ram_d_i     : in  std_logic_vector(7 downto 0);
@@ -97,6 +102,7 @@ package cv_comp_pack is
       ctrl_d_i        : in  std_logic_vector(7 downto 0);
       cart_d_i        : in  std_logic_vector(7 downto 0);
       ay_d_i          : in  std_logic_vector(7 downto 0);
+      col_sg1000_i    : in  std_logic_vector(11 downto 0);
       d_o             : out std_logic_vector(7 downto 0)
     );
   end component;

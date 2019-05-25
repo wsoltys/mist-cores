@@ -71,6 +71,8 @@ entity cv_console is
     clk_en_10m7_i   : in  std_logic;
     reset_n_i       : in  std_logic;
     sg1000          : in  std_logic;
+    sg1000_row_o    : out std_logic_vector( 2 downto 0);
+    sg1000_col_i    : in  std_logic_vector(11 downto 0);
     dahjeeA_i       : in  std_logic;  -- SG-1000 RAM extension at 0x2000-0x3fff
     por_n_o         : out std_logic;
     -- Controller Interface ---------------------------------------------------
@@ -250,6 +252,9 @@ architecture struct of cv_console is
   signal cart_page_s      : std_logic_vector(5 downto 0);
 
   signal cart_en_sg1000_n_s : std_logic;
+  signal pa_r_sg1000_n_s : std_logic;
+  signal pb_r_sg1000_n_s : std_logic;
+  signal pc_w_sg1000_n_s : std_logic;
 
   -- misc signals
   signal vdd_s            : std_logic;
@@ -476,7 +481,10 @@ begin
       cart_en_a0_n_o  => cart_en_a0_n_s,
       cart_en_c0_n_o  => cart_en_c0_n_s,
       cart_en_e0_n_o  => cart_en_e0_n_s,
-      cart_en_sg1000_n_o=> cart_en_sg1000_n_s
+      cart_en_sg1000_n_o=> cart_en_sg1000_n_s,
+      pa_r_sg1000_n_o => pa_r_sg1000_n_s,
+      pb_r_sg1000_n_o => pb_r_sg1000_n_s,
+      pc_w_sg1000_n_o => pc_w_sg1000_n_s
     );
 
   bios_rom_ce_n_o <= bios_rom_ce_n_s;
@@ -507,6 +515,8 @@ begin
       cart_en_c0_n_i  => cart_en_c0_n_s,
       cart_en_e0_n_i  => cart_en_e0_n_s,
       cart_en_sg1000_n_i => cart_en_sg1000_n_s,
+      pa_r_sg1000_n_i => pa_r_sg1000_n_s,
+      pb_r_sg1000_n_i => pb_r_sg1000_n_s,
       ay_data_rd_n_i  => ay_data_rd_n_s,
       bios_rom_d_i    => bios_rom_d_i,
       cpu_ram_d_i     => cpu_ram_d_i,
@@ -514,9 +524,20 @@ begin
       ctrl_d_i        => d_to_ctrl_s,
       cart_d_i        => cart_d_i,
       ay_d_i          => ay_d_s,
+      col_sg1000_i    => sg1000_col_i,
       d_o             => d_to_cpu_s
     );
 
+  sg1000_row : process (clk_i, reset_n_s, m1_n_s)
+  begin
+    if reset_n_s = '0' then
+      sg1000_row_o <= (others => '0');
+    elsif clk_i'event and clk_i = '1' then
+      if pc_w_sg1000_n_s = '0' then
+        sg1000_row_o <= d_from_cpu_s(2 downto 0);
+      end if;
+    end if;
+  end process sg1000_row;
 
   -----------------------------------------------------------------------------
   -- Misc outputs

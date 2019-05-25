@@ -78,7 +78,10 @@ entity cv_addr_dec is
     cart_en_a0_n_o  : out std_logic;
     cart_en_c0_n_o  : out std_logic;
     cart_en_e0_n_o  : out std_logic;
-    cart_en_sg1000_n_o: out std_logic
+    cart_en_sg1000_n_o: out std_logic;
+    pa_r_sg1000_n_o : out std_logic;
+    pb_r_sg1000_n_o : out std_logic;
+    pc_w_sg1000_n_o : out std_logic
   );
 
 end cv_addr_dec;
@@ -128,6 +131,9 @@ begin
     cart_en_c0_n_o  <= '1';
     cart_en_e0_n_o  <= '1';
     cart_en_sg1000_n_o <='1';
+    pa_r_sg1000_n_o <= '1';
+    pb_r_sg1000_n_o <= '1';
+    pc_w_sg1000_n_o <= '1';
 
     if sg1000 = '0' and (
        cart_pages_i = "000011" or --  64k
@@ -239,6 +245,21 @@ begin
           when others =>
             null;
         end case;
+
+        -- sg1000/sc3000 i8255
+        if a_i(5) = '0' then
+            if rd_n_i = '0' then
+                if a_i(1 downto 0) = "00" then
+                    pa_r_sg1000_n_o <= '0';
+                elsif a_i(1 downto 0) = "01" then
+                    pb_r_sg1000_n_o <= '0';
+                end if;
+            end if;
+
+            if wr_n_i = '0' and a_i(1 downto 0) = "10" then
+                pc_w_sg1000_n_o <= '0';
+            end if;
+        end if;
       end if;
 
       if a_i(7 downto 0) = x"50" and wr_n_i = '0' then

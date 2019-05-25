@@ -59,6 +59,8 @@ entity cv_bus_mux is
     cart_en_c0_n_i  : in  std_logic;
     cart_en_e0_n_i  : in  std_logic;
     cart_en_sg1000_n_i : in std_logic;
+    pa_r_sg1000_n_i : in  std_logic;
+    pb_r_sg1000_n_i : in  std_logic;
     ay_data_rd_n_i  : in  std_logic;
     bios_rom_d_i    : in  std_logic_vector(7 downto 0);
     cpu_ram_d_i     : in  std_logic_vector(7 downto 0);
@@ -66,6 +68,7 @@ entity cv_bus_mux is
     ctrl_d_i        : in  std_logic_vector(7 downto 0);
     cart_d_i        : in  std_logic_vector(7 downto 0);
     ay_d_i          : in  std_logic_vector(7 downto 0);
+    col_sg1000_i    : in  std_logic_vector(11 downto 0);
     d_o             : out std_logic_vector(7 downto 0)
   );
 
@@ -90,6 +93,7 @@ begin
                 cart_en_c0_n_i,  cart_en_e0_n_i,
                 cart_en_sg1000_n_i,
                 cart_d_i,
+                pa_r_sg1000_n_i, pb_r_sg1000_n_i, col_sg1000_i,
                 ay_data_rd_n_i, ay_d_i)
     constant d_inact_c : std_logic_vector(7 downto 0) := (others => '1');
     variable d_bios_v,
@@ -97,6 +101,8 @@ begin
              d_vdp_v,
              d_ctrl_v,
              d_cart_v,
+             d_pa_v,
+             d_pb_v,
              d_ay_v  : std_logic_vector(7 downto 0);
   begin
     -- default assignments
@@ -106,6 +112,8 @@ begin
     d_ctrl_v := d_inact_c;
     d_cart_v := d_inact_c;
     d_ay_v   := d_inact_c;
+    d_pa_v   := d_inact_c;
+    d_pb_v   := d_inact_c;
 
     if bios_rom_ce_n_i = '0' then
       d_bios_v := bios_rom_d_i;
@@ -124,6 +132,13 @@ begin
         cart_en_sg1000_n_i) = '0' then
       d_cart_v := cart_d_i;
     end if;
+    if pa_r_sg1000_n_i = '0' then
+        d_pa_v := col_sg1000_i(7 downto 0);
+    end if;
+    if pb_r_sg1000_n_i = '0' then
+        d_pb_v := "1111" & col_sg1000_i(11 downto 8);
+    end if;
+
     if ay_data_rd_n_i = '0' then
       d_ay_v := ay_d_i;
     end if;
@@ -133,6 +148,8 @@ begin
            d_vdp_v  and
            d_ctrl_v and
            d_cart_v and
+           d_pa_v   and
+           d_pb_v   and
            d_ay_v;
 
   end process mux;
