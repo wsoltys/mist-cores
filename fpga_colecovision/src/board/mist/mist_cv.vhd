@@ -112,10 +112,13 @@ entity mist_cv is
     AUDIO_R : out std_logic;
     
     -- LEDG
-    LED : out std_logic
+    LED : out std_logic;
+
+    UART_RX : in std_logic;
+    UART_TX : out std_logic
 
     );
-  
+
 end mist_cv;
 
 architecture rtl of mist_cv is
@@ -387,6 +390,10 @@ END COMPONENT;
   signal ram_ready          : std_logic;
   signal sg1000             : std_logic;
   signal dahjeeA            : std_logic;
+  signal sg1000_row         : std_logic_vector(2 downto 0);
+  signal sg1000_col         : std_logic_vector(11 downto 0);
+  signal uart_rx_d          : std_logic;
+  signal uart_rx_d2         : std_logic;
 
 begin
 
@@ -402,6 +409,16 @@ begin
       );
       
   SDRAM_CLK <= not clk_mem_s;
+
+  UART_TX <= '1';
+  uart: process (clk_21m3_s)
+  begin
+    if clk_21m3_s'event and clk_21m3_s = '1' then
+        uart_rx_d <= UART_RX;
+        uart_rx_d2 <= uart_rx_d;
+    end if;
+  end process;
+
   -----------------------------------------------------------------------------
   -- Process clk_cnt
   --
@@ -466,6 +483,9 @@ begin
       clk_en_10m7_i   => clk_en_10m7_q,
       reset_n_i       => reset_n_s,
       sg1000          => sg1000,
+      sg1000_row_o    => sg1000_row,
+      sg1000_col_i    => sg1000_col,
+      sg1000_tap_i    => uart_rx_d2,
       dahjeeA_i       => dahjeeA,
       por_n_o         => por_n_s,
       ctrl_p1_i       => ctrl_p1_s,
@@ -531,9 +551,10 @@ begin
   cpu_ram_we_s <= clk_en_10m7_q and
                   not (cpu_ram_we_n_s or cpu_ram_ce_n_s);
   ram_a_s <=           cpu_ram_a_s(14 downto 0) when (sg1000 = '1' and dahjeeA = '1')
+        else     "1" & cpu_ram_a_s(13 downto 0) when (sg1000 = '1' and cpu_ram_a_s(14) = '0') -- 16k at $8000 for Basic/The Castle/Othello
         else    "00" & cpu_ram_a_s(12 downto 0) when status(5 downto 4) = "01" -- 8k
         else "00000" & cpu_ram_a_s( 9 downto 0) when status(5 downto 4) = "00" -- 1k
-        else    "00" & cpu_ram_a_s(12 downto 0) when sg1000 = '1' -- SGM means 8k on SG1000
+        else     "0" & cpu_ram_a_s(13 downto 0) when sg1000 = '1' -- SGM means 16k on SG1000
         else cpu_ram_a_s; -- SGM/32k
 
   cpu_ram_b : entity work.spram
@@ -578,8 +599,11 @@ begin
       ps2_data 		=> ps2Data,
   
       -- user outputs
-      keys				=> ps2_keys_s,
-      joy					=> ps2_joy_s
+      keys          => ps2_keys_s,
+      joy           => ps2_joy_s,
+
+      sg1000_row    => sg1000_row,
+      sg1000_col    => sg1000_col
     );
 
   joya <= joy0(7 downto 0) when status(6) = '0' else joy1(7 downto 0);
@@ -590,7 +614,7 @@ begin
   -- Purpose:
   --   Maps the gamepad signals to the controller buses of the console.
   --
-  pad_ctrl: process (clk_21m3_s, ctrl_p5_s, ctrl_p8_s, ps2_keys_s, ps2_joy_s, joy0, joy1, status)
+  pad_ctrl: process (clk_21m3_s, ctrl_p5_s, ctrl_p8_s, ps2_keys_s, ps2_joy_s, joya, joyb, status)
     variable key_v : natural range cv_keys_t'range;
     variable quadr_in : std_logic_vector(1 downto 0);
     variable joy: std_logic_vector(7 downto 0);

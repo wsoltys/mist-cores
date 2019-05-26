@@ -281,7 +281,7 @@ set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
 set_global_assignment -name TIMEQUEST_MULTICORNER_ANALYSIS ON
 set_global_assignment -name SMART_RECOMPILE ON
 set_global_assignment -name ENABLE_SIGNALTAP OFF
-set_global_assignment -name USE_SIGNALTAP_FILE ../../../syn/mist/rom.stp
+set_global_assignment -name USE_SIGNALTAP_FILE ../../../syn/mist/kbd.stp
 set_global_assignment -name VHDL_FILE ps2kbd.vhd
 set_global_assignment -name VHDL_FILE ps2kbd_pkg.vhd
 set_global_assignment -name VHDL_FILE keyboard.vhd
@@ -339,4 +339,9 @@ set_global_assignment -name VHDL_FILE ../../board/mist/mist_cv.vhd
 set_global_assignment -name QIP_FILE ../../board/mist/mist_pll.qip
 set_global_assignment -name SIGNALTAP_FILE ../../../syn/mist/rom.stp
 set_global_assignment -name SIGNALTAP_FILE ../../../syn/mist/vdp.stp
+set_global_assignment -name SIGNALTAP_FILE ../../../syn/mist/kbd.stp
+set_instance_assignment -name CURRENT_STRENGTH_NEW 8MA -to VGA_VS
+set_instance_assignment -name CURRENT_STRENGTH_NEW 8MA -to VGA_HS
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to UART_TX
+set_instance_assignment -name FAST_INPUT_REGISTER ON -to UART_RX
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
